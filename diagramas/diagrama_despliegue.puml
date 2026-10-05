@@ -1,0 +1,38 @@
+@startuml Diagrama_Despliegue
+node "Dispositivo del Usuario (PC/Móvil)" as Cliente {
+    node "Navegador Web" {
+        component "Frontend (HTML/CSS/JS o SPA)" as SPA
+    }
+}
+
+node "Servidor de Aplicaciones" as AppServer {
+    node "Contenedor Web (e.g., Tomcat / Node / Gunicorn)" {
+        component "Aplicación Backend (MVC)" as Backend {
+            component "Controladores"
+            component "Lógica de Negocio"
+            component "Acceso a Datos (ORM/DAO)"
+        }
+    }
+}
+
+node "Servidor de Base de Datos" as DBServer {
+    database "RDBMS (PostgreSQL / MySQL)" as BD {
+        artifact "Esquema Elecciones"
+        artifact "Esquema Padrón"
+    }
+}
+
+SPA -- Backend : HTTPS / API REST
+Backend -- BD : TCP/IP (JDBC/ODBC/ORM Driver)
+
+note right of Cliente
+  Accesible desde navegadores
+  web estándar (RNF03)
+end note
+
+note right of AppServer
+  Escalable para soportar
+  votación concurrente (RNF04)
+end note
+
+@enduml

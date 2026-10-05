@@ -1,0 +1,42 @@
+@startuml Diagrama_Secuencia_Sortear_Mesa
+actor "Comité Electoral" as Comite
+boundary "SorteoMesaView" as Vista
+control "SorteoMesaController" as Controlador
+database "DocenteRepository" as DocRepo
+database "MesaElectoralRepository" as MesaRepo
+entity "MesaElectoral" as Mesa
+
+Comite -> Vista: iniciarSorteo(idProceso)
+activate Vista
+Vista -> Controlador: ejecutarSorteo(idProceso, numSuplentes)
+activate Controlador
+
+Controlador -> DocRepo: obtenerHabilitadosParaSorteo(idProceso)
+activate DocRepo
+DocRepo --> Controlador: listadoHabilitados
+deactivate DocRepo
+
+Controlador -> Controlador: excluirCargosAdministrativos(listadoHabilitados)
+note right of Controlador: Se contrasta Docente.CargoActual\ncon CargoExcluidoSorteo\ny se valida estaVigente()
+
+Controlador -> Controlador: excluirCandidatos(listadoHabilitados)
+note right of Controlador: Se excluyen los docentes\nque postulan en el idProceso
+
+note over Controlador: Queda el universo de docentes sorteables
+
+loop Por cada MesaElectoral necesaria
+    Controlador -> Controlador: seleccionar aleatoriamente (3 titulares + numSuplentes)
+    Controlador -> Controlador: asignarRoles(Presidente, Secretario, Vocal) y tipo(Titular/Suplente)
+    
+    Controlador -> Mesa: crear(numeroMesa, fechaSorteo)
+    Controlador -> Mesa: asignarMiembros(seleccionados)
+    
+    Controlador -> MesaRepo: guardar(MesaElectoral)
+end
+
+Controlador --> Vista: List<MesaElectoral>
+deactivate Controlador
+
+Vista --> Comite: mostrarResultadosSorteo()
+deactivate Vista
+@enduml

@@ -1,0 +1,261 @@
+@startuml Diagrama_Clases_Diseno
+skinparam classAttributeIconSize 0
+
+package "Capa de Presentación (Boundary)" {
+    class EmisionVotoView {
+        + mostrarFormularioVoto(idCargo: int)
+        + confirmarVoto()
+        + mostrarMensajeExito()
+    }
+
+    class SorteoMesaView {
+        + iniciarSorteo(idProceso: int)
+        + mostrarResultadosSorteo()
+    }
+
+    class InscripcionListaView {
+        + mostrarFormularioInscripcion(idCargo: int)
+        + confirmarInscripcion()
+    }
+}
+
+package "Capa de Lógica de Negocio (Control)" {
+    class VotacionController {
+        + validarHabilitacion(idDocente: int, idCargo: int): boolean
+        + registrarVoto(idCargo: int, idLista: int): void
+    }
+
+    class SorteoMesaController {
+        + ejecutarSorteo(idProceso: int): List<MesaElectoral>
+        - excluirCargosAdministrativos(candidatos: List<Docente>): List<Docente>
+        - excluirCandidatos(candidatos: List<Docente>): List<Docente>
+    }
+
+    class PadronController {
+        + generarPadronElectoral(idProceso: int, idCargo: int): void
+    }
+
+    class ProcesoElectoralController {
+        + crearProceso(nombre: String): ProcesoElectoral
+        + verificarQuorum(idProceso: int): boolean
+    }
+}
+
+package "Capa de Entidades (Entity)" {
+    class Docente {
+        - id: int
+        - dni: String
+        - nombres: String
+        - apellidos: String
+        - categoria: String
+        - dedicacion: String
+        - idFacultad: int
+        - idDepartamento: int
+        - estado: String
+    }
+
+    class CargoActual {
+        - id: int
+        - nombreCargo: String
+        - fechaInicio: Date
+        - fechaFin: Date
+        + estaVigente(): boolean
+    }
+
+    class CargoExcluidoSorteo {
+        - id: int
+        - nombreCargo: String
+        - nivel: String
+    }
+
+    class ProcesoElectoral {
+        - id: int
+        - nombre: String
+        - fechaInicio: Date
+        - fechaFin: Date
+        - estado: String
+        - tipo: String
+        - quorumMinimo: double
+    }
+
+    class Cargo {
+        - id: int
+        - nombre: String
+        - nivelJurisdiccion: String
+        - idJurisdiccion: int
+        - categoriasPermitidas: List<String>
+    }
+
+    class ListaElectoral {
+        - id: int
+        - nombre: String
+        - simbolo: String
+        - ordenCedula: int
+        - estado: String
+    }
+
+    class Candidato {
+        - id: int
+        - rolEnLista: String
+        - estadoValidacion: String
+        - fechaInscripcion: Date
+    }
+
+    class Tacha {
+        - id: int
+        - motivo: String
+        - estado: String
+        - fechaPresentacion: Date
+        - fechaResolucion: Date
+    }
+
+    class Personero {
+        - id: int
+        - tipo: String
+    }
+
+    class PadronElectoral {
+        - id: int
+        - habilitadoParaVotar: boolean
+        - yaVoto: boolean
+        - fechaFirmaDigital: Date
+    }
+
+    class MesaElectoral {
+        - id: int
+        - numero: int
+        - ubicacion: String
+    }
+
+    class MiembroMesa {
+        - id: int
+        - rol: String
+    }
+
+    class Voto {
+        - id: int
+        - fechaHora: Date
+    }
+
+    class ActaElectoral {
+        - id: int
+        - tipo: String
+        - contenidoJson: String
+        - hashIntegridad: String
+        - tokenQR: String
+        - fechaEmision: Date
+    }
+
+    class LogAuditoria {
+        - id: int
+        - ipOrigen: String
+        - userAgent: String
+        - fechaHora: Date
+        - accion: String
+    }
+
+    class ConstanciaVoto {
+        - id: int
+        - tokenQR: String
+        - fechaEmision: Date
+    }
+
+    class Usuario {
+        - id: int
+        - username: String
+        - passwordHash: String
+        - rol: String
+    }
+}
+
+package "Capa de Acceso a Datos (Repository)" {
+    interface VotoRepository {
+        + guardarVoto(voto: Voto): void
+    }
+
+    interface PadronElectoralRepository {
+        + marcarComoVotado(idDocente: int, idCargo: int): void
+        + verificarSiVoto(idDocente: int, idCargo: int): boolean
+        + generar(idProceso: int, idCargo: int): void
+    }
+
+    interface DocenteRepository {
+        + obtenerHabilitadosParaSorteo(idProceso: int): List<Docente>
+    }
+
+    interface MesaElectoralRepository {
+        + guardar(mesa: MesaElectoral): void
+    }
+
+    interface ListaElectoralRepository {
+        + obtenerPorCargo(idCargo: int): List<ListaElectoral>
+    }
+}
+
+' ==== RELACIONES BOUNDARY → CONTROL ====
+EmisionVotoView --> VotacionController
+SorteoMesaView --> SorteoMesaController
+InscripcionListaView --> ProcesoElectoralController
+
+' ==== RELACIONES CONTROL → REPOSITORY ====
+VotacionController --> PadronElectoralRepository
+VotacionController --> VotoRepository
+SorteoMesaController --> DocenteRepository
+SorteoMesaController --> MesaElectoralRepository
+PadronController --> PadronElectoralRepository
+ProcesoElectoralController --> ListaElectoralRepository
+
+' ==== RELACIONES ENTRE ENTIDADES ====
+Docente "1" -- "0..1" CargoActual
+CargoActual "*" -- "0..*" CargoExcluidoSorteo : "se contrasta contra"
+
+ProcesoElectoral "1" *-- "*" Cargo
+Cargo "1" *-- "*" ListaElectoral
+ListaElectoral "1" *-- "1..*" Candidato
+Docente "1" -- "*" Candidato
+
+Docente "1" -- "*" Tacha : "denuncia"
+Candidato "1" -- "*" Tacha : "es tachado"
+
+ListaElectoral "1" -- "*" Personero
+Docente "1" -- "*" Personero
+
+Cargo "1" *-- "*" PadronElectoral
+Docente "1" -- "*" PadronElectoral
+
+ProcesoElectoral "1" *-- "*" MesaElectoral
+MesaElectoral "1" *-- "6" MiembroMesa
+Docente "1" -- "*" MiembroMesa
+
+Cargo "1" -- "*" Voto
+ListaElectoral "1" -- "*" Voto : "opción elegida"
+
+MesaElectoral "1" *-- "3" ActaElectoral
+
+Docente "1" -- "*" LogAuditoria
+Docente "1" -- "*" ConstanciaVoto
+Cargo "1" -- "*" ConstanciaVoto
+Docente "1" -- "0..1" Usuario
+
+note right of Voto
+  Voto NO tiene relación con Docente
+  ni con PadronElectoral: el vínculo
+  entre "quién votó" y "qué votó" solo
+  existe dentro de la transacción del
+  Stored Procedure, nunca en el esquema.
+  El voto apunta a ListaElectoral
+  (fórmula), no a un candidato individual.
+end note
+
+note bottom of CargoExcluidoSorteo
+  Catálogo editable por el CEUNP
+  (no fijo en código).
+end note
+
+note bottom of ActaElectoral
+  Cada mesa genera 3 actas:
+  Instalación, Sufragio y Escrutinio.
+  El hash SHA-256 garantiza integridad.
+end note
+
+@enduml

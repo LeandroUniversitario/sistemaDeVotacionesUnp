@@ -1,0 +1,224 @@
+Table facultad {
+  id_facultad integer [primary key, increment]
+  nombre varchar [not null]
+}
+
+Table departamento {
+  id_departamento integer [primary key, increment]
+  id_facultad integer [not null]
+  nombre varchar [not null]
+}
+
+Table docente {
+  id_docente integer [primary key, increment]
+  dni varchar [unique, not null]
+  nombres varchar [not null]
+  apellidos varchar [not null]
+  categoria varchar [not null]
+  dedicacion varchar [not null]
+  estado varchar [not null]
+  id_facultad integer [not null]
+  id_departamento integer [not null]
+}
+
+Table cargo_admin {
+  id_cargo_admin integer [primary key, increment]
+  id_docente integer [not null]
+  nombre_cargo varchar [not null]
+  fecha_inicio date [not null]
+  fecha_fin date
+  vigente boolean
+}
+
+Table cargo_excluido_sorteo {
+  id_cargo_excluido integer [primary key, increment]
+  nombre_cargo varchar [not null]
+  nivel varchar [not null]
+}
+
+Table proceso_electoral {
+  id_proceso integer [primary key, increment]
+  nombre varchar [not null]
+  fecha_inicio timestamp [not null]
+  fecha_fin timestamp [not null]
+  estado varchar [not null]
+  tipo varchar [not null, note: 'PRIMERA_VUELTA / SEGUNDA_VUELTA']
+  id_proceso_padre integer [note: 'FK a sí misma, solo en segunda vuelta']
+  quorum_minimo decimal [not null, note: 'Ej: 60.0 = 60%']
+}
+
+Table cargo_electoral {
+  id_cargo integer [primary key, increment]
+  id_proceso integer [not null]
+  nombre varchar [not null]
+  nivel_jurisdiccion varchar [not null]
+  id_jurisdiccion integer
+  categorias_permitidas varchar [not null]
+}
+
+Table lista_electoral {
+  id_lista integer [primary key, increment]
+  id_cargo integer [not null]
+  nombre varchar [not null]
+  simbolo varchar
+  orden_cedula integer [note: 'Orden sorteado en la cédula']
+  estado varchar [not null, note: 'INSCRITA / ADMITIDA / TACHADA / EXCLUIDA']
+  url_plan_gobierno varchar [note: 'RN15: Publicación pública obligatoria']
+  fecha_inscripcion timestamp
+}
+
+Table candidato {
+  id_candidato integer [primary key, increment]
+  id_lista integer [not null]
+  id_docente integer [not null]
+  rol_en_lista varchar [not null, note: 'RECTOR / VICERRECTOR_ACADEMICO / VICERRECTOR_INVESTIGACION']
+  estado_validacion varchar
+  url_hoja_vida varchar [note: 'RN15: CV público del candidato']
+  fecha_inscripcion timestamp
+}
+
+Table tacha {
+  id_tacha integer [primary key, increment]
+  id_docente_denunciante integer [not null]
+  id_candidato integer [not null]
+  motivo varchar [not null]
+  estado varchar [not null, note: 'PENDIENTE / FUNDADA / INFUNDADA']
+  fecha_presentacion timestamp
+  fecha_resolucion timestamp
+}
+
+Table personero {
+  id_personero integer [primary key, increment]
+  id_lista integer [not null]
+  id_docente integer [not null]
+  tipo varchar [not null, note: 'GENERAL / ALTERNO / MESA']
+  id_mesa integer [note: 'Solo para personeros de MESA']
+  qr_credencial varchar [unique, not null, note: 'RF51: Credencial digital para acreditarse']
+}
+
+Table padron_electoral {
+  id_cargo integer [primary key]
+  id_docente integer [primary key]
+  habilitado_para_votar boolean
+  qr_acceso varchar [unique, not null, note: 'RF62: Pase de abordar para votar']
+  ya_voto boolean
+  fecha_firma_digital timestamp
+}
+
+Table mesa_electoral {
+  id_mesa integer [primary key, increment]
+  id_proceso integer [not null]
+  numero_mesa varchar [not null]
+  ubicacion varchar [not null]
+}
+
+Table miembro_mesa {
+  id_mesa integer [primary key]
+  id_docente integer [primary key]
+  rol varchar [not null, note: 'Presidente / Secretario / Vocal / Suplente1 / Suplente2 / Suplente3']
+  qr_credencial varchar [unique, not null, note: 'RF56: Fotocheck digital de autoridad de mesa']
+}
+
+Table multa {
+  id_multa integer [primary key, increment]
+  id_docente integer [not null]
+  id_proceso integer [not null]
+  motivo varchar [not null, note: 'OMISO_VOTACION / OMISO_MESA']
+  monto decimal [not null, note: 'RN35: 2.5% o 3% de la UIT']
+  estado_pago varchar [not null, note: 'PENDIENTE / PAGADA / EXONERADA']
+  fecha_generacion timestamp
+}
+
+Table voto {
+  id_voto integer [primary key, increment]
+  id_cargo integer [not null]
+  id_lista_elegida integer [note: 'NULL = Voto en blanco']
+  fecha_hora timestamp
+}
+
+Table acta_electoral {
+  id_acta integer [primary key, increment]
+  id_mesa integer [not null]
+  tipo varchar [not null, note: 'INSTALACION / SUFRAGIO / ESCRUTINIO']
+  contenido_json varchar [note: 'Datos estructurados del acta']
+  hash_integridad varchar [not null, note: 'SHA-256 del contenido']
+  token_qr varchar [unique, not null]
+  fecha_emision timestamp
+  firmado_por varchar [note: 'Nombres de los miembros que firman']
+}
+
+Table log_auditoria {
+  id_log integer [primary key, increment]
+  id_docente integer [not null]
+  id_cargo integer [not null]
+  ip_origen varchar [not null]
+  user_agent varchar
+  fecha_hora timestamp
+  accion varchar [not null]
+}
+
+Table constancia_voto {
+  id_constancia integer [primary key, increment]
+  id_docente integer [not null]
+  id_cargo integer [not null]
+  token_qr varchar [unique, not null]
+  fecha_emision timestamp
+}
+
+Table usuario {
+  id_usuario integer [primary key, increment]
+  id_docente integer
+  username varchar [unique, not null]
+  password_hash varchar [not null]
+  rol varchar [not null]
+}
+
+Table sesion_activa {
+  id_sesion integer [primary key, increment]
+  id_usuario integer [not null]
+  token varchar [unique, not null]
+  fecha_inicio timestamp [not null]
+  fecha_expiracion timestamp [not null]
+}
+
+// =============================================
+// RELACIONES (Foreign Keys)
+// =============================================
+
+// Módulo Universidad
+Ref: departamento.id_facultad > facultad.id_facultad
+Ref: docente.id_facultad > facultad.id_facultad
+Ref: docente.id_departamento > departamento.id_departamento
+Ref: cargo_admin.id_docente > docente.id_docente
+
+// Módulo Proceso Electoral
+Ref: proceso_electoral.id_proceso_padre > proceso_electoral.id_proceso
+Ref: cargo_electoral.id_proceso > proceso_electoral.id_proceso
+Ref: lista_electoral.id_cargo > cargo_electoral.id_cargo
+Ref: candidato.id_lista > lista_electoral.id_lista
+Ref: candidato.id_docente > docente.id_docente
+Ref: tacha.id_docente_denunciante > docente.id_docente
+Ref: tacha.id_candidato > candidato.id_candidato
+Ref: personero.id_lista > lista_electoral.id_lista
+Ref: personero.id_docente > docente.id_docente
+Ref: personero.id_mesa > mesa_electoral.id_mesa
+
+// Módulo Votación y Mesas
+Ref: padron_electoral.id_cargo > cargo_electoral.id_cargo
+Ref: padron_electoral.id_docente > docente.id_docente
+Ref: mesa_electoral.id_proceso > proceso_electoral.id_proceso
+Ref: miembro_mesa.id_mesa > mesa_electoral.id_mesa
+Ref: miembro_mesa.id_docente > docente.id_docente
+Ref: voto.id_cargo > cargo_electoral.id_cargo
+Ref: voto.id_lista_elegida > lista_electoral.id_lista
+Ref: acta_electoral.id_mesa > mesa_electoral.id_mesa
+
+// Módulo Auditoría y Seguridad
+Ref: log_auditoria.id_docente > docente.id_docente
+Ref: log_auditoria.id_cargo > cargo_electoral.id_cargo
+Ref: constancia_voto.id_docente > docente.id_docente
+Ref: constancia_voto.id_cargo > cargo_electoral.id_cargo
+Ref: usuario.id_docente > docente.id_docente
+Ref: sesion_activa.id_usuario > usuario.id_usuario
+Ref: multa.id_docente > docente.id_docente
+Ref: multa.id_proceso > proceso_electoral.id_proceso

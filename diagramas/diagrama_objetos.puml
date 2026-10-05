@@ -1,0 +1,121 @@
+@startuml Diagrama_Objetos
+skinparam objectAttributeIconSize 0
+
+object "proceso2026 : ProcesoElectoral" as proceso2026 {
+  id = 1
+  descripcion = "Elecciones Universitarias 2026"
+  fechaInicio = "2026-10-01"
+  estado = "EN_CURSO"
+}
+
+object "cargoRector : Cargo" as cargoRector {
+  id = 10
+  nombre = "Rector"
+  categoriasPermitidas = ["Principal"]
+}
+
+object "docenteMaria : Docente" as docenteMaria {
+  id = 101
+  dni = "12345678"
+  nombres = "Maria"
+  apellidos = "Gomez"
+  categoria = "Principal"
+}
+
+object "candidaturaMaria : Candidatura" as candidaturaMaria {
+  id = 501
+  estado = "APROBADA"
+  fechaInscripcion = "2026-08-15"
+}
+
+object "docenteJuan : Docente" as docenteJuan {
+  id = 102
+  dni = "87654321"
+  nombres = "Juan"
+  apellidos = "Perez"
+  categoria = "Principal"
+}
+
+object "padronJuan : PadronElectoral" as padronJuan {
+  id = 901
+  haVotado = true
+}
+
+object "docentePedro : Docente" as docentePedro {
+  id = 103
+  dni = "11223344"
+  nombres = "Pedro"
+  apellidos = "Ramirez"
+  categoria = "Principal"
+}
+
+object "cargoDecanoPedro : CargoActual" as cargoDecanoPedro {
+  id = 301
+  nombreCargo = "Decano de Facultad"
+  fechaInicio = "2025-01-01"
+  fechaFin = "2028-12-31"
+}
+
+object "excluidoDecano : CargoExcluidoSorteo" as excluidoDecano {
+  id = 5
+  nombreCargo = "Decano de Facultad"
+  nivel = "Alta Dirección"
+}
+
+object "mesa01 : MesaElectoral" as mesa01 {
+  id = 1
+  numero = 10
+  estado = "INSTALADA"
+  fechaSorteo = "2026-09-01"
+}
+
+object "miembroJuan : MiembroMesa" as miembroJuan {
+  id = 401
+  rol = "Presidente"
+  tipo = "Titular"
+}
+
+object "votoAnonimo1 : Voto" as votoAnonimo1 {
+  id = 1001
+  fechaHora = "2026-10-01 10:15:00"
+}
+
+' Relaciones del Proceso y Cargos
+proceso2026 *-- cargoRector
+proceso2026 *-- mesa01
+
+' Relaciones de la Candidatura
+cargoRector *-- candidaturaMaria
+docenteMaria -- candidaturaMaria
+
+' Relaciones del Padrón
+cargoRector *-- padronJuan
+docenteJuan -- padronJuan
+
+' Relaciones de Mesa (Sorteo)
+mesa01 *-- miembroJuan
+docenteJuan -- miembroJuan
+
+' Relaciones de Exclusión (Sorteo)
+docentePedro -- cargoDecanoPedro
+cargoDecanoPedro -- excluidoDecano : "se contrasta contra"
+
+' Relaciones del Voto
+cargoRector -- votoAnonimo1
+candidaturaMaria -- votoAnonimo1 : "opción elegida"
+
+note right of votoAnonimo1
+  Juan ya votó (padronJuan.haVotado = true)
+  y generó este votoAnonimo1.
+  No existe ninguna línea que conecte
+  a docenteJuan con votoAnonimo1.
+end note
+
+note bottom of docentePedro
+  Pedro no puede ser sorteado
+  para miembro de mesa porque su
+  cargo coincide con el catálogo
+  de exclusión vigente.
+end note
+
+@enduml

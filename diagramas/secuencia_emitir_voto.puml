@@ -1,0 +1,44 @@
+@startuml Diagrama_Secuencia_Emitir_Voto
+actor "Docente Elector" as Elector
+boundary "EmisionVotoView" as Vista
+control "VotacionController" as Controlador
+database "PadronElectoralRepository" as PadronRepo
+database "VotoRepository" as VotoRepo
+
+Elector -> Vista: selecciona "Emitir Voto" por cargo
+activate Vista
+Vista -> Controlador: validarHabilitacion(idDocente, idCargo)
+activate Controlador
+
+Controlador -> PadronRepo: verificarSiVoto(idDocente, idCargo)
+activate PadronRepo
+PadronRepo --> Controlador: boolean (haVotado)
+deactivate PadronRepo
+
+alt Ya ha votado o no está habilitado
+    Controlador --> Vista: false (error)
+    Vista --> Elector: muestra mensaje de error
+else Está habilitado y no ha votado
+    Controlador --> Vista: true (habilitado)
+    Vista --> Elector: muestra opciones de candidaturas
+    
+    Elector -> Vista: selecciona candidato y confirma voto
+    Vista -> Controlador: registrarVoto(idCargo, idCandidato)
+    
+    ' Inicio de transacción
+    note right of Controlador: Inicia transacción para\ngarantizar consistencia
+    
+    ' Marcar en padron
+    Controlador -> PadronRepo: marcarComoVotado(idDocente, idCargo)
+    
+    ' Registrar voto anónimo
+    Controlador -> VotoRepo: guardarVoto(Voto)
+    note right: El Voto se guarda sin\nvínculo al idDocente
+    
+    Controlador --> Vista: voto registrado exitosamente
+    Vista --> Elector: muestra comprobante de votación
+end
+
+deactivate Controlador
+deactivate Vista
+@enduml

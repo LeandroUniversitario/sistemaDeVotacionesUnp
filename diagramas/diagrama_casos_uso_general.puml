@@ -1,0 +1,70 @@
+@startuml Diagrama_Casos_Uso_General
+left to right direction
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam backgroundcolor transparent
+
+skinparam usecase {
+    BackgroundColor #EAF4FC
+    BorderColor #2980B9
+    FontName Helvetica
+    FontSize 14
+    ArrowColor #2980B9
+}
+
+skinparam actor {
+    BackgroundColor #FDEBD0
+    BorderColor #D35400
+    FontName Helvetica
+    FontSize 14
+    FontColor #D35400
+}
+
+skinparam rectangle {
+    BackgroundColor #FAFAFA
+    BorderColor #BDC3C7
+    FontName Helvetica
+    FontSize 16
+    FontStyle bold
+}
+
+actor "CEUNP" as comite
+actor "Administrador" as admin
+actor "Docente elector" as elector
+actor "Lista / Candidato" as candidato
+actor "Personero" as personero
+
+rectangle "Sistema de Control de Elecciones Universitarias" {
+  usecase "Gestionar padrón docente" as UC6
+  usecase "Crear proceso electoral" as UC3
+  usecase "Generar padrón electoral" as UC4
+  usecase "Inscribir lista de candidatos" as UC1
+  usecase "Validar candidatura" as UC2
+  usecase "Resolver tachas" as UC12
+  usecase "Sortear mesa electoral" as UC7
+  usecase "Emitir voto" as UC5
+  usecase "Generar actas y resultados" as UC8
+  usecase "Resolver impugnaciones\ny nulidades" as UC9
+  usecase "Validar habilitación" as UC10
+  usecase "Descargar constancia de voto" as UC11
+  usecase "Acreditar personeros" as UC13
+}
+
+admin --> UC6
+comite --> UC3
+comite --> UC2
+comite --> UC7
+comite --> UC8
+comite --> UC9
+comite --> UC12
+comite --> UC13
+candidato --> UC1
+elector --> UC5
+personero --> UC9
+
+UC3 .> UC4 : <<include>>
+UC5 .> UC10 : <<include>>
+UC1 .> UC10 : <<include>>
+UC11 .> UC5 : <<extend>>
+
+@enduml

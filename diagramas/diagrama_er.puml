@@ -1,0 +1,272 @@
+@startuml Diagrama_Entidad_Relacion
+' Opciones de diseño visual
+skinparam linetype ortho
+skinparam class {
+    BackgroundColor #F9F9F9
+    ArrowColor #2C3E50
+    BorderColor #34495E
+}
+
+' ==========================================
+' MÓDULO: PADRÓN Y UNIVERSIDAD
+' ==========================================
+entity "Facultad" as facultad {
+  * id_facultad : INT <<PK>>
+  --
+  * nombre : VARCHAR
+}
+
+entity "DepartamentoAcademico" as departamento {
+  * id_departamento : INT <<PK>>
+  --
+  * id_facultad : INT <<FK>>
+  * nombre : VARCHAR
+}
+
+entity "Docente" as docente {
+  * id_docente : INT <<PK>>
+  --
+  * dni : VARCHAR(8) <<UNIQUE>>
+  * nombres : VARCHAR
+  * apellidos : VARCHAR
+  * categoria : VARCHAR (Principal, Asociado, Auxiliar)
+  * dedicacion : VARCHAR
+  * estado : VARCHAR (ACTIVO, LICENCIA, SUSPENDIDO)
+  * id_facultad : INT <<FK>>
+  * id_departamento : INT <<FK>>
+}
+
+entity "CargoAdministrativo" as cargo_admin {
+  * id_cargo_admin : INT <<PK>>
+  --
+  * id_docente : INT <<FK>>
+  * nombre_cargo : VARCHAR
+  * fecha_inicio : DATE
+    fecha_fin : DATE
+  * vigente : BOOLEAN
+}
+
+entity "CargoExcluidoSorteo" as cargo_excluido {
+  * id_cargo_excluido : INT <<PK>>
+  --
+  * nombre_cargo : VARCHAR
+  * nivel : VARCHAR
+}
+
+' ==========================================
+' MÓDULO: PROCESO ELECTORAL
+' ==========================================
+entity "ProcesoElectoral" as proceso {
+  * id_proceso : INT <<PK>>
+  --
+  * nombre : VARCHAR
+  * fecha_inicio : DATETIME
+  * fecha_fin : DATETIME
+  * estado : VARCHAR (CREADO, EN_CURSO, FINALIZADO)
+  * tipo : VARCHAR (PRIMERA_VUELTA, SEGUNDA_VUELTA)
+    id_proceso_padre : INT <<FK>>
+  * quorum_minimo : DECIMAL
+}
+
+entity "CargoElectoral" as cargo {
+  * id_cargo : INT <<PK>>
+  --
+  * id_proceso : INT <<FK>>
+  * nombre : VARCHAR
+  * nivel_jurisdiccion : VARCHAR (UNIVERSIDAD, FACULTAD, DEPARTAMENTO)
+  * id_jurisdiccion : INT
+  * categorias_permitidas : VARCHAR
+}
+
+entity "ListaElectoral" as lista {
+  * id_lista : INT <<PK>>
+  --
+  * id_cargo : INT <<FK>>
+  * nombre : VARCHAR
+    simbolo : VARCHAR
+    orden_cedula : INT
+  * estado : VARCHAR (INSCRITA, ADMITIDA, TACHADA, EXCLUIDA)
+    fecha_inscripcion : DATETIME
+}
+
+entity "Candidato" as candidato {
+  * id_candidato : INT <<PK>>
+  --
+  * id_lista : INT <<FK>>
+  * id_docente : INT <<FK>>
+  * rol_en_lista : VARCHAR (RECTOR, VICERRECTOR_ACAD, VICERRECTOR_INV)
+  * estado_validacion : VARCHAR (PENDIENTE, APROBADO, IMPUGNADO)
+    fecha_inscripcion : DATETIME
+}
+
+entity "Tacha" as tacha {
+  * id_tacha : INT <<PK>>
+  --
+  * id_docente_denunciante : INT <<FK>>
+  * id_candidato : INT <<FK>>
+  * motivo : VARCHAR
+  * estado : VARCHAR (PENDIENTE, FUNDADA, INFUNDADA)
+    fecha_presentacion : DATETIME
+    fecha_resolucion : DATETIME
+}
+
+entity "Personero" as personero {
+  * id_personero : INT <<PK>>
+  --
+  * id_lista : INT <<FK>>
+  * id_docente : INT <<FK>>
+  * tipo : VARCHAR (GENERAL, ALTERNO, MESA)
+    id_mesa : INT <<FK>>
+}
+
+' ==========================================
+' MÓDULO: CONTROL DE VOTO Y MESAS
+' ==========================================
+entity "PadronElectoral" as padron {
+  * id_cargo : INT <<PK>> <<FK>>
+  * id_docente : INT <<PK>> <<FK>>
+  --
+  * habilitado_para_votar : BOOLEAN
+  * ya_voto : BOOLEAN
+    fecha_firma_digital : DATETIME
+}
+
+entity "MesaElectoral" as mesa {
+  * id_mesa : INT <<PK>>
+  --
+  * id_proceso : INT <<FK>>
+  * numero_mesa : VARCHAR
+  * ubicacion : VARCHAR
+}
+
+entity "MiembroMesa" as miembro {
+  * id_mesa : INT <<PK>> <<FK>>
+  * id_docente : INT <<PK>> <<FK>>
+  --
+  * rol : VARCHAR (Presidente, Secretario, Vocal, Suplente)
+}
+
+entity "Voto" as voto {
+  * id_voto : INT <<PK>>
+  --
+  * id_cargo : INT <<FK>>
+    id_lista_elegida : INT <<FK>> (NULL = BLANCO)
+  * fecha_hora : DATETIME
+}
+
+entity "ActaElectoral" as acta {
+  * id_acta : INT <<PK>>
+  --
+  * id_mesa : INT <<FK>>
+  * tipo : VARCHAR (INSTALACION, SUFRAGIO, ESCRUTINIO)
+    contenido_json : TEXT
+  * hash_integridad : VARCHAR
+  * token_qr : VARCHAR <<UNIQUE>>
+    fecha_emision : DATETIME
+}
+
+' ==========================================
+' MÓDULO: AUDITORÍA Y SEGURIDAD
+' ==========================================
+entity "LogAuditoria" as log_aud {
+  * id_log : INT <<PK>>
+  --
+  * id_docente : INT <<FK>>
+  * id_cargo : INT <<FK>>
+  * ip_origen : VARCHAR
+    user_agent : VARCHAR
+  * fecha_hora : DATETIME
+  * accion : VARCHAR
+}
+
+entity "ConstanciaVoto" as constancia {
+  * id_constancia : INT <<PK>>
+  --
+  * id_docente : INT <<FK>>
+  * id_cargo : INT <<FK>>
+  * token_qr : VARCHAR <<UNIQUE>>
+  * fecha_emision : DATETIME
+}
+
+entity "Usuario" as usuario {
+  * id_usuario : INT <<PK>>
+  --
+    id_docente : INT <<FK>> (nullable)
+  * username : VARCHAR <<UNIQUE>>
+  * password_hash : VARCHAR
+  * rol : VARCHAR (ADMIN, CEUNP, DOCENTE)
+}
+
+entity "SesionActiva" as sesion {
+  * id_sesion : INT <<PK>>
+  --
+  * id_usuario : INT <<FK>>
+  * token : VARCHAR <<UNIQUE>>
+  * fecha_inicio : DATETIME
+  * fecha_expiracion : DATETIME
+}
+
+' ==========================================
+' RELACIONES (FK)
+' ==========================================
+facultad ||--o{ departamento
+departamento ||--o{ docente
+facultad ||--o{ docente
+docente ||--o{ cargo_admin
+
+proceso ||--o{ cargo
+proceso |o--o| proceso : "segunda vuelta"
+
+cargo ||--o{ lista
+lista ||--o{ candidato
+docente ||--o{ candidato
+
+docente ||--o{ tacha : "denuncia"
+candidato ||--o{ tacha : "es tachado"
+
+lista ||--o{ personero
+docente ||--o{ personero
+
+cargo ||--o{ padron
+docente ||--o{ padron
+
+proceso ||--o{ mesa
+mesa ||--o{ miembro
+docente ||--o{ miembro
+
+cargo ||--o{ voto
+lista |o--o{ voto
+
+mesa ||--o{ acta
+
+docente ||--o{ log_aud
+cargo ||--o{ log_aud
+
+docente ||--o{ constancia
+cargo ||--o{ constancia
+
+docente |o--o| usuario
+usuario ||--o{ sesion
+
+note bottom of voto
+  **CRÍTICO (Secreto del Voto):**
+  La tabla Voto NO TIENE FK a Docente.
+  Apunta a ListaElectoral (fórmula),
+  no a un candidato individual.
+  Un Stored Procedure atómico asegura
+  que al insertar aquí, se actualice
+  ya_voto = TRUE en PadronElectoral.
+end note
+
+note bottom of cargo_excluido
+  Catálogo editable por el CEUNP
+  (no fijo en código).
+end note
+
+note bottom of acta
+  Cada mesa genera 3 actas.
+  El hash SHA-256 garantiza
+  la integridad del documento.
+end note
+
+@enduml

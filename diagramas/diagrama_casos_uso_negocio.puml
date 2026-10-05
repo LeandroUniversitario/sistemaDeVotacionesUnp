@@ -1,0 +1,113 @@
+@startuml Diagrama_Casos_Uso_Negocio
+left to right direction
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam backgroundcolor transparent
+
+' Estilos para Casos de Uso del Negocio (CUN)
+' Se usa un color diferente al del sistema para distinguirlos visualmente
+skinparam usecase {
+    BackgroundColor #FEF9E7
+    BorderColor #F39C12
+    FontName Helvetica
+    FontSize 14
+    ArrowColor #F39C12
+}
+
+' Estilos para Actores y Trabajadores del Negocio
+skinparam actor {
+    BackgroundColor #E8F8F5
+    BorderColor #1ABC9C
+    FontName Helvetica
+    FontSize 14
+    FontColor #1ABC9C
+}
+
+skinparam rectangle {
+    BackgroundColor #FAFAFA
+    BorderColor #BDC3C7
+    FontName Helvetica
+    FontSize 16
+    FontStyle bold
+}
+
+' ==========================================
+' ACTORES Y TRABAJADORES DEL NEGOCIO
+' ==========================================
+actor "CEUNP" as ceunp <<Trabajador>>
+actor "Docente Elector" as elector <<Cliente>>
+actor "Lista / Candidatos" as lista <<Cliente>>
+actor "Personero (General/Mesa)" as personero <<Trabajador>>
+actor "Miembro de Mesa" as miembro <<Trabajador>>
+
+' Actores Externos (Instituciones)
+actor "Recursos Humanos" as rrhh <<Externo>>
+actor "ONPE" as onpe <<Externo>>
+actor "PNP / Fiscalía" as pnp <<Externo>>
+
+' ==========================================
+' CASOS DE USO DEL NEGOCIO (CUN)
+' ==========================================
+rectangle "Proceso de Elecciones Universitarias UNP (Negocio)" {
+    usecase "CUN01: Convocar elecciones" as CUN01
+    usecase "CUN02: Elaborar y publicar el padrón electoral" as CUN02
+    usecase "CUN03: Inscribir lista de candidatos" as CUN03
+    usecase "CUN04: Resolver tachas" as CUN04
+    usecase "CUN05: Acreditar personeros" as CUN05
+    usecase "CUN06: Sortear orden de listas y miembros de mesa" as CUN06
+    usecase "CUN07: Instalar mesa de sufragio" as CUN07
+    usecase "CUN08: Emitir voto" as CUN08
+    usecase "CUN09: Realizar escrutinio y levantar actas" as CUN09
+    usecase "CUN10: Resolver impugnaciones y nulidades" as CUN10
+    usecase "CUN11: Computar y proclamar resultados" as CUN11
+    usecase "CUN12: Aplicar multas por omisión" as CUN12
+}
+
+' ==========================================
+' RELACIONES
+' ==========================================
+
+' CEUNP participa en casi toda la gestión y resolución
+ceunp --> CUN01
+ceunp --> CUN02
+ceunp --> CUN03
+ceunp --> CUN04
+ceunp --> CUN05
+ceunp --> CUN06
+ceunp --> CUN10
+ceunp --> CUN11
+ceunp --> CUN12
+
+' Recursos Humanos provee datos
+rrhh --> CUN02
+
+' ONPE asesora
+onpe --> CUN06
+onpe --> CUN11
+
+' PNP da seguridad
+pnp --> CUN07
+pnp --> CUN08
+pnp --> CUN09
+
+' Listas y Candidatos
+lista --> CUN03
+
+' Personeros fiscalizan
+lista --> CUN05
+personero --> CUN06
+personero --> CUN07
+personero --> CUN08
+personero --> CUN09
+personero --> CUN10
+
+' Docente Elector
+elector --> CUN04 : "Presenta Tacha"
+elector --> CUN08 : "Vota"
+
+' Miembros de Mesa ejecutan el día de la elección
+miembro --> CUN07
+miembro --> CUN08
+miembro --> CUN09
+
+@enduml
