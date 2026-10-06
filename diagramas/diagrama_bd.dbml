@@ -147,6 +147,45 @@ Table acta_electoral {
   firmado_por varchar [note: 'Nombres de los miembros que firman']
 }
 
+Table firma_acta {
+  id_firma integer [primary key, increment]
+  id_acta integer [not null]
+  id_docente integer [not null]
+  rol varchar [not null]
+  firma_digital varchar [not null]
+  fecha_firma timestamp [not null]
+  indexes {
+    (id_acta, id_docente) [unique]
+  }
+}
+
+Table observacion_electoral {
+  id_observacion integer [primary key, increment]
+  id_personero integer [not null]
+  id_proceso integer [not null]
+  id_mesa integer
+  id_acta integer
+  descripcion text [not null]
+  estado varchar [not null, note: 'PENDIENTE / ATENDIDA / RECHAZADA']
+  respuesta_ceunp text
+  fecha_registro timestamp [not null]
+  fecha_respuesta timestamp
+}
+
+Table impugnacion_electoral {
+  id_impugnacion integer [primary key, increment]
+  id_personero integer [not null]
+  id_proceso integer [not null]
+  id_mesa integer [not null]
+  id_acta integer
+  motivo text [not null]
+  decision_mesa varchar [note: 'PENDIENTE / ACEPTADA / RECHAZADA']
+  decision_ceunp varchar [note: 'PENDIENTE / CONFIRMADA / MODIFICADA']
+  estado varchar [not null, note: 'PRESENTADA / RESUELTA / APELADA']
+  fecha_presentacion timestamp [not null]
+  fecha_resolucion timestamp
+}
+
 Table log_auditoria {
   id_log integer [primary key, increment]
   id_docente integer [not null]
@@ -222,3 +261,14 @@ Ref: usuario.id_docente > docente.id_docente
 Ref: sesion_activa.id_usuario > usuario.id_usuario
 Ref: multa.id_docente > docente.id_docente
 Ref: multa.id_proceso > proceso_electoral.id_proceso
+
+Ref: firma_acta.id_acta > acta_electoral.id_acta
+Ref: firma_acta.id_docente > docente.id_docente
+Ref: observacion_electoral.id_personero > personero.id_personero
+Ref: observacion_electoral.id_proceso > proceso_electoral.id_proceso
+Ref: observacion_electoral.id_mesa > mesa_electoral.id_mesa
+Ref: observacion_electoral.id_acta > acta_electoral.id_acta
+Ref: impugnacion_electoral.id_personero > personero.id_personero
+Ref: impugnacion_electoral.id_proceso > proceso_electoral.id_proceso
+Ref: impugnacion_electoral.id_mesa > mesa_electoral.id_mesa
+Ref: impugnacion_electoral.id_acta > acta_electoral.id_acta
