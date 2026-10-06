@@ -1,0 +1,33 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: elecciones-backend
+  datasource:
+    url: ${DB_URL:jdbc:mariadb://localhost:3306/elecciones_unp}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.mariadb.jdbc.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+  security:
+    user:
+      name: disabled
+      password: disabled
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  security:
+    jwt-secret: ${JWT_SECRET:change-this-development-secret-with-at-least-32-bytes}
+    jwt-expiration: ${JWT_EXPIRATION:PT2H}
