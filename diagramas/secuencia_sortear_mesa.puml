@@ -1,42 +1,57 @@
 @startuml Diagrama_Secuencia_Sortear_Mesa
-actor "Comité Electoral" as Comite
+title Caso de uso: Sortear miembros de mesa
+
+actor "CEUNP" as Comite
+actor "Personero acreditado" as Personero
 boundary "SorteoMesaView" as Vista
 control "SorteoMesaController" as Controlador
 database "DocenteRepository" as DocRepo
+database "CandidaturaRepository" as CandidatoRepo
+database "CargoAdministrativoRepository" as CargoAdminRepo
 database "MesaElectoralRepository" as MesaRepo
+database "AuditoriaRepository" as AuditoriaRepo
 entity "MesaElectoral" as Mesa
 
 Comite -> Vista: iniciarSorteo(idProceso)
 activate Vista
-Vista -> Controlador: ejecutarSorteo(idProceso, numSuplentes)
+Vista -> Controlador: validarEstadoProceso(idProceso)
 activate Controlador
+Controlador --> Vista: proceso listo para sorteo
 
-Controlador -> DocRepo: obtenerHabilitadosParaSorteo(idProceso)
+Comite -> Vista: ingresar semilla y confirmar
+Vista -> Controlador: ejecutarSorteo(idProceso, semilla)
+
+Controlador -> DocRepo: obtenerDocentesHabilitados(idProceso)
 activate DocRepo
-DocRepo --> Controlador: listadoHabilitados
+DocRepo --> Controlador: docentes habilitados
 deactivate DocRepo
 
-Controlador -> Controlador: excluirCargosAdministrativos(listadoHabilitados)
-note right of Controlador: Se contrasta Docente.CargoActual\ncon CargoExcluidoSorteo\ny se valida estaVigente()
+Controlador -> CandidatoRepo: obtenerCandidaturasAdmitidas(idProceso)
+CandidatoRepo --> Controlador: docentes candidatos
+Controlador -> CargoAdminRepo: obtenerCargosVigentesExcluidos()
+CargoAdminRepo --> Controlador: docentes con impedimento
 
-Controlador -> Controlador: excluirCandidatos(listadoHabilitados)
-note right of Controlador: Se excluyen los docentes\nque postulan en el idProceso
+Controlador -> Controlador: excluir candidatos e impedidos
+Controlador -> Controlador: validar universo y cantidad de mesas
 
-note over Controlador: Queda el universo de docentes sorteables
+alt No hay suficientes docentes elegibles
+    Controlador --> Vista: error: universo insuficiente
+    Vista --> Comite: mostrar error
+else Universo válido
+    loop Por cada mesa
+        Controlador -> Controlador: seleccionar con semilla
+        Controlador -> Controlador: asignar 3 titulares y suplentes
+        Controlador -> Mesa: crear(numero, ubicación, semilla)
+        Controlador -> Mesa: asignarMiembros(Presidente, Secretario, Vocal, Suplentes)
+        Controlador -> MesaRepo: guardar(mesa y miembros)
+    end
 
-loop Por cada MesaElectoral necesaria
-    Controlador -> Controlador: seleccionar aleatoriamente (3 titulares + numSuplentes)
-    Controlador -> Controlador: asignarRoles(Presidente, Secretario, Vocal) y tipo(Titular/Suplente)
-    
-    Controlador -> Mesa: crear(numeroMesa, fechaSorteo)
-    Controlador -> Mesa: asignarMiembros(seleccionados)
-    
-    Controlador -> MesaRepo: guardar(MesaElectoral)
+    Controlador -> AuditoriaRepo: registrarSorteo(idProceso, semilla, resultado)
+    Controlador --> Vista: mostrar resultados y credenciales QR
+    Vista --> Comite: publicar resultados del sorteo
+    Vista --> Personero: permitir consulta del sorteo
 end
 
-Controlador --> Vista: List<MesaElectoral>
 deactivate Controlador
-
-Vista --> Comite: mostrarResultadosSorteo()
 deactivate Vista
 @enduml

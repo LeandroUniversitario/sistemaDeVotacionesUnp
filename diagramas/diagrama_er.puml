@@ -1,272 +1,306 @@
 @startuml Diagrama_Entidad_Relacion
-' Opciones de diseño visual
 skinparam linetype ortho
-skinparam class {
-    BackgroundColor #F9F9F9
-    ArrowColor #2C3E50
-    BorderColor #34495E
-}
+skinparam classAttributeIconSize 0
 
-' ==========================================
-' MÓDULO: PADRÓN Y UNIVERSIDAD
-' ==========================================
 entity "Facultad" as facultad {
   * id_facultad : INT <<PK>>
   --
   * nombre : VARCHAR
 }
-
-entity "DepartamentoAcademico" as departamento {
+entity "Departamento" as departamento {
   * id_departamento : INT <<PK>>
   --
   * id_facultad : INT <<FK>>
   * nombre : VARCHAR
 }
-
 entity "Docente" as docente {
   * id_docente : INT <<PK>>
   --
-  * dni : VARCHAR(8) <<UNIQUE>>
-  * nombres : VARCHAR
-  * apellidos : VARCHAR
-  * categoria : VARCHAR (Principal, Asociado, Auxiliar)
-  * dedicacion : VARCHAR
-  * estado : VARCHAR (ACTIVO, LICENCIA, SUSPENDIDO)
+  * dni : VARCHAR(8) <<UQ>>
+  * categoria : VARCHAR
+  * estado : VARCHAR
   * id_facultad : INT <<FK>>
   * id_departamento : INT <<FK>>
 }
-
 entity "CargoAdministrativo" as cargo_admin {
   * id_cargo_admin : INT <<PK>>
   --
   * id_docente : INT <<FK>>
   * nombre_cargo : VARCHAR
+  * nivel : VARCHAR
   * fecha_inicio : DATE
-    fecha_fin : DATE
+  * fecha_fin : DATE
   * vigente : BOOLEAN
 }
-
-entity "CargoExcluidoSorteo" as cargo_excluido {
+entity "CargoExcluidoSorteo" as excluido {
   * id_cargo_excluido : INT <<PK>>
   --
-  * nombre_cargo : VARCHAR
+  * nombre_cargo : VARCHAR <<UQ>>
   * nivel : VARCHAR
+  * activo : BOOLEAN
 }
 
-' ==========================================
-' MÓDULO: PROCESO ELECTORAL
-' ==========================================
 entity "ProcesoElectoral" as proceso {
   * id_proceso : INT <<PK>>
   --
   * nombre : VARCHAR
   * fecha_inicio : DATETIME
   * fecha_fin : DATETIME
-  * estado : VARCHAR (CREADO, EN_CURSO, FINALIZADO)
-  * tipo : VARCHAR (PRIMERA_VUELTA, SEGUNDA_VUELTA)
-    id_proceso_padre : INT <<FK>>
+  * estado : VARCHAR
+  * tipo : VARCHAR
+  id_proceso_padre : INT <<FK>>
   * quorum_minimo : DECIMAL
 }
-
 entity "CargoElectoral" as cargo {
   * id_cargo : INT <<PK>>
   --
   * id_proceso : INT <<FK>>
   * nombre : VARCHAR
-  * nivel_jurisdiccion : VARCHAR (UNIVERSIDAD, FACULTAD, DEPARTAMENTO)
-  * id_jurisdiccion : INT
-  * categorias_permitidas : VARCHAR
+  * nivel_jurisdiccion : VARCHAR
+  id_jurisdiccion : INT
 }
-
+entity "CargoCategoriaPermitida" as categoria {
+  * id_cargo : INT <<PK, FK>>
+  * categoria : VARCHAR <<PK>>
+}
 entity "ListaElectoral" as lista {
   * id_lista : INT <<PK>>
   --
   * id_cargo : INT <<FK>>
   * nombre : VARCHAR
-    simbolo : VARCHAR
-    orden_cedula : INT
-  * estado : VARCHAR (INSCRITA, ADMITIDA, TACHADA, EXCLUIDA)
-    fecha_inscripcion : DATETIME
+  * orden_cedula : INT
+  * estado : VARCHAR
 }
-
 entity "Candidato" as candidato {
   * id_candidato : INT <<PK>>
   --
   * id_lista : INT <<FK>>
   * id_docente : INT <<FK>>
-  * rol_en_lista : VARCHAR (RECTOR, VICERRECTOR_ACAD, VICERRECTOR_INV)
-  * estado_validacion : VARCHAR (PENDIENTE, APROBADO, IMPUGNADO)
-    fecha_inscripcion : DATETIME
+  * rol_en_lista : VARCHAR
+  * estado_validacion : VARCHAR
 }
-
 entity "Tacha" as tacha {
   * id_tacha : INT <<PK>>
   --
   * id_docente_denunciante : INT <<FK>>
   * id_candidato : INT <<FK>>
+  * estado : VARCHAR
   * motivo : VARCHAR
-  * estado : VARCHAR (PENDIENTE, FUNDADA, INFUNDADA)
-    fecha_presentacion : DATETIME
-    fecha_resolucion : DATETIME
 }
-
+entity "MesaSufragio" as mesa_sufragio {
+  * id : BIGINT <<PK>>
+  --
+  * estado : ENUM
+  hora_cierre : DATETIME
+  hora_instalacion : DATETIME
+  * numero : VARCHAR(10) <<UQ>>
+  total_electores : INT
+  * proceso_id : INT <<FK>>
+  * id_proceso : INT <<FK>>
+  note: 'Tabla generada por JPA/Hibernate'
+}
+entity "PadronMesa" as padron_mesa {
+  * id : BIGINT <<PK>>
+  --
+  habilitado : BIT
+  hora_voto : DATETIME
+  ya_voto : BIT
+  * docente_id : INT <<FK>>
+  * mesa_id : BIGINT <<FK>>
+  * id_docente : INT <<FK>>
+  id_mesa : BIGINT
+  note: 'Tabla generada por JPA/Hibernate'
+}
 entity "Personero" as personero {
   * id_personero : INT <<PK>>
   --
   * id_lista : INT <<FK>>
   * id_docente : INT <<FK>>
-  * tipo : VARCHAR (GENERAL, ALTERNO, MESA)
-    id_mesa : INT <<FK>>
+  * id_mesa : INT <<FK>>
+  * tipo : VARCHAR
+  * estado_acreditacion : VARCHAR
+  fecha_acreditacion : DATETIME
 }
 
-' ==========================================
-' MÓDULO: CONTROL DE VOTO Y MESAS
-' ==========================================
 entity "PadronElectoral" as padron {
-  * id_cargo : INT <<PK>> <<FK>>
-  * id_docente : INT <<PK>> <<FK>>
+  * id_proceso : INT <<PK, FK>>
+  * id_cargo : INT <<PK, FK>>
+  * id_docente : INT <<PK, FK>>
   --
   * habilitado_para_votar : BOOLEAN
   * ya_voto : BOOLEAN
-    fecha_firma_digital : DATETIME
+  fecha_votacion : DATETIME
+  motivo_inhabilitacion : VARCHAR
 }
-
 entity "MesaElectoral" as mesa {
   * id_mesa : INT <<PK>>
   --
   * id_proceso : INT <<FK>>
   * numero_mesa : VARCHAR
   * ubicacion : VARCHAR
+  * semilla_sorteo : VARCHAR
 }
-
 entity "MiembroMesa" as miembro {
-  * id_mesa : INT <<PK>> <<FK>>
-  * id_docente : INT <<PK>> <<FK>>
+  * id_mesa : INT <<PK, FK>>
+  * id_docente : INT <<PK, FK>>
   --
-  * rol : VARCHAR (Presidente, Secretario, Vocal, Suplente)
+  * rol : VARCHAR
+  * titular : BOOLEAN
 }
-
 entity "Voto" as voto {
   * id_voto : INT <<PK>>
   --
+  * id_proceso : INT <<FK>>
   * id_cargo : INT <<FK>>
-    id_lista_elegida : INT <<FK>> (NULL = BLANCO)
+  id_lista_elegida : INT <<FK>>
+  * tipo_voto : VARCHAR
   * fecha_hora : DATETIME
 }
-
 entity "ActaElectoral" as acta {
   * id_acta : INT <<PK>>
   --
   * id_mesa : INT <<FK>>
-  * tipo : VARCHAR (INSTALACION, SUFRAGIO, ESCRUTINIO)
-    contenido_json : TEXT
-  * hash_integridad : VARCHAR
-  * token_qr : VARCHAR <<UNIQUE>>
-    fecha_emision : DATETIME
+  * tipo : VARCHAR
+  * contenido_json : TEXT
+  * hash_integridad : CHAR(64)
+  * token_qr_hash : CHAR(64) <<UQ>>
+  * estado : VARCHAR
 }
-
-' ==========================================
-' MÓDULO: AUDITORÍA Y SEGURIDAD
-' ==========================================
-entity "LogAuditoria" as log_aud {
-  * id_log : INT <<PK>>
+entity "FirmaActa" as firma {
+  * id_firma : INT <<PK>>
   --
+  * id_acta : INT <<FK>>
   * id_docente : INT <<FK>>
-  * id_cargo : INT <<FK>>
-  * ip_origen : VARCHAR
-    user_agent : VARCHAR
-  * fecha_hora : DATETIME
-  * accion : VARCHAR
+  * rol : VARCHAR
+  * firma_digital : TEXT
 }
 
 entity "ConstanciaVoto" as constancia {
   * id_constancia : INT <<PK>>
   --
+  * id_proceso : INT <<FK>>
   * id_docente : INT <<FK>>
   * id_cargo : INT <<FK>>
-  * token_qr : VARCHAR <<UNIQUE>>
-  * fecha_emision : DATETIME
+  * token_qr_hash : CHAR(64) <<UQ>>
+  * estado : VARCHAR
 }
-
 entity "Usuario" as usuario {
   * id_usuario : INT <<PK>>
   --
-    id_docente : INT <<FK>> (nullable)
-  * username : VARCHAR <<UNIQUE>>
+  id_docente : INT <<FK>>
+  * username : VARCHAR <<UQ>>
   * password_hash : VARCHAR
-  * rol : VARCHAR (ADMIN, CEUNP, DOCENTE)
+  * rol : VARCHAR
 }
-
 entity "SesionActiva" as sesion {
   * id_sesion : INT <<PK>>
   --
   * id_usuario : INT <<FK>>
-  * token : VARCHAR <<UNIQUE>>
-  * fecha_inicio : DATETIME
+  * token_hash : CHAR(64) <<UQ>>
   * fecha_expiracion : DATETIME
+  * revocada : BOOLEAN
+}
+entity "LogAuditoria" as log_aud {
+  * id_log : INT <<PK>>
+  --
+  id_usuario : INT <<FK>>
+  id_docente : INT <<FK>>
+  id_proceso : INT <<FK>>
+  * accion : VARCHAR
+  * fecha_hora : DATETIME
+}
+entity "ObservacionElectoral" as observacion {
+  * id_observacion : INT <<PK>>
+  --
+  * id_personero : INT <<FK>>
+  * id_proceso : INT <<FK>>
+  id_mesa : INT <<FK>>
+  id_acta : INT <<FK>>
+  * descripcion : TEXT
+  * estado : VARCHAR
+}
+entity "ImpugnacionElectoral" as impugnacion {
+  * id_impugnacion : INT <<PK>>
+  --
+  * id_personero : INT <<FK>>
+  * id_proceso : INT <<FK>>
+  * id_mesa : INT <<FK>>
+  id_acta : INT <<FK>>
+  * motivo : TEXT
+  decision_mesa : VARCHAR
+  decision_ceunp : VARCHAR
+  * estado : VARCHAR
 }
 
-' ==========================================
-' RELACIONES (FK)
-' ==========================================
 facultad ||--o{ departamento
-departamento ||--o{ docente
 facultad ||--o{ docente
+departamento ||--o{ docente
 docente ||--o{ cargo_admin
-
+cargo_admin }o--o{ excluido : "coincide con catálogo"
+proceso ||--o{ proceso : "segunda vuelta"
 proceso ||--o{ cargo
-proceso |o--o| proceso : "segunda vuelta"
-
+cargo ||--o{ categoria
 cargo ||--o{ lista
 lista ||--o{ candidato
 docente ||--o{ candidato
-
-docente ||--o{ tacha : "denuncia"
-candidato ||--o{ tacha : "es tachado"
-
+docente ||--o{ tacha : denuncia
+candidato ||--o{ tacha : recibe
 lista ||--o{ personero
 docente ||--o{ personero
-
+mesa ||--o{ personero
+proceso ||--o{ padron
 cargo ||--o{ padron
 docente ||--o{ padron
-
 proceso ||--o{ mesa
 mesa ||--o{ miembro
 docente ||--o{ miembro
-
+proceso ||--o{ voto
 cargo ||--o{ voto
-lista |o--o{ voto
-
+lista |o--o{ voto : "lista elegida"
 mesa ||--o{ acta
-
-docente ||--o{ log_aud
-cargo ||--o{ log_aud
-
+acta ||--o{ firma
+docente ||--o{ firma
+proceso ||--o{ constancia
 docente ||--o{ constancia
 cargo ||--o{ constancia
-
 docente |o--o| usuario
 usuario ||--o{ sesion
+usuario ||--o{ log_aud
+docente ||--o{ log_aud
+proceso ||--o{ log_aud
+personero ||--o{ observacion
+proceso ||--o{ observacion
+mesa |o--o{ observacion
+acta |o--o{ observacion
+personero ||--o{ impugnacion
+proceso ||--o{ impugnacion
+mesa ||--o{ impugnacion
+acta |o--o{ impugnacion
+proceso ||--o{ mesa_sufragio : "mesa_sufragio.proceso_id"
+proceso ||--o{ mesa_sufragio : "mesa_sufragio.id_proceso"
+mesa_sufragio ||--o{ padron_mesa : "padron_mesa.mesa_id"
+docente ||--o{ padron_mesa : "padron_mesa.docente_id"
+docente ||--o{ padron_mesa : "padron_mesa.id_docente"
 
 note bottom of voto
-  **CRÍTICO (Secreto del Voto):**
-  La tabla Voto NO TIENE FK a Docente.
-  Apunta a ListaElectoral (fórmula),
-  no a un candidato individual.
-  Un Stored Procedure atómico asegura
-  que al insertar aquí, se actualice
-  ya_voto = TRUE en PadronElectoral.
+  No existe FK a Docente, Usuario,
+  SesionActiva ni ConstanciaVoto.
+  Se vota por lista; BLANCO y NULO
+  se representan mediante tipo_voto.
 end note
-
-note bottom of cargo_excluido
-  Catálogo editable por el CEUNP
-  (no fijo en código).
+note bottom of constancia
+  El QR lleva un token aleatorio.
+  La base conserva únicamente el hash.
+  Nunca contiene la opción elegida.
 end note
-
-note bottom of acta
-  Cada mesa genera 3 actas.
-  El hash SHA-256 garantiza
-  la integridad del documento.
+note bottom of mesa_sufragio
+  Tabla generada por JPA/Hibernate.
+  Columnas duplicadas (proceso_id / id_proceso)
+  son artefactos del mapeo ORM.
 end note
-
+note bottom of padron_mesa
+  Tabla generada por JPA/Hibernate.
+  Columnas duplicadas (docente_id / id_docente)
+  son artefactos del mapeo ORM.
+end note
 @enduml

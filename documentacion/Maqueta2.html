@@ -1,0 +1,2060 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SICEUNP - Sistema de Control de Elecciones Docentes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/index.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --unp-blue: #003366;
+            --unp-blue-dark: #001f3f;
+            --unp-gold: #C9A961;
+            --unp-gold-light: #E5C98A;
+            --unp-bg: #F5F7FA;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--unp-bg);
+        }
+
+        .unp-gradient {
+            background: linear-gradient(135deg, #003366 0%, #001f3f 100%);
+        }
+
+        .gold-gradient {
+            background: linear-gradient(135deg, #C9A961 0%, #E5C98A 100%);
+        }
+
+        .sidebar-item {
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-item:hover {
+            background: rgba(201, 169, 97, 0.1);
+            border-left-color: var(--unp-gold);
+        }
+
+        .sidebar-item.active {
+            background: rgba(201, 169, 97, 0.15);
+            border-left-color: var(--unp-gold);
+            color: var(--unp-gold);
+        }
+
+        .stage-card {
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .stage-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 51, 102, 0.15);
+        }
+
+        .stage-active {
+            border: 2px solid var(--unp-gold);
+            background: linear-gradient(135deg, #fff 0%, #fdf8ec 100%);
+        }
+
+        .stage-done {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        }
+
+        .stage-pending {
+            opacity: 0.6;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .qr-code {
+            background-image:
+                linear-gradient(45deg, #000 25%, transparent 25%),
+                linear-gradient(-45deg, #000 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #000 75%),
+                linear-gradient(-45deg, transparent 75%, #000 75%);
+            background-size: 8px 8px;
+            background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+        }
+
+        .candidate-card {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .candidate-card:hover {
+            transform: scale(1.02);
+        }
+
+        .candidate-selected {
+            border: 3px solid var(--unp-gold);
+            box-shadow: 0 0 20px rgba(201, 169, 97, 0.4);
+        }
+
+        .modal-backdrop {
+            background: rgba(0, 31, 63, 0.7);
+            backdrop-filter: blur(4px);
+        }
+
+        .badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .scroll-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scroll-thin::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 3px;
+        }
+
+        .timeline-line {
+            position: absolute;
+            left: 20px;
+            top: 40px;
+            bottom: 0;
+            width: 2px;
+            background: #e2e8f0;
+        }
+
+        .ballot-paper {
+            background: #fffef7;
+            border: 2px dashed #C9A961;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center unp-gradient relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10">
+            <div class="absolute top-10 left-10 w-64 h-64 bg-yellow-400 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-10 right-10 w-96 h-96 bg-blue-400 rounded-full blur-3xl"></div>
+        </div>
+        <div class="relative z-10 bg-white rounded-2xl shadow-2xl p-10 w-full max-w-md fade-in">
+            <div class="text-center mb-8">
+                <div
+                    class="w-20 h-20 unp-gradient rounded-full mx-auto flex items-center justify-center mb-4 shadow-lg">
+                    <i class="fas fa-university text-white text-3xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold" style="color: var(--unp-blue);">SICEUNP</h1>
+                <p class="text-sm text-gray-500">Sistema de Control de Elecciones Docentes</p>
+                <p class="text-xs text-gray-400 mt-1">Universidad Nacional de Piura</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-sm font-semibold text-gray-700">Usuario</label>
+                    <div class="relative mt-1">
+                        <i class="fas fa-user absolute left-3 top-3.5 text-gray-400"></i>
+                        <input id="loginUser" type="text" value="admin"
+                            class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-sm font-semibold text-gray-700">Contraseña</label>
+                    <div class="relative mt-1">
+                        <i class="fas fa-lock absolute left-3 top-3.5 text-gray-400"></i>
+                        <input id="loginPass" type="password" value="demo"
+                            class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-sm font-semibold text-gray-700">Rol</label>
+                    <select id="loginRole"
+                        class="w-full mt-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="admin">Administrador del Sistema</option>
+                        <option value="ceunp" selected>CEUNP (Pleno)</option>
+                        <option value="presidente">Presidente de Mesa</option>
+                        <option value="secretario">Secretario de Mesa</option>
+                        <option value="personero">Personero</option>
+                        <option value="docente">Docente Elector</option>
+                    </select>
+                </div>
+                <button onclick="login()"
+                    class="w-full unp-gradient text-white font-semibold py-3 rounded-lg hover:opacity-90 transition shadow-lg">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Ingresar al Sistema
+                </button>
+                <div class="text-center text-xs text-gray-500 mt-4">
+                    <i class="fas fa-shield-alt mr-1"></i>Autenticación segura · RCU N.° 0462-CU-2019
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="mainApp" class="hidden min-h-screen flex">
+        <!-- SIDEBAR -->
+        <aside class="w-64 unp-gradient text-white flex flex-col shadow-2xl">
+            <div class="p-5 border-b border-white/10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 gold-gradient rounded-lg flex items-center justify-center">
+                        <i class="fas fa-university text-white"></i>
+                    </div>
+                    <div>
+                        <div class="font-bold text-sm">SICEUNP</div>
+                        <div class="text-xs text-white/60">Elecciones Docentes 2026-II</div>
+                    </div>
+                </div>
+            </div>
+            <nav id="sidebarNav" class="flex-1 py-4 overflow-y-auto scroll-thin"></nav>
+            <div class="p-4 border-t border-white/10">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-9 h-9 gold-gradient rounded-full flex items-center justify-center text-sm font-bold">
+                        <span id="userInitial">C</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div id="userName" class="text-sm font-semibold truncate">CEUNP Pleno</div>
+                        <div id="userRole" class="text-xs text-white/60 truncate">Comité Electoral</div>
+                    </div>
+                </div>
+                <button onclick="logout()"
+                    class="w-full text-xs bg-white/10 hover:bg-white/20 py-2 rounded-lg transition">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Cerrar sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- TOP BAR -->
+            <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm">
+                <div>
+                    <h2 id="pageTitle" class="text-lg font-bold" style="color: var(--unp-blue);">Panel Principal</h2>
+                    <p id="pageSubtitle" class="text-xs text-gray-500">Vista general del proceso electoral</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-full">
+                        <span class="w-2 h-2 bg-green-500 rounded-full pulse-dot"></span>
+                        <span class="text-xs font-semibold text-green-700">Sistema operativo</span>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs text-gray-500">Proceso</div>
+                        <div class="text-sm font-semibold" style="color: var(--unp-blue);">Elección Rector y
+                            Vicerrectores</div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- CONTENT AREA -->
+            <div id="contentArea" class="flex-1 overflow-y-auto p-6 scroll-thin"></div>
+        </main>
+    </div>
+
+    <!-- MODAL -->
+    <div id="modal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto scroll-thin">
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // ============ DATA ============
+        const STAGES = [
+            { id: 1, name: 'Convocatoria', icon: 'fa-bullhorn', status: 'done', art: 'Art. 6-9' },
+            { id: 2, name: 'Padrón Electoral', icon: 'fa-users', status: 'done', art: 'Art. 12d, 27' },
+            { id: 3, name: 'Inscripción de Listas', icon: 'fa-file-signature', status: 'done', art: 'Art. 14-25' },
+            { id: 4, name: 'Tachas', icon: 'fa-gavel', status: 'done', art: 'Art. 4n, 12f' },
+            { id: 5, name: 'Personeros', icon: 'fa-id-badge', status: 'done', art: 'Art. 28-35' },
+            { id: 6, name: 'Sorteos y Mesas', icon: 'fa-dice', status: 'done', art: 'Art. 26, 36-41' },
+            { id: 7, name: 'Instalación', icon: 'fa-door-open', status: 'active', art: 'Art. 45, 48, 49' },
+            { id: 8, name: 'Sufragio', icon: 'fa-vote-yea', status: 'pending', art: 'Art. 46, 47, 50' },
+            { id: 9, name: 'Cierre', icon: 'fa-lock', status: 'pending', art: 'Art. 51' },
+            { id: 10, name: 'Escrutinio', icon: 'fa-calculator', status: 'pending', art: 'Art. 52-57' },
+            { id: 11, name: 'Cómputo y Proclamación', icon: 'fa-trophy', status: 'pending', art: 'Art. 58-66' }
+        ];
+
+        const CANDIDATES = [
+            { id: 1, name: 'Dr. Carlos Mendoza Rivera', party: 'Renueva UNP', symbol: '🌟', color: '#2563eb', plan: 'Modernización y excelencia académica', votes: 0 },
+            { id: 2, name: 'Dra. María Fernández López', party: 'UNP Innovadora', symbol: '🚀', color: '#dc2626', plan: 'Investigación y desarrollo tecnológico', votes: 0 },
+            { id: 3, name: 'Dr. Juan Ramírez Castillo', party: 'UNP Unida', symbol: '🤝', color: '#16a34a', plan: 'Gestión participativa y transparente', votes: 0 }
+        ];
+
+        const DOCENTES = [
+            { dni: '45678912', name: 'Dr. Alberto Sánchez Paredes', cat: 'Principal', mesa: 1, voted: false },
+            { dni: '46789123', name: 'Dra. Lucía Vargas Torres', cat: 'Principal', mesa: 1, voted: false },
+            { dni: '47891234', name: 'Dr. Miguel Castro Ruiz', cat: 'Asociado', mesa: 1, voted: false },
+            { dni: '48912345', name: 'Dra. Carmen Díaz Flores', cat: 'Principal', mesa: 2, voted: false },
+            { dni: '49123456', name: 'Dr. Roberto Silva Mendoza', cat: 'Principal', mesa: 2, voted: false },
+            { dni: '50123456', name: 'Dra. Patricia Rojas Núñez', cat: 'Asociado', mesa: 2, voted: false },
+            { dni: '51234567', name: 'Dr. Fernando Guzmán León', cat: 'Principal', mesa: 3, voted: false },
+            { dni: '52345678', name: 'Dra. Isabel Morales Vega', cat: 'Principal', mesa: 3, voted: false }
+        ];
+
+        const MESAS = [
+            { num: 1, local: 'Biblioteca Central - Aula 101', president: 'Dr. Pedro Alva', secretary: 'Dra. Ana Quispe', vocal: 'Dr. Luis Huamán', electores: 45, instalada: false, votos: 0 },
+            { num: 2, local: 'Biblioteca Central - Aula 102', president: 'Dra. Rosa Paredes', secretary: 'Dr. Jorge Medina', vocal: 'Dra. Elena Ríos', electores: 45, instalada: false, votos: 0 },
+            { num: 3, local: 'Biblioteca Central - Aula 201', president: 'Dr. Víctor Salas', secretary: 'Dra. Mónica Flores', vocal: 'Dr. Raúl Espinoza', electores: 42, instalada: false, votos: 0 }
+        ];
+
+        const MENU = {
+            admin: [
+                { id: 'dashboard', icon: 'fa-chart-line', label: 'Panel Principal' },
+                { id: 'usuarios', icon: 'fa-users-cog', label: 'Usuarios y Roles' },
+                { id: 'parametros', icon: 'fa-sliders-h', label: 'Parámetros' },
+                { id: 'bitacora', icon: 'fa-clipboard-list', label: 'Bitácora de Auditoría' },
+                { id: 'respaldo', icon: 'fa-database', label: 'Respaldos' }
+            ],
+            ceunp: [
+                { id: 'dashboard', icon: 'fa-chart-line', label: 'Panel Principal' },
+                { id: 'proceso', icon: 'fa-tasks', label: 'Etapas del Proceso' },
+                { id: 'padron', icon: 'fa-users', label: 'Padrón Electoral' },
+                { id: 'listas', icon: 'fa-file-signature', label: 'Listas de Candidatos' },
+                { id: 'tachas', icon: 'fa-gavel', label: 'Tachas y Reclamos' },
+                { id: 'personeros', icon: 'fa-id-badge', label: 'Personeros' },
+                { id: 'sorteos', icon: 'fa-dice', label: 'Sorteos' },
+                { id: 'mesas', icon: 'fa-door-open', label: 'Mesas de Sufragio' },
+                { id: 'computo', icon: 'fa-trophy', label: 'Cómputo y Proclamación' },
+                { id: 'nulidades', icon: 'fa-exclamation-triangle', label: 'Nulidades' },
+                { id: 'multas', icon: 'fa-file-invoice-dollar', label: 'Multas y Reportes' }
+            ],
+            presidente: [
+                { id: 'dashboard', icon: 'fa-chart-line', label: 'Panel Principal' },
+                { id: 'instalacion', icon: 'fa-door-open', label: 'Instalar Mesa' },
+                { id: 'cierre', icon: 'fa-lock', label: 'Cerrar Sufragio' },
+                { id: 'escrutinio', icon: 'fa-calculator', label: 'Escrutinio' }
+            ],
+            secretario: [
+                { id: 'dashboard', icon: 'fa-chart-line', label: 'Panel Principal' },
+                { id: 'verificar', icon: 'fa-qrcode', label: 'Verificar Elector (QR)' },
+                { id: 'votar', icon: 'fa-vote-yea', label: 'Terminal de Votación' }
+            ],
+            personero: [
+                { id: 'dashboard', icon: 'fa-chart-line', label: 'Panel Principal' },
+                { id: 'fiscalizar', icon: 'fa-eye', label: 'Fiscalización' },
+                { id: 'impugnar', icon: 'fa-hand-paper', label: 'Impugnar Votos' },
+                { id: 'actas', icon: 'fa-file-alt', label: 'Actas' }
+            ],
+            docente: [
+                { id: 'dashboard', icon: 'fa-chart-line', label: 'Panel Principal' },
+                { id: 'miestado', icon: 'fa-id-card', label: 'Mi Estado Electoral' },
+                { id: 'consultar', icon: 'fa-search', label: 'Consultar Resultados' }
+            ]
+        };
+
+        let currentUser = null;
+        let currentPage = 'dashboard';
+        let currentMesa = 1;
+        let currentVoter = null;
+        let selectedCandidate = null;
+        let auditLog = [];
+
+        // ============ AUTH ============
+        function login() {
+            const role = document.getElementById('loginRole').value;
+            const user = document.getElementById('loginUser').value;
+            const roleNames = {
+                admin: 'Administrador', ceunp: 'CEUNP Pleno', presidente: 'Presidente de Mesa',
+                secretario: 'Secretario de Mesa', personero: 'Personero General', docente: 'Docente Elector'
+            };
+            currentUser = { role, name: user, displayName: roleNames[role] };
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('flex');
+            document.getElementById('userName').textContent = roleNames[role];
+            document.getElementById('userRole').textContent = 'Rol: ' + roleNames[role];
+            document.getElementById('userInitial').textContent = roleNames[role][0];
+            renderSidebar();
+            navigateTo('dashboard');
+            addAudit('LOGIN', `Inicio de sesión como ${roleNames[role]}`);
+        }
+
+        function logout() {
+            addAudit('LOGOUT', 'Cierre de sesión');
+            currentUser = null;
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('flex');
+            document.getElementById('loginScreen').classList.remove('hidden');
+        }
+
+        // ============ NAVIGATION ============
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            const items = MENU[currentUser.role];
+            nav.innerHTML = items.map(item => `
+    <button onclick="navigateTo('${item.id}')" id="nav-${item.id}" class="sidebar-item w-full text-left px-5 py-3 flex items-center gap-3 text-sm text-white/80 hover:text-white">
+      <i class="fas ${item.icon} w-5 text-center"></i>
+      <span>${item.label}</span>
+    </button>
+  `).join('');
+        }
+
+        function navigateTo(page) {
+            currentPage = page;
+            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+            const navEl = document.getElementById('nav-' + page);
+            if (navEl) navEl.classList.add('active');
+            const pages = {
+                dashboard: renderDashboard,
+                proceso: renderProceso,
+                padron: renderPadron,
+                listas: renderListas,
+                tachas: renderTachas,
+                personeros: renderPersoneros,
+                sorteos: renderSorteos,
+                mesas: renderMesas,
+                computo: renderComputo,
+                nulidades: renderNulidades,
+                multas: renderMultas,
+                instalacion: renderInstalacion,
+                cierre: renderCierre,
+                escrutinio: renderEscrutinio,
+                verificar: renderVerificar,
+                votar: renderVotar,
+                usuarios: renderUsuarios,
+                parametros: renderParametros,
+                bitacora: renderBitacora,
+                respaldo: renderRespaldo,
+                fiscalizar: renderFiscalizar,
+                impugnar: renderImpugnar,
+                actas: renderActas,
+                miestado: renderMiEstado,
+                consultar: renderConsultar
+            };
+            (pages[page] || renderDashboard)();
+        }
+
+        // ============ AUDIT ============
+        function addAudit(action, detail) {
+            auditLog.unshift({
+                time: new Date().toLocaleString('es-PE'),
+                user: currentUser?.displayName || 'Sistema',
+                action, detail
+            });
+        }
+
+        // ============ PAGES ============
+        function renderDashboard() {
+            document.getElementById('pageTitle').textContent = 'Panel Principal';
+            document.getElementById('pageSubtitle').textContent = 'Vista general del proceso electoral docente';
+
+            const totalDocentes = DOCENTES.length;
+            const totalVotos = DOCENTES.filter(d => d.voted).length;
+            const pctParticipacion = ((totalVotos / totalDocentes) * 100).toFixed(1);
+            const mesasInstaladas = MESAS.filter(m => m.instalada).length;
+
+            const content = document.getElementById('contentArea');
+            content.innerHTML = `
+    <div class="fade-in">
+      <!-- KPIs -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-xl p-5 shadow-sm border-l-4" style="border-color: var(--unp-blue);">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-xs text-gray-500 uppercase font-semibold">Docentes Habilitados</div>
+              <div class="text-3xl font-bold mt-1" style="color: var(--unp-blue);">${totalDocentes}</div>
+              <div class="text-xs text-gray-500 mt-1">Padrón aprobado</div>
+            </div>
+            <div class="w-12 h-12 rounded-lg flex items-center justify-center" style="background: rgba(0,51,102,0.1);">
+              <i class="fas fa-users text-xl" style="color: var(--unp-blue);"></i>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow-sm border-l-4 border-green-500">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-xs text-gray-500 uppercase font-semibold">Votos Emitidos</div>
+              <div class="text-3xl font-bold mt-1 text-green-600">${totalVotos}</div>
+              <div class="text-xs text-gray-500 mt-1">${pctParticipacion}% participación</div>
+            </div>
+            <div class="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center">
+              <i class="fas fa-vote-yea text-xl text-green-600"></i>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow-sm border-l-4" style="border-color: var(--unp-gold);">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-xs text-gray-500 uppercase font-semibold">Mesas Instaladas</div>
+              <div class="text-3xl font-bold mt-1" style="color: var(--unp-gold);">${mesasInstaladas}/${MESAS.length}</div>
+              <div class="text-xs text-gray-500 mt-1">Biblioteca Central</div>
+            </div>
+            <div class="w-12 h-12 rounded-lg flex items-center justify-center" style="background: rgba(201,169,97,0.1);">
+              <i class="fas fa-door-open text-xl" style="color: var(--unp-gold);"></i>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow-sm border-l-4 border-purple-500">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-xs text-gray-500 uppercase font-semibold">Listas Inscritas</div>
+              <div class="text-3xl font-bold mt-1 text-purple-600">${CANDIDATES.length}</div>
+              <div class="text-xs text-gray-500 mt-1">Admitidas oficialmente</div>
+            </div>
+            <div class="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center">
+              <i class="fas fa-file-signature text-xl text-purple-600"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline de etapas -->
+      <div class="bg-white rounded-xl p-6 shadow-sm mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-lg" style="color: var(--unp-blue);">
+            <i class="fas fa-stream mr-2"></i>Etapas del Proceso Electoral
+          </h3>
+          <span class="badge bg-blue-100 text-blue-700">RCU N.° 0462-CU-2019</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          ${STAGES.map(s => `
+            <div class="stage-card rounded-lg p-4 border ${s.status === 'active' ? 'stage-active' : s.status === 'done' ? 'stage-done' : 'stage-pending bg-gray-50'}" onclick="verEtapa(${s.id})">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 rounded-lg flex items-center justify-center ${s.status === 'done' ? 'bg-green-500 text-white' : s.status === 'active' ? 'gold-gradient text-white' : 'bg-gray-300 text-white'}">
+                  <i class="fas ${s.status === 'done' ? 'fa-check' : s.icon}"></i>
+                </div>
+                <div class="flex-1">
+                  <div class="text-xs text-gray-500">Etapa ${s.id}</div>
+                  <div class="font-semibold text-sm">${s.name}</div>
+                </div>
+              </div>
+              <div class="text-xs text-gray-500">${s.art}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Gráficos -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+          <h3 class="font-bold mb-4" style="color: var(--unp-blue);">
+            <i class="fas fa-chart-bar mr-2"></i>Preferencias (conteo preliminar)
+          </h3>
+          <canvas id="chartVotos" height="200"></canvas>
+        </div>
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+          <h3 class="font-bold mb-4" style="color: var(--unp-blue);">
+            <i class="fas fa-chart-pie mr-2"></i>Participación por Mesa
+          </h3>
+          <canvas id="chartMesas" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Actividad reciente -->
+      <div class="bg-white rounded-xl p-6 shadow-sm mt-6">
+        <h3 class="font-bold mb-4" style="color: var(--unp-blue);">
+          <i class="fas fa-history mr-2"></i>Actividad Reciente del Sistema
+        </h3>
+        <div class="space-y-2 max-h-64 overflow-y-auto scroll-thin">
+          ${auditLog.length === 0 ? '<p class="text-gray-400 text-sm text-center py-4">Sin actividad registrada</p>' :
+                    auditLog.slice(0, 10).map(a => `
+              <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded">
+                <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                  <i class="fas fa-user text-xs text-blue-600"></i>
+                </div>
+                <div class="flex-1">
+                  <div class="text-sm"><span class="font-semibold">${a.user}</span> · <span class="text-gray-600">${a.action}</span></div>
+                  <div class="text-xs text-gray-500">${a.detail}</div>
+                </div>
+                <div class="text-xs text-gray-400">${a.time}</div>
+              </div>
+            `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+
+            setTimeout(() => {
+                const ctx1 = document.getElementById('chartVotos');
+                if (ctx1) new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: CANDIDATES.map(c => c.party),
+                        datasets: [{ label: 'Votos', data: CANDIDATES.map(c => c.votes), backgroundColor: CANDIDATES.map(c => c.color) }]
+                    },
+                    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                });
+                const ctx2 = document.getElementById('chartMesas');
+                if (ctx2) new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: MESAS.map(m => 'Mesa ' + m.num),
+                        datasets: [{ data: MESAS.map(m => m.votos), backgroundColor: ['#2563eb', '#dc2626', '#16a34a'] }]
+                    },
+                    options: { responsive: true }
+                });
+            }, 100);
+        }
+
+        function renderProceso() {
+            document.getElementById('pageTitle').textContent = 'Etapas del Proceso';
+            document.getElementById('pageSubtitle').textContent = 'Las 11 etapas del proceso electoral docente';
+            const content = document.getElementById('contentArea');
+            content.innerHTML = `
+    <div class="fade-in bg-white rounded-xl p-6 shadow-sm">
+      <div class="space-y-4">
+        ${STAGES.map(s => `
+          <div class="flex items-center gap-4 p-4 rounded-lg border ${s.status === 'active' ? 'stage-active' : s.status === 'done' ? 'stage-done' : 'bg-gray-50'}">
+            <div class="w-12 h-12 rounded-lg flex items-center justify-center ${s.status === 'done' ? 'bg-green-500 text-white' : s.status === 'active' ? 'gold-gradient text-white' : 'bg-gray-300 text-white'}">
+              <i class="fas ${s.status === 'done' ? 'fa-check' : s.icon} text-lg"></i>
+            </div>
+            <div class="flex-1">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-500">ETAPA ${s.id}</span>
+                <span class="badge ${s.status === 'done' ? 'bg-green-100 text-green-700' : s.status === 'active' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-200 text-gray-600'}">
+                  ${s.status === 'done' ? 'Completada' : s.status === 'active' ? 'En curso' : 'Pendiente'}
+                </span>
+              </div>
+              <div class="font-bold text-lg" style="color: var(--unp-blue);">${s.name}</div>
+              <div class="text-sm text-gray-600">${s.art}</div>
+            </div>
+            <button onclick="verEtapa(${s.id})" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+              <i class="fas fa-eye mr-1"></i>Ver detalle
+            </button>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+        }
+
+        function renderPadron() {
+            document.getElementById('pageTitle').textContent = 'Padrón Electoral';
+            document.getElementById('pageSubtitle').textContent = 'Docentes ordinarios habilitados para votar';
+            const content = document.getElementById('contentArea');
+            content.innerHTML = `
+    <div class="fade-in">
+      <div class="bg-white rounded-xl p-6 shadow-sm mb-4">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="font-bold text-lg" style="color: var(--unp-blue);">Padrón Definitivo Aprobado</h3>
+            <p class="text-sm text-gray-500">Art. 12d, 18, 27, 37 · Versión 1.0</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+              <i class="fas fa-file-import mr-1"></i>Importar RRHH
+            </button>
+            <button class="px-4 py-2 unp-gradient text-white rounded-lg text-sm">
+              <i class="fas fa-print mr-1"></i>Imprimir Padrón
+            </button>
+          </div>
+        </div>
+        <div class="grid grid-cols-4 gap-3 mb-4">
+          <div class="bg-blue-50 rounded-lg p-3">
+            <div class="text-xs text-gray-600">Total docentes</div>
+            <div class="text-2xl font-bold text-blue-700">${DOCENTES.length}</div>
+          </div>
+          <div class="bg-green-50 rounded-lg p-3">
+            <div class="text-xs text-gray-600">Habilitados</div>
+            <div class="text-2xl font-bold text-green-700">${DOCENTES.length}</div>
+          </div>
+          <div class="bg-yellow-50 rounded-lg p-3">
+            <div class="text-xs text-gray-600">Ya votaron</div>
+            <div class="text-2xl font-bold text-yellow-700">${DOCENTES.filter(d => d.voted).length}</div>
+          </div>
+          <div class="bg-purple-50 rounded-lg p-3">
+            <div class="text-xs text-gray-600">Mesas asignadas</div>
+            <div class="text-2xl font-bold text-purple-700">${MESAS.length}</div>
+          </div>
+        </div>
+        <input type="text" placeholder="Buscar por DNI o nombre..." class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="text-left p-3">DNI</th>
+                <th class="text-left p-3">Nombres</th>
+                <th class="text-left p-3">Categoría</th>
+                <th class="text-left p-3">Mesa</th>
+                <th class="text-left p-3">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${DOCENTES.map(d => `
+                <tr class="border-t hover:bg-gray-50">
+                  <td class="p-3 font-mono">${d.dni}</td>
+                  <td class="p-3 font-semibold">${d.name}</td>
+                  <td class="p-3">${d.cat}</td>
+                  <td class="p-3"><span class="badge bg-blue-100 text-blue-700">Mesa ${d.mesa}</span></td>
+                  <td class="p-3">
+                    ${d.voted ? '<span class="badge bg-green-100 text-green-700"><i class="fas fa-check mr-1"></i>Votó</span>' :
+                    '<span class="badge bg-gray-100 text-gray-700">Pendiente</span>'}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+        }
+
+        function renderListas() {
+            document.getElementById('pageTitle').textContent = 'Listas de Candidatos';
+            document.getElementById('pageSubtitle').textContent = 'Candidaturas admitidas oficialmente';
+            const content = document.getElementById('contentArea');
+            content.innerHTML = `
+    <div class="fade-in">
+      <div class="flex justify-between mb-4">
+        <div>
+          <h3 class="font-bold text-lg" style="color: var(--unp-blue);">Listas Oficiales Inscritas</h3>
+          <p class="text-sm text-gray-500">Art. 14-25 · ${CANDIDATES.length} listas admitidas</p>
+        </div>
+        <button class="px-4 py-2 unp-gradient text-white rounded-lg text-sm">
+          <i class="fas fa-plus mr-1"></i>Nueva Inscripción
+        </button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        ${CANDIDATES.map((c, i) => `
+          <div class="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition">
+            <div class="h-2" style="background: ${c.color};"></div>
+            <div class="p-6 text-center">
+              <div class="text-6xl mb-3">${c.symbol}</div>
+              <div class="font-bold text-lg" style="color: ${c.color};">${c.party}</div>
+              <div class="text-sm text-gray-600 mt-2">${c.name}</div>
+              <div class="text-xs text-gray-500 mt-1 italic">"${c.plan}"</div>
+              <div class="mt-4 pt-4 border-t border-gray-100">
+                <div class="flex justify-around text-xs">
+                  <div><div class="font-bold text-lg" style="color: ${c.color};">${c.votes}</div><div class="text-gray-500">Votos</div></div>
+                  <div><div class="font-bold text-lg text-green-600">Admitida</div><div class="text-gray-500">Estado</div></div>
+                </div>
+              </div>
+              <div class="mt-4 flex gap-2">
+                <button class="flex-1 px-3 py-2 bg-gray-100 rounded text-xs hover:bg-gray-200">
+                  <i class="fas fa-file-alt mr-1"></i>Hoja de vida
+                </button>
+                <button class="flex-1 px-3 py-2 bg-gray-100 rounded text-xs hover:bg-gray-200">
+                  <i class="fas fa-book mr-1"></i>Plan de gobierno
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="bg-white rounded-xl p-6 shadow-sm mt-4">
+        <h4 class="font-bold mb-3" style="color: var(--unp-blue);">Orden en la Cédula (Sorteado)</h4>
+        <div class="flex items-center gap-4">
+          ${CANDIDATES.map((c, i) => `
+            <div class="flex items-center gap-2 px-4 py-2 rounded-lg border-2" style="border-color: ${c.color};">
+              <span class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold" style="background: ${c.color};">${i + 1}</span>
+              <span class="text-2xl">${c.symbol}</span>
+              <span class="font-semibold text-sm">${c.party}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+        }
+
+        function renderTachas() {
+            document.getElementById('pageTitle').textContent = 'Tachas y Reclamaciones';
+            document.getElementById('pageSubtitle').textContent = 'Cuestionamientos a candidatos';
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in bg-white rounded-xl p-6 shadow-sm">
+      <h3 class="font-bold text-lg mb-4" style="color: var(--unp-blue);">Tachas Presentadas</h3>
+      <div class="space-y-3">
+        ${[
+                    { id: 'T001', contra: 'Lista "UNP Unida"', motivo: 'Presunta sanción administrativa no declarada', estado: 'Fundada', res: 'Excluye candidato' },
+                    { id: 'T002', contra: 'Candidato Dr. Ramírez', motivo: 'No acredita 5 años en categoría', estado: 'Infundada', res: 'Mantiene candidatura' },
+                    { id: 'T003', contra: 'Lista "Renueva UNP"', motivo: 'Símbolo semejante a otra lista', estado: 'En evaluación', res: 'Pendiente' }
+                ].map(t => `
+          <div class="p-4 border rounded-lg hover:bg-gray-50">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-mono font-bold text-sm">${t.id}</span>
+                  <span class="badge ${t.estado === 'Fundada' ? 'bg-red-100 text-red-700' : t.estado === 'Infundada' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${t.estado}</span>
+                </div>
+                <div class="font-semibold mt-1">Contra: ${t.contra}</div>
+                <div class="text-sm text-gray-600 mt-1">${t.motivo}</div>
+                <div class="text-xs text-gray-500 mt-1">Resolución: ${t.res}</div>
+              </div>
+              <button class="px-3 py-1 text-xs bg-blue-50 text-blue-700 rounded">Ver actuados</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+        }
+
+        function renderPersoneros() {
+            document.getElementById('pageTitle').textContent = 'Personeros Acreditados';
+            document.getElementById('pageSubtitle').textContent = 'Representantes de lista con credencial QR';
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in bg-white rounded-xl p-6 shadow-sm">
+      <h3 class="font-bold text-lg mb-4" style="color: var(--unp-blue);">Personeros por Lista</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        ${CANDIDATES.map(c => `
+          <div class="border rounded-lg p-4">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-2xl">${c.symbol}</span>
+              <div>
+                <div class="font-bold" style="color: ${c.color};">${c.party}</div>
+                <div class="text-xs text-gray-500">Personeros acreditados</div>
+              </div>
+            </div>
+            <div class="space-y-2">
+              ${['General (Dra. Sofía Nieto)', 'Alterno (Dr. Raúl Ponce)', 'Mesa 1 (Dr. Iván Torres)', 'Mesa 2 (Dra. Laura Vega)', 'Mesa 3 (Dr. Diego Salas)'].map((p, i) => `
+                <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  <div class="text-xs">
+                    <div class="font-semibold">${p}</div>
+                    <div class="text-gray-500">Credencial QR ${i === 0 ? 'vigente' : 'vigente'}</div>
+                  </div>
+                  <i class="fas fa-qrcode text-gray-400"></i>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+        }
+
+        function renderSorteos() {
+            document.getElementById('pageTitle').textContent = 'Sorteos';
+            document.getElementById('pageSubtitle').textContent = 'Sorteos auditables con semilla verificable';
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+          <h3 class="font-bold mb-4" style="color: var(--unp-blue);">
+            <i class="fas fa-list-ol mr-2"></i>Sorteo de Orden en Cédula
+          </h3>
+          <div class="bg-gray-50 rounded-lg p-4 mb-4">
+            <div class="text-xs text-gray-500 mb-1">Semilla registrada</div>
+            <div class="font-mono text-sm">0xA3F9B2C7D1E5</div>
+            <div class="text-xs text-gray-500 mt-2">Fecha: 15/10/2026 10:30</div>
+            <div class="text-xs text-gray-500">Asistentes: CEUNP, ONPE, 3 personeros</div>
+          </div>
+          <div class="space-y-2">
+            ${CANDIDATES.map((c, i) => `
+              <div class="flex items-center gap-3 p-2 rounded" style="background: ${c.color}15;">
+                <span class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold" style="background: ${c.color};">${i + 1}</span>
+                <span class="text-2xl">${c.symbol}</span>
+                <span class="font-semibold">${c.party}</span>
+              </div>
+            `).join('')}
+          </div>
+          <button class="w-full mt-4 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+            <i class="fas fa-file-pdf mr-1"></i>Descargar acta del sorteo
+          </button>
+        </div>
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+          <h3 class="font-bold mb-4" style="color: var(--unp-blue);">
+            <i class="fas fa-users-cog mr-2"></i>Sorteo de Miembros de Mesa
+          </h3>
+          <div class="bg-gray-50 rounded-lg p-4 mb-4">
+            <div class="text-xs text-gray-500 mb-1">Semilla registrada</div>
+            <div class="font-mono text-sm">0xB7E2D4F8A1C3</div>
+            <div class="text-xs text-gray-500 mt-2">Fecha: 18/10/2026 11:00</div>
+          </div>
+          <div class="space-y-2">
+            ${MESAS.map(m => `
+              <div class="p-3 border rounded-lg">
+                <div class="font-semibold text-sm">Mesa ${m.num} · ${m.local}</div>
+                <div class="text-xs text-gray-600 mt-1">
+                  <div><i class="fas fa-crown text-yellow-500 mr-1"></i>Presidente: ${m.president}</div>
+                  <div><i class="fas fa-pen text-blue-500 mr-1"></i>Secretario: ${m.secretary}</div>
+                  <div><i class="fas fa-user text-green-500 mr-1"></i>Vocal: ${m.vocal}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+        }
+
+        function renderMesas() {
+            document.getElementById('pageTitle').textContent = 'Mesas de Sufragio';
+            document.getElementById('pageSubtitle').textContent = 'Estado de las mesas de votación';
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        ${MESAS.map(m => `
+          <div class="bg-white rounded-xl p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-12 h-12 rounded-lg flex items-center justify-center ${m.instalada ? 'bg-green-500 text-white' : 'bg-gray-300 text-white'}">
+                <i class="fas fa-door-open text-xl"></i>
+              </div>
+              <span class="badge ${m.instalada ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}">
+                ${m.instalada ? 'INSTALADA' : 'PENDIENTE'}
+              </span>
+            </div>
+            <h4 class="font-bold text-lg" style="color: var(--unp-blue);">Mesa N.° ${m.num}</h4>
+            <p class="text-xs text-gray-500">${m.local}</p>
+            <div class="mt-4 space-y-2 text-sm">
+              <div class="flex justify-between"><span class="text-gray-600">Presidente:</span><span class="font-semibold">${m.president}</span></div>
+              <div class="flex justify-between"><span class="text-gray-600">Secretario:</span><span class="font-semibold">${m.secretary}</span></div>
+              <div class="flex justify-between"><span class="text-gray-600">Vocal:</span><span class="font-semibold">${m.vocal}</span></div>
+              <div class="flex justify-between pt-2 border-t"><span class="text-gray-600">Electores:</span><span class="font-bold">${m.electores}</span></div>
+              <div class="flex justify-between"><span class="text-gray-600">Votos emitidos:</span><span class="font-bold text-green-600">${m.votos}</span></div>
+            </div>
+            <button onclick="verDetalleMesa(${m.num})" class="w-full mt-4 px-4 py-2 unp-gradient text-white rounded-lg text-sm">
+              <i class="fas fa-eye mr-1"></i>Ver detalle
+            </button>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+        }
+
+        function renderInstalacion() {
+            document.getElementById('pageTitle').textContent = 'Instalación de Mesa';
+            document.getElementById('pageSubtitle').textContent = `Mesa N.° ${currentMesa} · Biblioteca Central`;
+            const mesa = MESAS.find(m => m.num === currentMesa);
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in">
+      <div class="bg-white rounded-xl p-6 shadow-sm mb-4">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="font-bold text-xl" style="color: var(--unp-blue);">Mesa N.° ${currentMesa}</h3>
+            <p class="text-sm text-gray-500">${mesa.local}</p>
+          </div>
+          <span class="badge ${mesa.instalada ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'} text-sm">
+            ${mesa.instalada ? 'INSTALADA' : 'POR INSTALAR'}
+          </span>
+        </div>
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          ${[
+                    { cargo: 'Presidente', nombre: mesa.president, icon: 'fa-crown', color: 'yellow' },
+                    { cargo: 'Secretario', nombre: mesa.secretary, icon: 'fa-pen', color: 'blue' },
+                    { cargo: 'Vocal', nombre: mesa.vocal, icon: 'fa-user', color: 'green' }
+                ].map(m => `
+            <div class="p-3 bg-${m.color}-50 rounded-lg border border-${m.color}-200">
+              <div class="text-xs text-${m.color}-700 font-semibold">${m.cargo}</div>
+              <div class="font-semibold text-sm mt-1">${m.nombre}</div>
+              <div class="text-xs text-gray-500 mt-1"><i class="fas fa-qrcode mr-1"></i>QR escaneado</div>
+            </div>
+          `).join('')}
+        </div>
+        <h4 class="font-semibold mb-2">Material Electoral Recibido</h4>
+        <div class="grid grid-cols-2 gap-2 mb-4">
+          ${['Padrón impreso', 'Actas en blanco (3 juegos)', 'Cédulas de sufragio', 'Cartel de candidatos', 'Ánfora precintada', 'Cabina de votación'].map(mat => `
+            <label class="flex items-center gap-2 p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100">
+              <input type="checkbox" checked class="w-4 h-4">
+              <span class="text-sm">${mat}</span>
+            </label>
+          `).join('')}
+        </div>
+        <div class="mb-4">
+          <label class="text-sm font-semibold">Observaciones</label>
+          <textarea class="w-full mt-1 p-3 border rounded-lg text-sm" rows="2" placeholder="Sin observaciones...">Todas las cédulas firmadas por el Presidente en el reverso.</textarea>
+        </div>
+        ${!mesa.instalada ? `
+          <button onclick="instalarMesa(${currentMesa})" class="w-full py-3 unp-gradient text-white rounded-lg font-semibold">
+            <i class="fas fa-door-open mr-2"></i>INSTALAR MESA Y FIRMAR ACTA
+          </button>
+        ` : `
+          <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div class="flex items-center gap-2 text-green-700 font-semibold">
+              <i class="fas fa-check-circle"></i>Mesa instalada a las 09:15
+            </div>
+            <div class="text-xs text-green-600 mt-1">Acta de instalación firmada con QR y huella de integridad</div>
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+        }
+
+        function instalarMesa(num) {
+            const mesa = MESAS.find(m => m.num === num);
+            mesa.instalada = true;
+            addAudit('INSTALACION', `Mesa ${num} instalada correctamente`);
+            showModal(`
+    <div class="p-6 text-center">
+      <div class="w-20 h-20 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-4">
+        <i class="fas fa-check text-green-600 text-3xl"></i>
+      </div>
+      <h3 class="text-xl font-bold text-green-700">Mesa Instalada</h3>
+      <p class="text-sm text-gray-600 mt-2">Acta de instalación generada con QR y huella de integridad</p>
+      <div class="mt-4 p-3 bg-gray-50 rounded-lg font-mono text-xs">
+        ACTA-INST-M${num}-2026<br>
+        Hash: a3f9b2c7d1e5...<br>
+        Hora: ${new Date().toLocaleTimeString('es-PE')}
+      </div>
+      <button onclick="closeModal(); navigateTo('dashboard');" class="mt-4 px-6 py-2 unp-gradient text-white rounded-lg">Continuar</button>
+    </div>
+  `);
+            renderInstalacion();
+        }
+
+        function renderVerificar() {
+            document.getElementById('pageTitle').textContent = 'Verificación de Elector';
+            document.getElementById('pageSubtitle').textContent = 'Escaneo de QR y validación con DNI';
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+          <h3 class="font-bold mb-4" style="color: var(--unp-blue);">
+            <i class="fas fa-qrcode mr-2"></i>Escáner QR
+          </h3>
+          <div class="aspect-square bg-gray-900 rounded-lg flex items-center justify-center mb-4 relative overflow-hidden">
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div class="w-48 h-48 border-4 border-white/30 rounded-lg"></div>
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-b from-transparent via-red-500/20 to-transparent" style="animation: scan 3s linear infinite;"></div>
+            <i class="fas fa-qrcode text-white/50 text-6xl"></i>
+          </div>
+          <style>@keyframes scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }</style>
+          <div class="flex gap-2">
+            <input type="text" placeholder="O ingrese DNI manualmente..." class="flex-1 px-4 py-2 border rounded-lg text-sm" id="dniInput">
+            <button onclick="buscarPorDNI()" class="px-4 py-2 unp-gradient text-white rounded-lg text-sm">
+              <i class="fas fa-search"></i>
+            </button>
+          </div>
+          <button onclick="simularScanQR()" class="w-full mt-3 py-2 gold-gradient text-white rounded-lg font-semibold text-sm">
+            <i class="fas fa-camera mr-1"></i>Simular escaneo de QR
+          </button>
+        </div>
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+          <h3 class="font-bold mb-4" style="color: var(--unp-blue);">
+            <i class="fas fa-id-card mr-2"></i>Datos del Elector
+          </h3>
+          <div id="voterInfo" class="text-center py-8 text-gray-400">
+            <i class="fas fa-user-clock text-5xl mb-3"></i>
+            <p class="text-sm">Esperando escaneo de QR o ingreso de DNI...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+        }
+
+        function simularScanQR() {
+            const pendientes = DOCENTES.filter(d => !d.voted && d.mesa === currentMesa);
+            if (pendientes.length === 0) {
+                showModal('<div class="p-6 text-center"><i class="fas fa-exclamation-circle text-yellow-500 text-4xl mb-3"></i><h3 class="font-bold">Todos los electores de esta mesa ya votaron</h3></div>');
+                return;
+            }
+            const voter = pendientes[0];
+            currentVoter = voter;
+            mostrarDatosElector(voter);
+        }
+
+        function buscarPorDNI() {
+            const dni = document.getElementById('dniInput').value.trim();
+            const voter = DOCENTES.find(d => d.dni === dni);
+            if (!voter) {
+                showModal('<div class="p-6 text-center"><i class="fas fa-times-circle text-red-500 text-4xl mb-3"></i><h3 class="font-bold">DNI no encontrado en el padrón</h3></div>');
+                return;
+            }
+            currentVoter = voter;
+            mostrarDatosElector(voter);
+        }
+
+        function mostrarDatosElector(v) {
+            const info = document.getElementById('voterInfo');
+            info.innerHTML = `
+    <div class="fade-in">
+      <div class="flex items-center gap-4 mb-4">
+        <div class="w-24 h-24 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center text-white text-3xl font-bold">
+          ${v.name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+        </div>
+        <div class="text-left flex-1">
+          <div class="font-bold text-lg" style="color: var(--unp-blue);">${v.name}</div>
+          <div class="text-sm text-gray-600">DNI: ${v.dni}</div>
+          <div class="text-sm text-gray-600">Categoría: ${v.cat}</div>
+          <div class="text-sm text-gray-600">Mesa: ${v.mesa}</div>
+        </div>
+      </div>
+      ${v.voted ? `
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+          <i class="fas fa-ban text-red-500 mr-2"></i>
+          <span class="font-semibold text-red-700">Este elector YA VOTÓ</span>
+          <p class="text-xs text-red-600 mt-1">Sistema bloquea segundo ingreso (RN01, RF64)</p>
+        </div>
+      ` : `
+        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+          <i class="fas fa-check-circle text-green-500 mr-2"></i>
+          <span class="font-semibold text-green-700">Elector HABILITADO</span>
+          <p class="text-xs text-green-600 mt-1">Figura en padrón · No ha votado · Mesa correcta</p>
+        </div>
+        <button onclick="confirmarAsistencia()" class="w-full py-3 unp-gradient text-white rounded-lg font-semibold">
+          <i class="fas fa-check mr-2"></i>CONFIRMAR ASISTENCIA Y HABILITAR VOTO
+        </button>
+      `}
+    </div>
+  `;
+        }
+
+        function confirmarAsistencia() {
+            if (!currentVoter) return;
+            currentVoter.voted = true;
+            addAudit('ASISTENCIA', `Elector ${currentVoter.dni} - ${currentVoter.name}`);
+            showModal(`
+    <div class="p-6 text-center">
+      <div class="w-20 h-20 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-4">
+        <i class="fas fa-check text-green-600 text-3xl"></i>
+      </div>
+      <h3 class="text-xl font-bold text-green-700">Asistencia Registrada</h3>
+      <p class="text-sm text-gray-600 mt-2">${currentVoter.name}</p>
+      <p class="text-xs text-gray-500 mt-1">Hora: ${new Date().toLocaleTimeString('es-PE')}</p>
+      <p class="text-xs text-gray-500">Terminal habilitado para votar</p>
+      <button onclick="closeModal(); navigateTo('votar');" class="mt-4 px-6 py-2 unp-gradient text-white rounded-lg">
+        Ir al terminal de votación
+      </button>
+    </div>
+  `);
+        }
+
+        function renderVotar() {
+            document.getElementById('pageTitle').textContent = 'Terminal de Votación';
+            document.getElementById('pageSubtitle').textContent = 'Cámara secreta · Voto personal y secreto';
+            const voter = currentVoter || DOCENTES.find(d => d.voted);
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in">
+      ${!voter ? `
+        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-8 text-center">
+          <i class="fas fa-exclamation-triangle text-yellow-500 text-5xl mb-3"></i>
+          <h3 class="font-bold text-lg text-yellow-700">No hay elector habilitado</h3>
+          <p class="text-sm text-yellow-600 mt-2">Primero verifique al elector con QR</p>
+          <button onclick="navigateTo('verificar')" class="mt-4 px-6 py-2 unp-gradient text-white rounded-lg">Ir a verificación</button>
+        </div>
+      ` : `
+        <div class="bg-gradient-to-br from-blue-900 to-blue-700 rounded-xl p-6 text-white mb-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-xs opacity-70">ELECTOR VALIDADO</div>
+              <div class="font-bold text-lg">${voter.name}</div>
+              <div class="text-sm opacity-80">DNI: ${voter.dni} · Mesa ${voter.mesa}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs opacity-70">HORARIO</div>
+              <div class="font-bold">09:00 - 15:00</div>
+              <div class="text-sm opacity-80">${new Date().toLocaleTimeString('es-PE')}</div>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl p-6 shadow-sm mb-4">
+          <h3 class="font-bold text-center mb-4" style="color: var(--unp-blue);">
+            <i class="fas fa-vote-yea mr-2"></i>Seleccione su opción de voto
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            ${CANDIDATES.map(c => `
+              <div onclick="seleccionarCandidato(${c.id})" id="cand-${c.id}" class="candidate-card border-2 rounded-xl p-5 text-center cursor-pointer hover:shadow-lg">
+                <div class="text-5xl mb-2">${c.symbol}</div>
+                <div class="font-bold" style="color: ${c.color};">${c.party}</div>
+                <div class="text-xs text-gray-600 mt-1">${c.name}</div>
+                <div class="text-xs italic text-gray-500 mt-2">"${c.plan}"</div>
+              </div>
+            `).join('')}
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div onclick="seleccionarCandidato('blanco')" id="cand-blanco" class="candidate-card border-2 border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:bg-gray-50">
+              <div class="text-3xl mb-1">⚪</div>
+              <div class="font-semibold text-gray-700">VOTO EN BLANCO</div>
+              <div class="text-xs text-gray-500">Cédula sin marca</div>
+            </div>
+            <div onclick="seleccionarCandidato('nulo')" id="cand-nulo" class="candidate-card border-2 border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:bg-gray-50">
+              <div class="text-3xl mb-1">❌</div>
+              <div class="font-semibold text-gray-700">VOTO NULO</div>
+              <div class="text-xs text-gray-500">Marca tachada o inválida</div>
+            </div>
+          </div>
+          <div id="confirmArea" class="hidden mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div class="text-center">
+              <div class="text-sm text-gray-700">Su selección:</div>
+              <div id="selectedInfo" class="font-bold text-lg mt-1" style="color: var(--unp-blue);"></div>
+              <div class="flex gap-2 mt-3">
+                <button onclick="cancelarSeleccion()" class="flex-1 py-2 border border-gray-300 rounded-lg text-sm">
+                  <i class="fas fa-times mr-1"></i>Corregir
+                </button>
+                <button onclick="confirmarVoto()" class="flex-1 py-2 unp-gradient text-white rounded-lg text-sm font-semibold">
+                  <i class="fas fa-check mr-1"></i>CONFIRMAR VOTO
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `}
+    </div>
+  `;
+        }
+
+        function seleccionarCandidato(id) {
+            selectedCandidate = id;
+            document.querySelectorAll('.candidate-card').forEach(el => el.classList.remove('candidate-selected'));
+            document.getElementById('cand-' + id).classList.add('candidate-selected');
+            const confirm = document.getElementById('confirmArea');
+            const info = document.getElementById('selectedInfo');
+            confirm.classList.remove('hidden');
+            if (id === 'blanco') info.innerHTML = '⚪ VOTO EN BLANCO';
+            else if (id === 'nulo') info.innerHTML = '❌ VOTO NULO';
+            else {
+                const c = CANDIDATES.find(c => c.id === id);
+                info.innerHTML = `${c.symbol} ${c.party}`;
+            }
+        }
+
+        function cancelarSeleccion() {
+            selectedCandidate = null;
+            document.querySelectorAll('.candidate-card').forEach(el => el.classList.remove('candidate-selected'));
+            document.getElementById('confirmArea').classList.add('hidden');
+        }
+
+        function confirmarVoto() {
+            if (!selectedCandidate || !currentVoter) return;
+            const mesa = MESAS.find(m => m.num === currentMesa);
+            mesa.votos++;
+            if (typeof selectedCandidate === 'number') {
+                const c = CANDIDATES.find(c => c.id === selectedCandidate);
+                c.votes++;
+                addAudit('VOTO', `Voto registrado para ${c.party} (sin vínculo con elector)`);
+            } else {
+                addAudit('VOTO', `Voto ${selectedCandidate} registrado (sin vínculo con elector)`);
+            }
+
+            // Generar cédula impresa
+            const cedulaHTML = selectedCandidate === 'blanco' ? 'EN BLANCO' :
+                selectedCandidate === 'nulo' ? 'NULO' :
+                    `${CANDIDATES.find(c => c.id === selectedCandidate).symbol} ${CANDIDATES.find(c => c.id === selectedCandidate).party}`;
+
+            showModal(`
+    <div class="p-6">
+      <div class="text-center mb-4">
+        <div class="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-3">
+          <i class="fas fa-check text-green-600 text-2xl"></i>
+        </div>
+        <h3 class="text-xl font-bold text-green-700">Voto Registrado</h3>
+        <p class="text-xs text-gray-500 mt-1">Sin vínculo con el elector (RNF06)</p>
+      </div>
+      <div class="ballot-paper p-4 rounded-lg mb-4">
+        <div class="text-center border-b border-gray-300 pb-2 mb-2">
+          <div class="text-xs">UNIVERSIDAD NACIONAL DE PIURA</div>
+          <div class="text-xs font-bold">CÉDULA DE SUFRAGIO - ELECCIÓN DOCENTE 2026-II</div>
+        </div>
+        <div class="text-center py-3">
+          <div class="text-xs text-gray-500">SELECCIÓN DEL ELECTOR:</div>
+          <div class="text-2xl font-bold mt-2" style="color: var(--unp-blue);">${cedulaHTML}</div>
+        </div>
+        <div class="text-center text-xs border-t border-gray-300 pt-2">
+          Mesa ${currentMesa} · Impreso: ${new Date().toLocaleString('es-PE')}<br>
+          <span class="font-mono">ID: V-${Date.now().toString(36).toUpperCase()}</span>
+        </div>
+      </div>
+      <div class="bg-blue-50 rounded-lg p-3 text-xs text-blue-700 mb-4">
+        <i class="fas fa-info-circle mr-1"></i>
+        <strong>Instrucciones:</strong> Recoja la cédula impresa y deposítela en el ánfora. Luego firme y coloque su huella en la lista de electores.
+      </div>
+      <button onclick="finalizarVoto()" class="w-full py-3 unp-gradient text-white rounded-lg font-semibold">
+        <i class="fas fa-print mr-2"></i>IMPRIMIR CÉDULA Y FINALIZAR
+      </button>
+    </div>
+  `);
+        }
+
+        function finalizarVoto() {
+            closeModal();
+            currentVoter = null;
+            selectedCandidate = null;
+            showModal(`
+    <div class="p-6 text-center">
+      <i class="fas fa-print text-blue-500 text-4xl mb-3"></i>
+      <h3 class="font-bold">Imprimiendo cédula...</h3>
+      <p class="text-sm text-gray-600 mt-2">Terminal listo para siguiente elector</p>
+      <button onclick="closeModal(); navigateTo('dashboard');" class="mt-4 px-6 py-2 unp-gradient text-white rounded-lg">Volver al panel</button>
+    </div>
+  `);
+        }
+
+        function renderCierre() {
+            document.getElementById('pageTitle').textContent = 'Cierre del Sufragio';
+            document.getElementById('pageSubtitle').textContent = `Mesa N.° ${currentMesa}`;
+            const mesa = MESAS.find(m => m.num === currentMesa);
+            const electoresMesa = DOCENTES.filter(d => d.mesa === currentMesa);
+            const votaron = electoresMesa.filter(d => d.voted).length;
+            const ausentes = electoresMesa.length - votaron;
+
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in">
+      <div class="bg-white rounded-xl p-6 shadow-sm mb-4">
+        <h3 class="font-bold text-lg mb-4" style="color: var(--unp-blue);">Resumen de Votación - Mesa ${currentMesa}</h3>
+        <div class="grid grid-cols-3 gap-4 mb-4">
+          <div class="bg-blue-50 rounded-lg p-4 text-center">
+            <div class="text-3xl font-bold text-blue-700">${electoresMesa.length}</div>
+            <div class="text-xs text-gray-600">Electores en padrón</div>
+          </div>
+          <div class="bg-green-50 rounded-lg p-4 text-center">
+            <div class="text-3xl font-bold text-green-700">${votaron}</div>
+            <div class="text-xs text-gray-600">Votaron</div>
+          </div>
+          <div class="bg-red-50 rounded-lg p-4 text-center">
+            <div class="text-3xl font-bold text-red-700">${ausentes}</div>
+            <div class="text-xs text-gray-600">Ausentes (NO VOTÓ)</div>
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="text-sm font-semibold">Cédulas no utilizadas</label>
+          <input type="number" value="${50 - votaron}" class="w-full mt-1 px-4 py-2 border rounded-lg">
+        </div>
+        <div class="mb-4">
+          <label class="text-sm font-semibold">Observaciones</label>
+          <textarea class="w-full mt-1 px-4 py-2 border rounded-lg" rows="2" placeholder="Sin observaciones..."></textarea>
+        </div>
+        <button onclick="cerrarSufragio()" class="w-full py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700">
+          <i class="fas fa-lock mr-2"></i>CERRAR SUFRAGIO Y GENERAR ACTA
+        </button>
+      </div>
+    </div>
+  `;
+        }
+
+        function cerrarSufragio() {
+            addAudit('CIERRE', `Sufragio cerrado en Mesa ${currentMesa}`);
+            showModal(`
+    <div class="p-6 text-center">
+      <div class="w-20 h-20 bg-red-100 rounded-full mx-auto flex items-center justify-center mb-4">
+        <i class="fas fa-lock text-red-600 text-3xl"></i>
+      </div>
+      <h3 class="text-xl font-bold text-red-700">Sufragio Cerrado</h3>
+      <p class="text-sm text-gray-600 mt-2">Acta de sufragio generada con QR</p>
+      <div class="mt-4 p-3 bg-gray-50 rounded-lg font-mono text-xs text-left">
+        ACTA-SUFRAGIO-M${currentMesa}-2026<br>
+        Hora cierre: ${new Date().toLocaleTimeString('es-PE')}<br>
+        Hash: b7e2d4f8a1c3...
+      </div>
+      <button onclick="closeModal(); navigateTo('escrutinio');" class="mt-4 px-6 py-2 unp-gradient text-white rounded-lg">
+        Ir al escrutinio
+      </button>
+    </div>
+  `);
+        }
+
+        function renderEscrutinio() {
+            document.getElementById('pageTitle').textContent = 'Escrutinio y Conciliación';
+            document.getElementById('pageSubtitle').textContent = `Mesa N.° ${currentMesa} · Acto ininterrumpido e irreversible`;
+            const mesa = MESAS.find(m => m.num === currentMesa);
+            const electoresMesa = DOCENTES.filter(d => d.mesa === currentMesa);
+            const votaron = electoresMesa.filter(d => d.voted).length;
+
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in">
+      <div class="bg-white rounded-xl p-6 shadow-sm mb-4">
+        <h3 class="font-bold text-lg mb-4" style="color: var(--unp-blue);">
+          <i class="fas fa-calculator mr-2"></i>Conciliación de Votos
+        </h3>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="bg-blue-50 rounded-lg p-4">
+            <div class="text-xs text-gray-600">Total electores que votaron (sistema)</div>
+            <div class="text-3xl font-bold text-blue-700">${votaron}</div>
+          </div>
+          <div class="bg-yellow-50 rounded-lg p-4">
+            <div class="text-xs text-gray-600">Total cédulas en ánfora (conteo manual)</div>
+            <input type="number" value="${votaron}" id="cedulasAnfora" class="w-full text-3xl font-bold text-yellow-700 bg-transparent border-none outline-none">
+          </div>
+        </div>
+        <div id="conciliacionMsg" class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 text-sm text-green-700">
+          <i class="fas fa-check-circle mr-1"></i>Totales conciliados correctamente
+        </div>
+        <h4 class="font-semibold mb-2">Conteo Manual por Lista</h4>
+        <div class="space-y-2 mb-4">
+          ${CANDIDATES.map(c => `
+            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <span class="text-2xl">${c.symbol}</span>
+              <span class="flex-1 font-semibold">${c.party}</span>
+              <input type="number" value="${c.votes}" class="w-20 px-3 py-1 border rounded text-center font-bold" style="color: ${c.color};">
+              <span class="text-xs text-gray-500">votos</span>
+            </div>
+          `).join('')}
+          <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+            <span class="text-2xl">⚪</span>
+            <span class="flex-1 font-semibold">En blanco</span>
+            <input type="number" value="0" class="w-20 px-3 py-1 border rounded text-center font-bold">
+          </div>
+          <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+            <span class="text-2xl">❌</span>
+            <span class="flex-1 font-semibold">Nulos</span>
+            <input type="number" value="0" class="w-20 px-3 py-1 border rounded text-center font-bold">
+          </div>
+        </div>
+        <button onclick="generarActaEscrutinio()" class="w-full py-3 unp-gradient text-white rounded-lg font-semibold">
+          <i class="fas fa-file-signature mr-2"></i>GENERAR ACTA DE ESCRUTINIO
+        </button>
+      </div>
+    </div>
+  `;
+        }
+
+        function generarActaEscrutinio() {
+            addAudit('ESCRUTINIO', `Acta de escrutinio generada Mesa ${currentMesa}`);
+            showModal(`
+    <div class="p-6">
+      <div class="text-center mb-4">
+        <div class="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-3">
+          <i class="fas fa-file-signature text-green-600 text-2xl"></i>
+        </div>
+        <h3 class="text-xl font-bold text-green-700">Acta de Escrutinio Generada</h3>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-4 font-mono text-xs space-y-1">
+        <div>ACTA-ESCR-M${currentMesa}-2026</div>
+        <div>Mesa: ${currentMesa} · ${MESAS.find(m => m.num === currentMesa).local}</div>
+        <div>Inicio: 15:05 · Fin: ${new Date().toLocaleTimeString('es-PE')}</div>
+        <div>Electores que votaron: ${DOCENTES.filter(d => d.mesa === currentMesa && d.voted).length}</div>
+        <div>Votos por lista: ${CANDIDATES.map(c => `${c.party}=${c.votes}`).join(', ')}</div>
+        <div>Hash integridad: c3d8e1f5a7b2...</div>
+        <div>QR: ✓ Verificable públicamente</div>
+      </div>
+      <div class="grid grid-cols-3 gap-2 mt-4">
+        <div class="text-center p-2 bg-blue-50 rounded">
+          <div class="text-xs text-gray-600">CEUNP</div>
+          <div class="text-xs font-bold">Ejemplar 1</div>
+        </div>
+        <div class="text-center p-2 bg-yellow-50 rounded">
+          <div class="text-xs text-gray-600">ONPE</div>
+          <div class="text-xs font-bold">Ejemplar 2</div>
+        </div>
+        <div class="text-center p-2 bg-green-50 rounded">
+          <div class="text-xs text-gray-600">Local</div>
+          <div class="text-xs font-bold">Ejemplar 3</div>
+        </div>
+      </div>
+      <button onclick="closeModal(); navigateTo('computo');" class="w-full mt-4 py-3 unp-gradient text-white rounded-lg font-semibold">
+        Ir al Cómputo General
+      </button>
+    </div>
+  `);
+        }
+
+        function renderComputo() {
+            document.getElementById('pageTitle').textContent = 'Cómputo y Proclamación';
+            document.getElementById('pageSubtitle').textContent = 'Sesión de cómputo general del CEUNP';
+            const totalVotos = CANDIDATES.reduce((s, c) => s + c.votes, 0);
+            const totalDocentes = DOCENTES.length;
+            const participacion = ((totalVotos / totalDocentes) * 100).toFixed(1);
+            const ganador = CANDIDATES.reduce((a, b) => a.votes > b.votes ? a : b);
+            const quorumOk = parseFloat(participacion) > 60;
+
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+          <h3 class="font-bold mb-4" style="color: var(--unp-blue);">
+            <i class="fas fa-chart-pie mr-2"></i>Resultados Consolidados
+          </h3>
+          <canvas id="chartComputo" height="250"></canvas>
+        </div>
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+          <h3 class="font-bold mb-4" style="color: var(--unp-blue);">
+            <i class="fas fa-tasks mr-2"></i>Validaciones
+          </h3>
+          <div class="space-y-3">
+            <div class="flex items-center gap-3 p-3 ${quorumOk ? 'bg-green-50' : 'bg-red-50'} rounded-lg">
+              <i class="fas ${quorumOk ? 'fa-check-circle text-green-600' : 'fa-times-circle text-red-600'}"></i>
+              <div class="flex-1">
+                <div class="font-semibold text-sm">Quórum de participación</div>
+                <div class="text-xs text-gray-600">${participacion}% (mínimo 60%)</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+              <i class="fas fa-check-circle text-green-600"></i>
+              <div class="flex-1">
+                <div class="font-semibold text-sm">Mesas instaladas</div>
+                <div class="text-xs text-gray-600">${MESAS.filter(m => m.instalada).length}/${MESAS.length} mesas</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+              <i class="fas fa-check-circle text-green-600"></i>
+              <div class="flex-1">
+                <div class="font-semibold text-sm">Actas recibidas</div>
+                <div class="text-xs text-gray-600">3 actas por mesa verificadas</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+              <i class="fas fa-check-circle text-green-600"></i>
+              <div class="flex-1">
+                <div class="font-semibold text-sm">Recursos de nulidad</div>
+                <div class="text-xs text-gray-600">0 pendientes</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-white rounded-xl p-6 shadow-sm mb-4">
+        <h3 class="font-bold mb-4" style="color: var(--unp-blue);">
+          <i class="fas fa-list-ol mr-2"></i>Detalle por Lista
+        </h3>
+        <div class="space-y-2">
+          ${CANDIDATES.sort((a, b) => b.votes - a.votes).map((c, i) => {
+                const pct = totalVotos > 0 ? ((c.votes / totalVotos) * 100).toFixed(1) : 0;
+                return `
+              <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold" style="background: ${c.color};">${i + 1}</div>
+                <span class="text-2xl">${c.symbol}</span>
+                <div class="flex-1">
+                  <div class="font-semibold">${c.party}</div>
+                  <div class="text-xs text-gray-600">${c.name}</div>
+                </div>
+                <div class="text-right">
+                  <div class="font-bold text-lg" style="color: ${c.color};">${c.votes}</div>
+                  <div class="text-xs text-gray-500">${pct}%</div>
+                </div>
+                <div class="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div class="h-full" style="width: ${pct}%; background: ${c.color};"></div>
+                </div>
+              </div>
+            `;
+            }).join('')}
+        </div>
+        <div class="mt-4 pt-4 border-t flex justify-between items-center">
+          <div>
+            <div class="text-xs text-gray-500">Total votos válidos</div>
+            <div class="text-2xl font-bold" style="color: var(--unp-blue);">${totalVotos}</div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-gray-500">Lista ganadora</div>
+            <div class="text-xl font-bold" style="color: ${ganador.color};">${ganador.symbol} ${ganador.party}</div>
+          </div>
+        </div>
+      </div>
+      
+      <button onclick="proclamarResultados()" class="w-full py-4 gold-gradient text-white rounded-xl font-bold text-lg shadow-lg hover:opacity-90">
+        <i class="fas fa-trophy mr-2"></i>PROCLAMAR RESULTADOS OFICIALES
+      </button>
+    </div>
+  `;
+
+            setTimeout(() => {
+                const ctx = document.getElementById('chartComputo');
+                if (ctx) new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: CANDIDATES.map(c => c.party),
+                        datasets: [{ data: CANDIDATES.map(c => c.votes), backgroundColor: CANDIDATES.map(c => c.color) }]
+                    },
+                    options: { responsive: true }
+                });
+            }, 100);
+        }
+
+        function proclamarResultados() {
+            const ganador = CANDIDATES.reduce((a, b) => a.votes > b.votes ? a : b);
+            addAudit('PROCLAMACION', `Lista ganadora: ${ganador.party}`);
+            showModal(`
+    <div class="p-8 text-center">
+      <div class="w-24 h-24 gold-gradient rounded-full mx-auto flex items-center justify-center mb-4 shadow-lg">
+        <i class="fas fa-trophy text-white text-4xl"></i>
+      </div>
+      <h2 class="text-2xl font-bold" style="color: var(--unp-blue);">¡RESULTADOS PROCLAMADOS!</h2>
+      <p class="text-sm text-gray-600 mt-2">Resolución del CEUNP emitida</p>
+      <div class="mt-6 p-6 bg-gradient-to-br from-blue-50 to-yellow-50 rounded-xl border-2" style="border-color: var(--unp-gold);">
+        <div class="text-xs text-gray-500">LISTA GANADORA</div>
+        <div class="text-5xl my-2">${ganador.symbol}</div>
+        <div class="text-2xl font-bold" style="color: ${ganador.color};">${ganador.party}</div>
+        <div class="text-sm mt-1">${ganador.name}</div>
+        <div class="text-xs text-gray-600 mt-3">${ganador.votes} votos · Rector y Vicerrectores electos</div>
+      </div>
+      <div class="mt-4 grid grid-cols-3 gap-2 text-xs">
+        <div class="p-2 bg-gray-50 rounded">
+          <i class="fas fa-globe text-blue-500"></i>
+          <div class="mt-1">Publicado en portal</div>
+        </div>
+        <div class="p-2 bg-gray-50 rounded">
+          <i class="fas fa-newspaper text-blue-500"></i>
+          <div class="mt-1">El Peruano</div>
+        </div>
+        <div class="p-2 bg-gray-50 rounded">
+          <i class="fas fa-university text-blue-500"></i>
+          <div class="mt-1">SUNEDU notificado</div>
+        </div>
+      </div>
+      <button onclick="closeModal(); navigateTo('dashboard');" class="mt-6 px-8 py-3 unp-gradient text-white rounded-lg font-semibold">
+        Finalizar proceso
+      </button>
+    </div>
+  `);
+        }
+
+        function renderNulidades() {
+            document.getElementById('pageTitle').textContent = 'Nulidades';
+            document.getElementById('pageSubtitle').textContent = 'Causales de nulidad parcial o total';
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in bg-white rounded-xl p-6 shadow-sm">
+      <h3 class="font-bold text-lg mb-4" style="color: var(--unp-blue);">Recursos de Nulidad</h3>
+      <div class="space-y-3">
+        <div class="p-4 border border-green-200 bg-green-50 rounded-lg">
+          <div class="flex items-center gap-2 mb-2">
+            <i class="fas fa-check-circle text-green-600"></i>
+            <span class="font-bold">Sin nulidades registradas</span>
+          </div>
+          <p class="text-sm text-gray-600">Todas las mesas cumplieron con el reglamento. No se han presentado recursos de nulidad.</p>
+        </div>
+        <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 class="font-semibold text-sm mb-2">Causales de Nulidad (Art. 64-66)</h4>
+          <ul class="text-xs text-gray-600 space-y-1">
+            <li>• Instalación fuera de hora sin justificación</li>
+            <li>• Fraude, cohecho, soborno o intimidación comprobados</li>
+            <li>• Admisión indebida de electores</li>
+            <li>• Participación menor al 60% del padrón</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  `;
+        }
+
+        function renderMultas() {
+            document.getElementById('pageTitle').textContent = 'Multas y Reportes';
+            document.getElementById('pageSubtitle').textContent = 'Reporte de omisos';
+            const ausentes = DOCENTES.filter(d => !d.voted);
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in">
+      <div class="grid grid-cols-3 gap-4 mb-4">
+        <div class="bg-white rounded-xl p-5 shadow-sm">
+          <div class="text-xs text-gray-500">Docentes omisos</div>
+          <div class="text-3xl font-bold text-red-600">${ausentes.length}</div>
+          <div class="text-xs text-gray-500">Multa: 2.5% UIT</div>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow-sm">
+          <div class="text-xs text-gray-500">Miembros de mesa ausentes</div>
+          <div class="text-3xl font-bold text-orange-600">0</div>
+          <div class="text-xs text-gray-500">Multa: 3% UIT</div>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow-sm">
+          <div class="text-xs text-gray-500">UIT vigente 2026</div>
+          <div class="text-3xl font-bold" style="color: var(--unp-blue);">S/ 5,150</div>
+          <div class="text-xs text-gray-500">Parametrizable</div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl p-6 shadow-sm">
+        <div class="flex justify-between mb-4">
+          <h3 class="font-bold" style="color: var(--unp-blue);">Docentes que NO VOTARON</h3>
+          <button class="px-4 py-2 unp-gradient text-white rounded-lg text-sm">
+            <i class="fas fa-file-pdf mr-1"></i>Generar reporte
+          </button>
+        </div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="text-left p-3">DNI</th>
+              <th class="text-left p-3">Nombres</th>
+              <th class="text-left p-3">Mesa</th>
+              <th class="text-left p-3">Multa</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ausentes.map(d => `
+              <tr class="border-t hover:bg-gray-50">
+                <td class="p-3 font-mono">${d.dni}</td>
+                <td class="p-3 font-semibold">${d.name}</td>
+                <td class="p-3">Mesa ${d.mesa}</td>
+                <td class="p-3 font-bold text-red-600">S/ ${(5150 * 0.025).toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+        }
+
+        function renderUsuarios() {
+            document.getElementById('pageTitle').textContent = 'Usuarios y Roles';
+            document.getElementById('pageSubtitle').textContent = 'Administración de accesos al sistema';
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in bg-white rounded-xl p-6 shadow-sm">
+      <div class="flex justify-between mb-4">
+        <h3 class="font-bold text-lg" style="color: var(--unp-blue);">Usuarios del Sistema</h3>
+        <button class="px-4 py-2 unp-gradient text-white rounded-lg text-sm"><i class="fas fa-plus mr-1"></i>Nuevo usuario</button>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="text-left p-3">Usuario</th>
+            <th class="text-left p-3">Rol</th>
+            <th class="text-left p-3">Estado</th>
+            <th class="text-left p-3">Último acceso</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${[
+                    { u: 'admin', r: 'Administrador', e: 'Activo', f: 'Hoy 08:30' },
+                    { u: 'ceunp', r: 'CEUNP Pleno', e: 'Activo', f: 'Hoy 09:00' },
+                    { u: 'mesa1_pres', r: 'Presidente Mesa 1', e: 'Activo', f: 'Hoy 09:10' },
+                    { u: 'mesa1_sec', r: 'Secretario Mesa 1', e: 'Activo', f: 'Hoy 09:10' },
+                    { u: 'personero1', r: 'Personero Renueva UNP', e: 'Activo', f: 'Hoy 09:15' }
+                ].map(u => `
+            <tr class="border-t hover:bg-gray-50">
+              <td class="p-3 font-mono">${u.u}</td>
+              <td class="p-3"><span class="badge bg-blue-100 text-blue-700">${u.r}</span></td>
+              <td class="p-3"><span class="badge bg-green-100 text-green-700">${u.e}</span></td>
+              <td class="p-3 text-xs text-gray-500">${u.f}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+        }
+
+        function renderParametros() {
+            document.getElementById('pageTitle').textContent = 'Parámetros del Sistema';
+            document.getElementById('pageSubtitle').textContent = 'Configuración sin modificar código (RNF25)';
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in bg-white rounded-xl p-6 shadow-sm">
+      <h3 class="font-bold text-lg mb-4" style="color: var(--unp-blue);">Parámetros Configurable</h3>
+      <div class="grid grid-cols-2 gap-4">
+        ${[
+                    { l: 'Horario de sufragio - Inicio', v: '09:00' },
+                    { l: 'Horario de sufragio - Fin', v: '15:00' },
+                    { l: 'Instalación de mesas - Inicio', v: '09:00' },
+                    { l: 'Instalación de mesas - Límite', v: '12:00' },
+                    { l: 'Anticipación convocatoria (días mín)', v: '30' },
+                    { l: 'Anticipación convocatoria (días máx)', v: '45' },
+                    { l: 'Quórum de participación (%)', v: '60' },
+                    { l: 'Plazo segunda vuelta (días)', v: '15' },
+                    { l: 'UIT vigente (S/)', v: '5150' },
+                    { l: 'Multa miembros de mesa (% UIT)', v: '3' },
+                    { l: 'Multa docentes omisos (% UIT)', v: '2.5' },
+                    { l: 'Centro de votación', v: 'Biblioteca Central' }
+                ].map(p => `
+          <div>
+            <label class="text-xs font-semibold text-gray-600">${p.l}</label>
+            <input type="text" value="${p.v}" class="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
+          </div>
+        `).join('')}
+      </div>
+      <button class="w-full mt-4 py-2 unp-gradient text-white rounded-lg font-semibold">
+        <i class="fas fa-save mr-1"></i>Guardar cambios
+      </button>
+    </div>
+  `;
+        }
+
+        function renderBitacora() {
+            document.getElementById('pageTitle').textContent = 'Bitácora de Auditoría';
+            document.getElementById('pageSubtitle').textContent = 'Registro inmutable de acciones (RNF10)';
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in bg-white rounded-xl p-6 shadow-sm">
+      <div class="flex justify-between mb-4">
+        <h3 class="font-bold text-lg" style="color: var(--unp-blue);">Bitácora del Sistema</h3>
+        <button class="px-4 py-2 bg-gray-100 rounded-lg text-sm"><i class="fas fa-download mr-1"></i>Exportar</button>
+      </div>
+      <div class="space-y-2 max-h-[600px] overflow-y-auto scroll-thin">
+        ${auditLog.length === 0 ? '<p class="text-gray-400 text-center py-8">Sin registros aún</p>' :
+                    auditLog.map(a => `
+            <div class="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50">
+              <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                <i class="fas fa-user text-blue-600"></i>
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold text-sm">${a.user}</span>
+                  <span class="badge bg-purple-100 text-purple-700">${a.action}</span>
+                </div>
+                <div class="text-xs text-gray-600">${a.detail}</div>
+              </div>
+              <div class="text-xs text-gray-400">${a.time}</div>
+            </div>
+          `).join('')}
+      </div>
+    </div>
+  `;
+        }
+
+        function renderRespaldo() {
+            document.getElementById('pageTitle').textContent = 'Respaldos';
+            document.getElementById('pageSubtitle').textContent = 'Gestión de backups de la base de datos';
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in bg-white rounded-xl p-6 shadow-sm">
+      <h3 class="font-bold text-lg mb-4" style="color: var(--unp-blue);">Respaldos Automáticos</h3>
+      <div class="space-y-2">
+        ${[
+                    { f: 'Hoy 08:00', t: 'Automático', s: '245 MB' },
+                    { f: 'Ayer 20:00', t: 'Automático', s: '243 MB' },
+                    { f: 'Ayer 08:00', t: 'Automático', s: '240 MB' },
+                    { f: '15/10/2026 10:30', t: 'Manual', s: '238 MB' }
+                ].map(b => `
+          <div class="flex items-center gap-3 p-3 border rounded-lg">
+            <i class="fas fa-database text-blue-500 text-xl"></i>
+            <div class="flex-1">
+              <div class="font-semibold text-sm">${b.f}</div>
+              <div class="text-xs text-gray-500">${b.t} · ${b.s}</div>
+            </div>
+            <button class="px-3 py-1 bg-gray-100 rounded text-xs">Restaurar</button>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+        }
+
+        function renderFiscalizar() {
+            document.getElementById('pageTitle').textContent = 'Fiscalización';
+            document.getElementById('pageSubtitle').textContent = 'Vista del personero';
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in">
+      <div class="grid grid-cols-3 gap-4 mb-4">
+        <div class="bg-white rounded-xl p-5 shadow-sm">
+          <div class="text-xs text-gray-500">Electores mesa</div>
+          <div class="text-3xl font-bold" style="color: var(--unp-blue);">45</div>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow-sm">
+          <div class="text-xs text-gray-500">Votos emitidos</div>
+          <div class="text-3xl font-bold text-green-600">${DOCENTES.filter(d => d.voted).length}</div>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow-sm">
+          <div class="text-xs text-gray-500">Incidencias</div>
+          <div class="text-3xl font-bold text-yellow-600">0</div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl p-6 shadow-sm">
+        <h3 class="font-bold mb-4" style="color: var(--unp-blue);">Actos del Proceso (acceso público para personeros)</h3>
+        <div class="space-y-2">
+          ${[
+                    { a: 'Padrón aprobado', t: '10/10/2026', ok: true },
+                    { a: 'Listas inscritas', t: '12/10/2026', ok: true },
+                    { a: 'Sorteo orden cédula', t: '15/10/2026', ok: true },
+                    { a: 'Sorteo miembros de mesa', t: '18/10/2026', ok: true },
+                    { a: 'Instalación de mesa', t: 'Hoy 09:15', ok: true }
+                ].map(x => `
+            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <i class="fas ${x.ok ? 'fa-check-circle text-green-600' : 'fa-clock text-yellow-600'}"></i>
+              <div class="flex-1">
+                <div class="font-semibold text-sm">${x.a}</div>
+                <div class="text-xs text-gray-500">${x.t}</div>
+              </div>
+              <button class="text-xs text-blue-600">Ver acta</button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+        }
+
+        function renderImpugnar() {
+            document.getElementById('pageTitle').textContent = 'Impugnación de Votos';
+            document.getElementById('pageSubtitle').textContent = 'Solo personeros de mesa pueden impugnar (Art. 57)';
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in bg-white rounded-xl p-6 shadow-sm">
+      <h3 class="font-bold text-lg mb-4" style="color: var(--unp-blue);">Impugnar un Voto</h3>
+      <div class="mb-4">
+        <label class="text-sm font-semibold">Número de cédula</label>
+        <input type="text" placeholder="Ej: C-00123" class="w-full mt-1 px-4 py-2 border rounded-lg">
+      </div>
+      <div class="mb-4">
+        <label class="text-sm font-semibold">Motivo de impugnación</label>
+        <select class="w-full mt-1 px-4 py-2 border rounded-lg">
+          <option>Cédula sin firma del Presidente (Art. 53.2e)</option>
+          <option>Marca ambigua o no reglamentaria</option>
+          <option>Marcas identificadoras del elector</option>
+          <option>Cédula duplicada</option>
+        </select>
+      </div>
+      <div class="mb-4">
+        <label class="text-sm font-semibold">Sustento</label>
+        <textarea class="w-full mt-1 px-4 py-2 border rounded-lg" rows="3" placeholder="Describa el motivo..."></textarea>
+      </div>
+      <button onclick="addAudit('IMPUGNACION','Voto impugnado por personero'); showModal('<div class=\\'p-6 text-center\\'><i class=\\'fas fa-check-circle text-green-500 text-4xl mb-3\\'></i><h3 class=\\'font-bold\\'>Impugnación registrada</h3><p class=\\'text-sm text-gray-600 mt-2\\'>La mesa resolverá por mayoría</p><button onclick=\\'closeModal()\\' class=\\'mt-4 px-6 py-2 unp-gradient text-white rounded-lg\\'>Cerrar</button></div>')" class="w-full py-3 bg-red-600 text-white rounded-lg font-semibold">
+        <i class="fas fa-hand-paper mr-2"></i>PRESENTAR IMPUGNACIÓN
+      </button>
+    </div>
+  `;
+        }
+
+        function renderActas() {
+            document.getElementById('pageTitle').textContent = 'Actas Electorales';
+            document.getElementById('pageSubtitle').textContent = 'Verificación por QR';
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in">
+      <div class="bg-white rounded-xl p-6 shadow-sm mb-4">
+        <h3 class="font-bold text-lg mb-4" style="color: var(--unp-blue);">Verificar Autenticidad de Acta</h3>
+        <div class="flex gap-3">
+          <input type="text" placeholder="Escanee QR o ingrese código del acta..." class="flex-1 px-4 py-2 border rounded-lg">
+          <button class="px-6 py-2 unp-gradient text-white rounded-lg">Verificar</button>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl p-6 shadow-sm">
+        <h3 class="font-bold mb-4" style="color: var(--unp-blue);">Actas Emitidas</h3>
+        <div class="space-y-2">
+          ${MESAS.map(m => `
+            <div class="p-4 border rounded-lg">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-semibold">Mesa ${m.num} · Acta de ${m.instalada ? 'Instalación' : 'pendiente'}</div>
+                  <div class="text-xs text-gray-500 font-mono">Hash: ${Math.random().toString(36).substring(2, 14)}...</div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="w-12 h-12 qr-code rounded"></div>
+                  <button class="px-3 py-1 bg-gray-100 rounded text-xs">Descargar</button>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+        }
+
+        function renderMiEstado() {
+            document.getElementById('pageTitle').textContent = 'Mi Estado Electoral';
+            document.getElementById('pageSubtitle').textContent = 'Consulta del docente elector';
+            const docente = DOCENTES[0];
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in">
+      <div class="bg-white rounded-xl p-6 shadow-sm mb-4">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center text-white text-2xl font-bold">
+            ${docente.name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+          </div>
+          <div>
+            <div class="font-bold text-xl" style="color: var(--unp-blue);">${docente.name}</div>
+            <div class="text-sm text-gray-600">DNI: ${docente.dni}</div>
+            <div class="text-sm text-gray-600">Categoría: ${docente.cat}</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-green-50 rounded-lg p-4">
+            <div class="text-xs text-gray-600">Estado en padrón</div>
+            <div class="font-bold text-green-700">HABILITADO</div>
+          </div>
+          <div class="bg-blue-50 rounded-lg p-4">
+            <div class="text-xs text-gray-600">Mesa asignada</div>
+            <div class="font-bold text-blue-700">Mesa ${docente.mesa}</div>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl p-6 shadow-sm">
+        <h3 class="font-bold mb-3" style="color: var(--unp-blue);">Mi código QR personal</h3>
+        <div class="flex items-center gap-4">
+          <div class="w-32 h-32 qr-code rounded-lg border-4 border-white shadow"></div>
+          <div class="flex-1">
+            <p class="text-sm text-gray-600">Presente este QR junto con su DNI en la mesa de votación.</p>
+            <p class="text-xs text-gray-500 mt-2"><i class="fas fa-info-circle mr-1"></i>El QR no contiene datos personales ni el voto.</p>
+            <button class="mt-2 px-4 py-2 unp-gradient text-white rounded-lg text-sm">
+              <i class="fas fa-download mr-1"></i>Descargar QR
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+        }
+
+        function renderConsultar() {
+            document.getElementById('pageTitle').textContent = 'Consulta de Resultados';
+            document.getElementById('pageSubtitle').textContent = 'Portal público';
+            document.getElementById('contentArea').innerHTML = `
+    <div class="fade-in">
+      <div class="bg-white rounded-xl p-6 shadow-sm mb-4">
+        <h3 class="font-bold text-lg mb-4" style="color: var(--unp-blue);">Resultados Oficiales</h3>
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          ${CANDIDATES.map(c => `
+            <div class="p-4 rounded-lg text-center" style="background: ${c.color}15; border: 2px solid ${c.color};">
+              <div class="text-4xl">${c.symbol}</div>
+              <div class="font-bold mt-2" style="color: ${c.color};">${c.party}</div>
+              <div class="text-3xl font-bold mt-1">${c.votes}</div>
+              <div class="text-xs text-gray-600">votos</div>
+            </div>
+          `).join('')}
+        </div>
+        <canvas id="chartConsulta" height="150"></canvas>
+      </div>
+    </div>
+  `;
+            setTimeout(() => {
+                const ctx = document.getElementById('chartConsulta');
+                if (ctx) new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: CANDIDATES.map(c => c.party),
+                        datasets: [{ label: 'Votos', data: CANDIDATES.map(c => c.votes), backgroundColor: CANDIDATES.map(c => c.color) }]
+                    },
+                    options: { responsive: true, plugins: { legend: { display: false } } }
+                });
+            }, 100);
+        }
+
+        // ============ HELPERS ============
+        function verEtapa(id) {
+            const s = STAGES.find(x => x.id === id);
+            showModal(`
+    <div class="p-6">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-12 h-12 rounded-lg flex items-center justify-center ${s.status === 'done' ? 'bg-green-500 text-white' : s.status === 'active' ? 'gold-gradient text-white' : 'bg-gray-300 text-white'}">
+          <i class="fas ${s.icon} text-xl"></i>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500">ETAPA ${s.id}</div>
+          <h3 class="text-xl font-bold" style="color: var(--unp-blue);">${s.name}</h3>
+        </div>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-3 mb-4">
+        <div class="text-xs text-gray-500">Base normativa</div>
+        <div class="font-mono text-sm">${s.art}</div>
+      </div>
+      <div class="text-sm text-gray-700">
+        <p class="mb-2">Estado actual: <span class="font-semibold">${s.status === 'done' ? 'Completada' : s.status === 'active' ? 'En curso' : 'Pendiente'}</span></p>
+        <p class="text-xs text-gray-500">Esta etapa forma parte del proceso electoral docente regulado por la RCU N.° 0462-CU-2019.</p>
+      </div>
+      <button onclick="closeModal()" class="w-full mt-4 py-2 unp-gradient text-white rounded-lg">Cerrar</button>
+    </div>
+  `);
+        }
+
+        function verDetalleMesa(num) {
+            currentMesa = num;
+            closeModal();
+            navigateTo('mesas');
+        }
+
+        function showModal(html) {
+            document.getElementById('modalContent').innerHTML = html;
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+
+        document.getElementById('modal').addEventListener('click', e => {
+            if (e.target.id === 'modal') closeModal();
+        });
+
+        // Seed audit log
+        addAudit('SYSTEM', 'Sistema iniciado');
+        addAudit('CONFIG', 'Parámetros cargados: RCU 0462-CU-2019');
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,316 @@
+@startuml proceso_actual_papel_docentes_unp
+' Diagrama de actividades - Proceso ACTUAL (as-is) de elección docente UNP, en papel
+' Base normativa: Reglamento de Elecciones de Rector y Vicerrectores, RCU N° 0462-CU-2019
+' Alcance: solo estamento docente. Las notas marcadas como Riesgo son los fallos,
+' ineficiencias o vulnerabilidades detectados en el proceso actual.
+
+title Proceso actual de elección docente UNP (en papel) - Diagrama de actividades con riesgos detectados
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam ArrowColor #555555
+skinparam ActivityBorderColor #555555
+skinparam ActivityBackgroundColor #FFFFFF
+skinparam swimlaneTitleFontStyle bold
+skinparam noteBackgroundColor #FFFBE6
+skinparam noteBorderColor #BA7517
+
+|#E6F1FB|CEUNP|
+|#EEEDFE|Elector / Representante de lista / Personero|
+|#FAEEDA|Miembro de mesa|
+|#F1EFE8|Apoyo RR.HH. / ONPE|
+
+|CEUNP|
+start
+
+'==================== FASE 1: CONVOCATORIA ====================
+:Elabora el cronograma electoral;
+note left: **FASE 1 - Convocatoria**\nArt. 7 a 9 y 12c
+:Convoca a elecciones con 30 a 45 días
+de anticipación al sufragio;
+:Publica avisos en diarios locales,
+El Peruano y el portal institucional;
+note right
+  <color:#C00000>**Riesgo:**</color> la difusión depende de medios
+  dispersos y algunos docentes no se enteran a tiempo
+end note
+
+'==================== FASE 2: PADRÓN ====================
+:Solicita a Recursos Humanos
+el padrón de docentes ordinarios;
+note left: **FASE 2 - Padrón electoral**\nArt. 12d y 27
+|Apoyo RR.HH. / ONPE|
+:Prepara la lista de docentes con vínculo
+laboral vigente y remuneración;
+note right
+  <color:#C00000>**Riesgo:**</color> la depuración es manual y el padrón
+  puede llegar desactualizado: licencias sin goce,
+  ceses e ingresos recientes
+end note
+|CEUNP|
+:Revisa, aprueba y publica el padrón
+impreso y en el portal;
+
+'==================== FASE 3: INSCRIPCIÓN DE LISTAS ====================
+|Elector / Representante de lista / Personero|
+:Entrega en la oficina del CEUNP la solicitud de inscripción
+en papel, con CD o USB, de 9:00 a 13:00 en días hábiles;
+note left: **FASE 3 - Inscripción de listas**\nArt. 14 y 16 a 25
+|CEUNP|
+:Recibe y revisa uno por uno los documentos:
+DNI, declaración jurada, foto, símbolo,
+hoja de vida y plan de gobierno;
+note right
+  <color:#C00000>**Riesgo:**</color> documentos físicos que se pueden perder.
+  La verificación de requisitos y de que ningún candidato
+  esté en otra lista se hace a mano y puede omitir casos
+end note
+:Califica la solicitud de inscripción;
+if (¿Cumple los requisitos?) then (sí)
+  :Admite la solicitud;
+else (no)
+  if (¿El incumplimiento es subsanable?) then (sí)
+    :Declara la solicitud inadmisible
+    y otorga un plazo;
+    |Elector / Representante de lista / Personero|
+    :Subsana las observaciones
+    y vuelve a entregar documentos en papel;
+    |CEUNP|
+    if (¿Subsanó dentro del plazo?) then (sí)
+      :Admite la solicitud;
+    else (no)
+      :Declara improcedente la solicitud;
+      detach
+    endif
+  else (no)
+    :Declara improcedente la solicitud;
+    detach
+  endif
+endif
+:Publica la hoja de vida y el plan de gobierno;
+
+'==================== FASE 4: TACHAS ====================
+|Elector / Representante de lista / Personero|
+:Un docente del padrón puede presentar
+por escrito una tacha contra un candidato;
+note left: **FASE 4 - Tachas**\nArt. 4n y 12f
+|CEUNP|
+if (¿Se presentó alguna tacha?) then (sí)
+  :Resuelve la tacha;
+  note right
+    <color:#C00000>**Riesgo:**</color> trámite en papel, lento
+    y sin seguimiento del estado de cada tacha
+  end note
+  if (¿La tacha es fundada?) then (sí)
+    :Excluye al candidato de la lista;
+  else (no)
+    :Mantiene la candidatura;
+  endif
+else (no)
+  :No hay tachas pendientes;
+endif
+:Aprueba la inscripción definitiva
+y publica las listas oficiales;
+
+'==================== FASE 5: PERSONEROS ====================
+|Elector / Representante de lista / Personero|
+:Acredita a su personero general,
+alterno y de mesa, y registra sus firmas;
+note left: **FASE 5 - Personeros**\nArt. 28 a 34
+|CEUNP|
+:Otorga credenciales de personero impresas;
+note right
+  <color:#C00000>**Riesgo:**</color> credenciales en papel,
+  fáciles de falsificar o duplicar
+end note
+
+'==================== FASE 6: SORTEOS Y MESAS ====================
+:Sortea en acto público el orden de las listas
+en la cédula, con personeros y ONPE;
+note left: **FASE 6 - Sorteos y mesas**\nArt. 26 y 36 a 41
+:Deja constancia del sorteo en un acta;
+note right
+  <color:#C00000>**Riesgo:**</color> el sorteo manual no deja
+  un registro que se pueda verificar después
+end note
+:Elabora las listas de electores por mesa
+a partir del padrón aprobado;
+note right
+  <color:#C00000>**Riesgo:**</color> errores de copia y de asignación
+  de electores a cada mesa, y costo de impresión
+end note
+:Sortea 3 titulares y 3 suplentes por mesa
+entre los docentes del padrón;
+note right
+  <color:#C00000>**Riesgo:**</color> los impedimentos (parentesco, candidatos,
+  autoridades) se revisan a mano y pueden pasar desapercibidos
+end note
+:Prepara el material electoral: cédulas, actas,
+ánforas, cabinas y credenciales de miembros de mesa;
+
+'==================== FASE 7: INSTALACIÓN DE MESA ====================
+|Miembro de mesa|
+:Se presenta en el local de votación
+y recibe el material electoral;
+note left: **FASE 7 - Instalación de la mesa**\nArt. 45, 48 y 49
+:Instala la mesa y anota la hora
+de instalación a mano;
+note right
+  <color:#C00000>**Riesgo:**</color> la hora es declarada por los miembros
+  y no se puede comprobar
+end note
+if (¿Instalada antes de las 12:00?) then (sí)
+  :Llena y firma el acta de instalación:
+  cédulas recibidas y estado del material;
+else (no)
+  :Marca la mesa como NO INSTALADA;
+  |CEUNP|
+  :Evalúa la nulidad de la votación de esa mesa;
+  stop
+endif
+
+'==================== FASE 8: SUFRAGIO ====================
+repeat
+  |Elector / Representante de lista / Personero|
+  :Llega a la mesa con su DNI y hace cola;
+  note left: **FASE 8 - Sufragio**\nArt. 46, 47, 50 y 56
+  |Miembro de mesa|
+  :Busca al elector en la lista impresa
+  y compara sus datos con el DNI;
+  note right
+    <color:#C00000>**Riesgo:**</color> la búsqueda en papel es lenta y genera colas.
+    La suplantación depende solo de la observación visual
+  end note
+  if (¿Figura en la lista y el DNI es suyo?) then (sí)
+    :Entrega la cédula y el lapicero
+    y verifica que entre solo a la cámara;
+    |Elector / Representante de lista / Personero|
+    :Marca su cédula en la cámara secreta;
+    :Deposita la cédula en el ánfora;
+    :Firma y pone su huella en la lista;
+    note right
+      <color:#C00000>**Riesgo:**</color> los votos mal marcados se anulan.
+      El control contra doble voto depende solo de la firma en la lista
+    end note
+    |Miembro de mesa|
+    :Devuelve el DNI al elector;
+  else (no)
+    :Niega el voto y lo anota en observaciones;
+  endif
+repeat while (¿Antes de las 15:00 y quedan electores?) is (sí) not (no)
+
+'==================== FASE 9: CIERRE ====================
+:Cierra las puertas a las 15:00,
+solo votan quienes están dentro;
+note left: **FASE 9 - Cierre del sufragio**\nArt. 51
+:Escribe NO VOTÓ junto a cada elector ausente
+y firma la última página de la lista;
+:Cuenta a mano los electores que votaron
+y llena el acta de sufragio;
+note right
+  <color:#C00000>**Riesgo:**</color> errores de conteo y letra ilegible
+  en el acta, sin forma de detectarlos de inmediato
+end note
+
+'==================== FASE 10: ESCRUTINIO ====================
+:Abre el ánfora y cuenta las cédulas sin abrirlas;
+note left: **FASE 10 - Escrutinio**\nArt. 52 a 57
+if (¿Coincide con el total de electores que votaron?) then (sí)
+  :Continúa el escrutinio;
+else (no)
+  :Retira al azar las cédulas sobrantes y las destruye,
+  o anota la observación si faltan;
+endif
+:El Presidente lee cada cédula en voz alta
+y la clasifica como válida, nula o en blanco;
+note right
+  <color:#C00000>**Riesgo:**</color> marcas ambiguas generan discusiones
+  y el conteo es lento y cansa a los miembros
+end note
+|Elector / Representante de lista / Personero|
+if (¿El personero impugna un voto?) then (sí)
+  |Miembro de mesa|
+  :Resuelven la impugnación por mayoría;
+  |Elector / Representante de lista / Personero|
+  if (¿El personero apela?) then (sí)
+    |CEUNP|
+    :Resuelve la apelación en segunda
+    y última instancia;
+  else (no)
+    |Miembro de mesa|
+    :Queda firme la decisión de la mesa;
+  endif
+else (no)
+  |Miembro de mesa|
+  :Sin impugnaciones;
+endif
+|Miembro de mesa|
+:El Secretario agrupa las cédulas por lista
+y suma los totales;
+note right
+  <color:#C00000>**Riesgo:**</color> errores de suma frecuentes
+  al contar y agrupar a mano
+end note
+:Verifica que el total de votos emitidos
+sea igual al de electores que votaron;
+:Llena y firma el acta de escrutinio a mano;
+:Elabora tres ejemplares lacrados:
+CEUNP, ONPE y local de votación;
+note right
+  <color:#C00000>**Riesgo:**</color> las actas manuscritas pueden ser ilegibles
+  y su autenticidad solo se comprueba a simple vista
+end note
+:Rompe las cédulas utilizadas y entrega al CEUNP
+las actas, el padrón y el material;
+|CEUNP|
+:Firma con el Presidente de mesa el cargo
+de entrega de actas y material;
+note right
+  <color:#C00000>**Riesgo:**</color> el traslado físico de actas
+  puede provocar pérdida o alteración
+end note
+
+'==================== FASE 11: CÓMPUTO Y PROCLAMACIÓN ====================
+:Verifica mesas instaladas y actas completas,
+examina su estado y su autenticidad;
+note left: **FASE 11 - Cómputo y proclamación**\nArt. 58 a 66
+:Realiza la sesión de cómputo general,
+transcribiendo los resultados de cada acta;
+note right
+  <color:#C00000>**Riesgo:**</color> la transcripción manual introduce errores
+  y retrasa la proclamación de resultados
+end note
+if (¿Participó más del 60% de los docentes del padrón?) then (sí)
+  if (¿Hay recursos de nulidad o reconsideración?) then (sí)
+    :Resuelve los recursos y nulidades parciales de mesas;
+  else (no)
+    :Sin recursos pendientes;
+  endif
+else (no)
+  :Declara la nulidad total de la elección;
+  stop
+endif
+if (¿Alguna lista alcanza el mínimo legal?) then (sí)
+  :Declara a la lista ganadora;
+else (no)
+  :Convoca segunda vuelta entre las dos listas más votadas
+  en un plazo máximo de 15 días;
+  note right: Se repite desde la instalación de mesas\nGana quien obtenga 50% más uno de los votos válidos
+  detach
+endif
+:Proclama los resultados y acredita a la lista ganadora;
+:Publica los resultados en el portal y en diarios;
+:Revisa a mano las listas para identificar
+a los omisos y aplicar las multas;
+note right
+  <color:#C00000>**Riesgo:**</color> las multas dependen de revisar
+  manualmente cada lista de electores y cada acta
+end note
+stop
+
+legend right
+  Art. = artículo del Reglamento de Elecciones UNP, RCU N° 0462-CU-2019
+  Riesgo = fallo, ineficiencia o vulnerabilidad detectada en el proceso actual
+end legend
+
+@enduml

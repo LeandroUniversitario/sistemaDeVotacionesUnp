@@ -1,0 +1,309 @@
+@startuml proceso_electoral_docentes_unp
+' Diagrama de actividades - Proceso de elección de docentes UNP con sistema y QR
+' Base normativa: Reglamento de Elecciones de Rector y Vicerrectores, RCU N° 0462-CU-2019
+' Alcance: solo estamento docente. Voto digital con cédula física de respaldo.
+
+title Proceso de elección docente UNP con sistema y QR - Diagrama de actividades
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam ArrowColor #555555
+skinparam ActivityBorderColor #555555
+skinparam ActivityBackgroundColor #FFFFFF
+skinparam swimlaneTitleFontStyle bold
+skinparam noteBackgroundColor #FFFBE6
+skinparam noteBorderColor #BA7517
+
+|#E6F1FB|CEUNP|
+|#EEEDFE|Elector / Representante de lista / Personero|
+|#FAEEDA|Miembro de mesa|
+|#E1F5EE|Sistema|
+
+|CEUNP|
+start
+
+'==================== FASE 1: CONVOCATORIA ====================
+:Elabora el cronograma electoral;
+note right: **FASE 1 - Convocatoria**\nArt. 7 a 9 y 12c
+:Convoca a elecciones con 30 a 45 días
+de anticipación al sufragio;
+|Sistema|
+:Registra la convocatoria y el cronograma;
+:Publica la convocatoria en el portal institucional;
+
+'==================== FASE 2: PADRÓN ====================
+|CEUNP|
+:Solicita a Recursos Humanos
+el padrón de docentes ordinarios;
+note right: **FASE 2 - Padrón electoral**\nArt. 12d y 27
+|Sistema|
+:Importa el padrón de docentes;
+:Filtra los docentes hábiles:
+vínculo laboral vigente y con remuneración,
+excluye licencia sin goce de haber;
+|CEUNP|
+:Aprueba y publica el padrón electoral;
+
+'==================== FASE 3: INSCRIPCIÓN DE LISTAS ====================
+|Elector / Representante de lista / Personero|
+:Presenta la solicitud de inscripción de la lista:
+DNI, declaración jurada, foto, símbolo,
+hoja de vida y plan de gobierno;
+note right: **FASE 3 - Inscripción de listas**\nArt. 14 y 16 a 25
+|Sistema|
+:Registra la solicitud y verifica los requisitos declarados
+y que ningún candidato figure en otra lista;
+|CEUNP|
+:Califica la solicitud de inscripción;
+if (¿Cumple los requisitos?) then (sí)
+  :Admite la solicitud;
+else (no)
+  if (¿El incumplimiento es subsanable?) then (sí)
+    :Declara la solicitud inadmisible
+    y otorga un plazo;
+    |Elector / Representante de lista / Personero|
+    :Subsana las observaciones;
+    |CEUNP|
+    if (¿Subsanó dentro del plazo?) then (sí)
+      :Admite la solicitud;
+    else (no)
+      :Declara improcedente la solicitud;
+      detach
+    endif
+  else (no)
+    :Declara improcedente la solicitud;
+    detach
+  endif
+endif
+|Sistema|
+:Publica la hoja de vida y el plan de gobierno;
+
+'==================== FASE 4: TACHAS ====================
+|Elector / Representante de lista / Personero|
+:Un docente del padrón puede presentar
+una tacha contra un candidato;
+note right: **FASE 4 - Tachas**\nArt. 4n y 12f
+|CEUNP|
+if (¿Se presentó alguna tacha?) then (sí)
+  :Resuelve la tacha;
+  if (¿La tacha es fundada?) then (sí)
+    :Excluye al candidato de la lista;
+  else (no)
+    :Mantiene la candidatura;
+  endif
+else (no)
+  :No hay tachas pendientes;
+endif
+:Aprueba la inscripción definitiva
+y publica las listas oficiales;
+
+'==================== FASE 5: PERSONEROS ====================
+|Elector / Representante de lista / Personero|
+:Acredita a su personero general,
+alterno y de mesa;
+note right: **FASE 5 - Personeros**\nArt. 28 a 34
+|Sistema|
+:Valida los requisitos del personero;
+|CEUNP|
+:Otorga las credenciales de personero;
+|Sistema|
+:Genera el QR de cada credencial;
+
+'==================== FASE 6: SORTEOS Y MESAS ====================
+|CEUNP|
+:Sortea en acto público el orden de las listas
+en la cédula, con personeros y ONPE;
+note right: **FASE 6 - Sorteos y mesas**\nArt. 26, 36 a 41
+|Sistema|
+:Registra el resultado del sorteo con trazabilidad
+y configura la cédula y el terminal de votación;
+:Genera las mesas numeradas
+y asigna los electores a cada mesa;
+:Excluye a los docentes con impedimento
+para ser miembros de mesa;
+|CEUNP|
+:Sortea 3 titulares y 3 suplentes por mesa,
+con presencia de ONPE;
+|Sistema|
+:Registra el sorteo y asigna
+Presidente, Secretario y Vocal;
+:Genera el QR de credencial de los miembros de mesa
+y el QR de cada elector;
+|Elector / Representante de lista / Personero|
+:Consulta su mesa asignada
+y recibe su QR de elector;
+
+'==================== FASE 7: INSTALACIÓN DE MESA ====================
+|Miembro de mesa|
+:Se presenta en el local de votación
+y recibe el material electoral;
+note right: **FASE 7 - Instalación de la mesa**\nArt. 45, 48 y 49
+:Escanea su credencial QR;
+|Sistema|
+:Valida la credencial y registra
+la hora de instalación;
+if (¿Instalada antes de las 12:00?) then (sí)
+  :Registra el acta de instalación;
+else (no)
+  :Marca la mesa como NO INSTALADA;
+  |CEUNP|
+  :Evalúa la nulidad de la votación de esa mesa;
+  stop
+endif
+|Miembro de mesa|
+:Firma el acta de instalación;
+|Sistema|
+:Habilita el sufragio de 9:00 a 15:00;
+
+'==================== FASE 8: SUFRAGIO ====================
+repeat
+  |Elector / Representante de lista / Personero|
+  :Llega a la mesa y presenta su DNI y su QR;
+  note right: **FASE 8 - Sufragio**\nArt. 46, 47, 50 y 56
+  |Miembro de mesa|
+  :Escanea el QR del elector
+  y compara con el DNI;
+  |Sistema|
+  :Valida en el padrón de la mesa:
+  hábil y aún no ha votado;
+  if (¿Elector habilitado?) then (sí)
+    :Registra la asistencia
+    y bloquea un segundo ingreso;
+    |Miembro de mesa|
+    :Indica el ingreso solo a la cámara secreta;
+    |Elector / Representante de lista / Personero|
+    :Elige su opción en el terminal de votación;
+    |Sistema|
+    :Registra el voto sin vínculo con el elector;
+    :Imprime la cédula con la elección;
+    |Elector / Representante de lista / Personero|
+    :Verifica la cédula y la deposita en el ánfora;
+    :Firma y coloca su huella;
+  else (no)
+    |Miembro de mesa|
+    :Niega el voto
+    no figura en el padrón o suplantación;
+    |Sistema|
+    :Registra la incidencia;
+  endif
+repeat while (¿Antes de las 15:00 y quedan electores?) is (sí) not (no)
+
+'==================== FASE 9: CIERRE ====================
+|Miembro de mesa|
+:Cierra las puertas a las 15:00,
+solo votan quienes están dentro;
+note right: **FASE 9 - Cierre del sufragio**\nArt. 51
+|Sistema|
+:Cierra el sufragio y genera la lista
+de electores que no votaron;
+:Calcula el total de electores que votaron
+y genera el acta de sufragio con QR;
+|Miembro de mesa|
+:Revisa y firma el acta de sufragio;
+
+'==================== FASE 10: ESCRUTINIO ====================
+:Abre el ánfora y cuenta las cédulas sin abrirlas;
+note right: **FASE 10 - Escrutinio**\nArt. 52 a 57
+|Sistema|
+:Compara el total de cédulas con
+el total de electores que votaron;
+if (¿Los totales coinciden?) then (sí)
+  :Continúa el escrutinio;
+else (no)
+  |Miembro de mesa|
+  :Aplica el procedimiento del reglamento
+  y registra la observación en el acta;
+endif
+|Miembro de mesa|
+:Lee cada cédula en voz alta y clasifica
+el voto como válido, nulo o en blanco;
+|Elector / Representante de lista / Personero|
+if (¿El personero impugna un voto?) then (sí)
+  |Miembro de mesa|
+  :Resuelven la impugnación por mayoría;
+  |Elector / Representante de lista / Personero|
+  if (¿El personero apela?) then (sí)
+    |CEUNP|
+    :Resuelve la apelación en segunda
+    y última instancia;
+  else (no)
+    |Miembro de mesa|
+    :Queda firme la decisión de la mesa;
+  endif
+else (no)
+  |Miembro de mesa|
+  :Sin impugnaciones;
+endif
+|Miembro de mesa|
+:Registra en el sistema el conteo por lista,
+votos nulos y en blanco;
+|Sistema|
+:Compara el conteo manual con el conteo digital;
+if (¿Los conteos coinciden?) then (sí)
+  :Genera el acta de escrutinio con QR;
+else (no)
+  :Marca la diferencia entre ambos conteos;
+  |Miembro de mesa|
+  :Revisa las cédulas y anota la observación;
+  note right: Prevalece la cédula física
+  |Sistema|
+  :Genera el acta de escrutinio con observación y QR;
+endif
+|Miembro de mesa|
+:Firma el acta de escrutinio;
+:Entrega al CEUNP las actas y el material electoral;
+note right: Tres ejemplares: CEUNP, ONPE y local de votación (art. 55)
+|CEUNP|
+:Escanea el QR de cada acta
+y verifica su autenticidad;
+|Sistema|
+:Registra la recepción de actas;
+
+'==================== FASE 11: CÓMPUTO Y PROCLAMACIÓN ====================
+|CEUNP|
+:Verifica mesas instaladas y actas completas;
+note right: **FASE 11 - Cómputo y proclamación**\nArt. 58 a 66
+|Sistema|
+:Consolida las actas y calcula
+el cómputo general de votos docentes;
+:Calcula el porcentaje de participación;
+if (¿Participó más del 60% de los docentes del padrón?) then (sí)
+  |CEUNP|
+  if (¿Hay recursos de nulidad o reconsideración?) then (sí)
+    :Resuelve los recursos y nulidades parciales de mesas;
+  else (no)
+    :Sin recursos pendientes;
+  endif
+else (no)
+  |CEUNP|
+  :Declara la nulidad total de la elección;
+  |Sistema|
+  :Publica la resolución de nulidad;
+  stop
+endif
+|Sistema|
+if (¿Alguna lista alcanza el mínimo legal?) then (sí)
+  |CEUNP|
+  :Declara a la lista ganadora;
+else (no)
+  |CEUNP|
+  :Convoca segunda vuelta entre las dos listas más votadas
+  en un plazo máximo de 15 días;
+  note right: Se repite desde la instalación de mesas\nGana quien obtenga 50% más uno de los votos válidos
+  detach
+endif
+:Proclama los resultados y acredita a la lista ganadora;
+|Sistema|
+:Publica los resultados con QR de consulta pública;
+:Genera el reporte de docentes y miembros de mesa
+que no asistieron para las multas;
+note right: Multa docentes 2.5% de la UIT\nMultas miembros de mesa 3% de la UIT
+stop
+
+legend right
+  Art. = artículo del Reglamento de Elecciones UNP, RCU N° 0462-CU-2019
+  El voto digital y la cédula física deben coincidir
+  El QR nunca contiene el voto ni datos del elector
+endlegend
+
+@enduml

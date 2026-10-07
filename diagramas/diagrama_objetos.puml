@@ -49,7 +49,7 @@ object "docentePedro : Docente" as docentePedro {
   categoria = "Principal"
 }
 
-object "cargoDecanoPedro : CargoActual" as cargoDecanoPedro {
+object "cargoDecanoPedro : CargoAdministrativo" as cargoDecanoPedro {
   id = 301
   nombreCargo = "Decano de Facultad"
   fechaInicio = "2025-01-01"

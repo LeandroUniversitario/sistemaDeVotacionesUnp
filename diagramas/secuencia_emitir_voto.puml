@@ -1,42 +1,67 @@
 @startuml Diagrama_Secuencia_Emitir_Voto
-actor "Docente Elector" as Elector
+title Caso de uso: Emitir voto
+
+actor "Docente elector" as Elector
 boundary "EmisionVotoView" as Vista
+control "AutenticacionService" as Auth
 control "VotacionController" as Controlador
 database "PadronElectoralRepository" as PadronRepo
+database "ListaElectoralRepository" as ListaRepo
 database "VotoRepository" as VotoRepo
+database "ConstanciaVotoRepository" as ConstanciaRepo
+database "AuditoriaRepository" as AuditoriaRepo
 
-Elector -> Vista: selecciona "Emitir Voto" por cargo
+Elector -> Vista: seleccionar Emitir voto
 activate Vista
-Vista -> Controlador: validarHabilitacion(idDocente, idCargo)
-activate Controlador
+Vista -> Auth: obtenerDocenteDeSesion(tokenSesion)
+activate Auth
+Auth --> Vista: idDocente autenticado
+deactivate Auth
 
-Controlador -> PadronRepo: verificarSiVoto(idDocente, idCargo)
+Vista -> Controlador: mostrarOpciones(idProceso, idCargo, idDocente)
+activate Controlador
+Controlador -> PadronRepo: verificarHabilitacion(idProceso, idCargo, idDocente)
 activate PadronRepo
-PadronRepo --> Controlador: boolean (haVotado)
+PadronRepo --> Controlador: habilitado, no ha votado
 deactivate PadronRepo
 
-alt Ya ha votado o no está habilitado
-    Controlador --> Vista: false (error)
-    Vista --> Elector: muestra mensaje de error
-else Está habilitado y no ha votado
-    Controlador --> Vista: true (habilitado)
-    Vista --> Elector: muestra opciones de candidaturas
-    
-    Elector -> Vista: selecciona candidato y confirma voto
-    Vista -> Controlador: registrarVoto(idCargo, idCandidato)
-    
-    ' Inicio de transacción
-    note right of Controlador: Inicia transacción para\ngarantizar consistencia
-    
-    ' Marcar en padron
-    Controlador -> PadronRepo: marcarComoVotado(idDocente, idCargo)
-    
-    ' Registrar voto anónimo
-    Controlador -> VotoRepo: guardarVoto(Voto)
-    note right: El Voto se guarda sin\nvínculo al idDocente
-    
-    Controlador --> Vista: voto registrado exitosamente
-    Vista --> Elector: muestra comprobante de votación
+alt No habilitado o ya votó
+    Controlador --> Vista: rechazo con motivo
+    Vista --> Elector: mostrar mensaje de error
+else Habilitado
+    Controlador -> ListaRepo: obtenerListasAdmitidas(idCargo)
+    activate ListaRepo
+    ListaRepo --> Controlador: listas admitidas
+    deactivate ListaRepo
+    Controlador --> Vista: mostrar listas
+
+    Elector -> Vista: seleccionar lista y confirmar
+    Vista -> Controlador: registrarVoto(idProceso, idCargo, idLista)
+
+    note right of Controlador
+      idDocente se obtiene de la sesión autenticada.
+      No se envía ni se guarda junto con el voto.
+    end note
+
+    Controlador -> ListaRepo: validarListaPerteneceACargo(idLista, idCargo)
+    ListaRepo --> Controlador: lista válida
+
+    group Transacción atómica
+        Controlador -> PadronRepo: bloquearPadrón(idProceso, idCargo, idDocente)
+        PadronRepo --> Controlador: fila disponible
+        Controlador -> PadronRepo: marcarComoVotado(idProceso, idCargo, idDocente)
+        Controlador -> VotoRepo: guardar(idProceso, idCargo, idLista, VALIDO)
+        Controlador -> ConstanciaRepo: emitirConTokenAleatorio(idProceso, idCargo, idDocente)
+        ConstanciaRepo --> Controlador: constancia y tokenQR
+        Controlador -> AuditoriaRepo: registrarParticipación(idProceso, idDocente)
+        note right
+          La auditoría registra participación,
+          nunca la lista elegida.
+        end note
+    end
+
+    Controlador --> Vista: voto registrado y constancia
+    Vista --> Elector: mostrar/descargar constancia QR
 end
 
 deactivate Controlador

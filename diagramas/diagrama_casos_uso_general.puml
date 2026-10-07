@@ -31,20 +31,30 @@ skinparam rectangle {
 actor "CEUNP" as comite
 actor "Administrador" as admin
 actor "Docente elector" as elector
-actor "Lista / Candidato" as candidato
-actor "Personero" as personero
+actor "Representante de lista" as representante
+actor "Personero general" as personeroGeneral
+actor "Personero de mesa" as personeroMesa
+actor "Miembro de mesa" as miembroMesa
 
 rectangle "Sistema de Control de Elecciones Universitarias" {
   usecase "Gestionar padrón docente" as UC6
   usecase "Crear proceso electoral" as UC3
   usecase "Generar padrón electoral" as UC4
-  usecase "Inscribir lista de candidatos" as UC1
+  usecase "Inscribir lista electoral" as UC1
+  usecase "Subsanar observaciones" as UC16
   usecase "Validar candidatura" as UC2
   usecase "Resolver tachas" as UC12
   usecase "Sortear mesa electoral" as UC7
   usecase "Emitir voto" as UC5
+  usecase "Autenticar usuario" as UC14
   usecase "Generar actas y resultados" as UC8
+  usecase "Verificar constancia QR" as UC15
   usecase "Resolver impugnaciones\ny nulidades" as UC9
+  usecase "Presentar impugnación" as UC17
+  usecase "Presentar apelación" as UC18
+  usecase "Registrar observación" as UC19
+  usecase "Consultar actas electorales" as UC20
+  usecase "Instalar mesa y realizar escrutinio" as UC21
   usecase "Validar habilitación" as UC10
   usecase "Descargar constancia de voto" as UC11
   usecase "Acreditar personeros" as UC13
@@ -58,12 +68,24 @@ comite --> UC8
 comite --> UC9
 comite --> UC12
 comite --> UC13
-candidato --> UC1
+representante --> UC1
+representante --> UC16
 elector --> UC5
-personero --> UC9
+elector --> UC15
+personeroGeneral --> UC16
+personeroGeneral --> UC17
+personeroGeneral --> UC18
+personeroGeneral --> UC19
+personeroGeneral --> UC20
+personeroMesa --> UC17
+personeroMesa --> UC18
+personeroMesa --> UC19
+personeroMesa --> UC20
+miembroMesa --> UC21
 
 UC3 .> UC4 : <<include>>
 UC5 .> UC10 : <<include>>
+UC5 .> UC14 : <<include>>
 UC1 .> UC10 : <<include>>
 UC11 .> UC5 : <<extend>>
 
