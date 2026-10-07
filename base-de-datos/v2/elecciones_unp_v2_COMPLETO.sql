@@ -307,7 +307,7 @@ CREATE TABLE miembro_mesa (
   orden_sorteo        INT NULL,                  -- posición obtenida en el sorteo (1..6)
   asistio             BOOLEAN NULL,              -- NULL = sin registrar; FALSE genera multa (RN35)
   qr_credencial_hash  CHAR(64) NULL,             -- RF56: fotocheck digital
-  rol_titular         VARCHAR(12) AS (IF(titular = 1, rol, NULL)) PERSISTENT,
+  rol_titular         VARCHAR(12) AS (IF(titular = 1, rol, NULL)) STORED,
   PRIMARY KEY (id_mesa, id_docente),
   UNIQUE KEY uq_miembro_rol_titular (id_mesa, rol_titular),   -- un solo presidente/secretario/vocal por mesa
   UNIQUE KEY uq_miembro_qr (qr_credencial_hash),
