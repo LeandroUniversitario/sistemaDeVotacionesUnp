@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: elecciones-backend
+  mvc:
+    problemdetails:
+      enabled: true   # los errores llegan al frontend en el campo "detail"
   datasource:
     url: ${DB_URL:jdbc:mariadb://localhost:3306/elecciones_unp}
     username: ${DB_USERNAME:root}
@@ -12,7 +15,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: none   # el esquema lo define base-de-datos/v2 (no dejar que Hibernate lo altere)
     properties:
       hibernate:
         format_sql: true

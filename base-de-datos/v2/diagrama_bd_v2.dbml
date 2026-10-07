@@ -1,0 +1,480 @@
+// Sistema de Elecciones Docentes UNP - Modelo fisico v2
+// Generado a partir de 01_esquema.sql. Pegar en https://dbdiagram.io
+// Regla de oro: 'voto' no referencia a docente, usuario, sesion ni constancia.
+
+Table facultad {
+  id_facultad int [pk, increment]
+  nombre varchar(150) [not null]
+  indexes {
+    (nombre) [unique]
+  }
+}
+
+Table departamento {
+  id_departamento int [pk, increment]
+  id_facultad int [not null]
+  nombre varchar(150) [not null]
+  indexes {
+    (id_facultad, nombre) [unique]
+  }
+}
+
+Table docente {
+  id_docente int [pk, increment]
+  dni varchar(8) [not null]
+  nombres varchar(100) [not null]
+  apellidos varchar(150) [not null]
+  categoria varchar [not null, note: 'PRINCIPAL / ASOCIADO / AUXILIAR']
+  dedicacion varchar(80) [not null]
+  estado varchar [not null, default: 'ACTIVO', note: 'ACTIVO / INACTIVO / LICENCIA / SUSPENDIDO']
+  habilitado_para_votar boolean [not null, default: true]
+  id_facultad int [not null]
+  id_departamento int [not null]
+  grado_academico varchar [note: 'BACHILLER / MAESTRO / DOCTOR']
+  fecha_ingreso date
+  fecha_categoria date
+  email varchar(150)
+  fecha_registro datetime [not null]
+  indexes {
+    (dni) [unique]
+    (apellidos, nombres)
+    (estado, habilitado_para_votar)
+  }
+}
+
+Table parametro_global {
+  clave varchar(80) [pk]
+  valor varchar(255) [not null]
+  descripcion varchar(500)
+}
+
+Table cargo_excluido_sorteo {
+  id_cargo_excluido int [pk, increment]
+  nombre_cargo varchar(150) [not null]
+  nivel varchar(80) [not null]
+  activo boolean [not null, default: true]
+  indexes {
+    (nombre_cargo) [unique]
+  }
+}
+
+Table cargo_admin {
+  id_cargo_admin int [pk, increment]
+  id_docente int [not null]
+  nombre_cargo varchar(150) [not null]
+  nivel varchar(80) [not null]
+  fecha_inicio date [not null]
+  fecha_fin date
+  vigente boolean [not null, default: true]
+  indexes {
+    (id_docente, vigente)
+    (nombre_cargo)
+  }
+}
+
+Table usuario {
+  id_usuario int [pk, increment]
+  id_docente int
+  username varchar(80) [not null]
+  password_hash varchar(255) [not null]
+  rol varchar [not null, note: 'ADMIN / CEUNP / DOCENTE / PERSONERO / MIEMBRO_MESA']
+  activo boolean [not null, default: true]
+  intentos_fallidos int [not null, default: 0]
+  bloqueado_hasta datetime
+  ultimo_acceso datetime
+  fecha_creacion datetime [not null]
+  indexes {
+    (username) [unique]
+  }
+}
+
+Table sesion_activa {
+  id_sesion bigint [pk, increment]
+  id_usuario int [not null]
+  token_hash char(64) [not null]
+  fecha_inicio datetime [not null]
+  fecha_expiracion datetime [not null]
+  revocada boolean [not null, default: false]
+  indexes {
+    (token_hash) [unique]
+    (fecha_expiracion)
+  }
+}
+
+Table proceso_electoral {
+  id_proceso int [pk, increment]
+  nombre varchar(200) [not null]
+  fecha_inicio datetime [not null]
+  fecha_fin datetime [not null]
+  estado varchar [not null, default: 'CREADO', note: 'CREADO / INSCRIPCION / VOTACION / CERRADO / FINALIZADO / ANULADO']
+  tipo varchar [not null, default: 'PRIMERA_VUELTA', note: 'PRIMERA_VUELTA / SEGUNDA_VUELTA']
+  id_proceso_padre int
+  quorum_minimo decimal(5,2) [not null, default: 60.00]
+  fecha_convocatoria date
+  fecha_limite_inscripcion datetime
+  fecha_cierre_real datetime
+  motivo_anulacion varchar(500)
+  fecha_creacion datetime [not null]
+  indexes {
+    (estado)
+  }
+}
+
+Table cargo_electoral {
+  id_cargo int [pk, increment]
+  id_proceso int [not null]
+  nombre varchar(150) [not null]
+  nivel_jurisdiccion varchar [not null, note: 'UNIVERSIDAD / FACULTAD / DEPARTAMENTO']
+  id_jurisdiccion int
+  porcentaje_minimo_victoria decimal(5,2) [not null, default: 50.00]
+  estado_resultado varchar [not null, default: 'PENDIENTE', note: 'PENDIENTE / ELEGIDO / SEGUNDA_VUELTA / SIN_QUORUM / DESIERTO / EMPATE']
+  id_lista_ganadora int
+  indexes {
+    (id_cargo, id_proceso) [unique]
+    (id_proceso, nivel_jurisdiccion, id_jurisdiccion)
+  }
+}
+
+Table cargo_categoria_permitida {
+  id_cargo int [not null]
+  categoria varchar [not null, note: 'PRINCIPAL / ASOCIADO / AUXILIAR']
+  puede_votar boolean [not null, default: true]
+  puede_postular boolean [not null, default: true]
+  indexes {
+    (id_cargo, categoria) [pk]
+  }
+}
+
+Table lista_electoral {
+  id_lista int [pk, increment]
+  id_cargo int [not null]
+  nombre varchar(150) [not null]
+  simbolo varchar(100)
+  orden_cedula int
+  estado varchar [not null, default: 'INSCRITA', note: 'INSCRITA / ADMITIDA / TACHADA / EXCLUIDA']
+  fecha_inscripcion datetime [not null]
+  url_plan_gobierno varchar(300)
+  motivo_exclusion varchar(500)
+  indexes {
+    (id_cargo, nombre) [unique]
+    (id_cargo, orden_cedula) [unique]
+    (id_lista, id_cargo) [unique]
+  }
+}
+
+Table candidato {
+  id_candidato int [pk, increment]
+  id_lista int [not null]
+  id_docente int [not null]
+  rol_en_lista varchar(100) [not null]
+  estado_validacion varchar [not null, default: 'PENDIENTE', note: 'PENDIENTE / APROBADO / OBSERVADO / EXCLUIDO']
+  fecha_inscripcion datetime [not null]
+  url_hoja_vida varchar(300)
+  motivo_exclusion varchar(500)
+  indexes {
+    (id_lista, id_docente) [unique]
+  }
+}
+
+Table tacha {
+  id_tacha int [pk, increment]
+  id_docente_denunciante int [not null]
+  id_candidato int [not null]
+  motivo text [not null]
+  estado varchar [not null, default: 'PENDIENTE', note: 'PENDIENTE / FUNDADA / INFUNDADA']
+  fecha_presentacion datetime [not null]
+  fecha_resolucion datetime
+  resolucion text
+  id_usuario_resuelve int
+  indexes {
+    (estado)
+  }
+}
+
+Table mesa_electoral {
+  id_mesa int [pk, increment]
+  id_proceso int [not null]
+  numero_mesa varchar(30) [not null]
+  ubicacion varchar(200) [not null]
+  semilla_sorteo varchar(128) [not null, default: 'PENDIENTE']
+  fecha_sorteo datetime
+  estado varchar [not null, default: 'PENDIENTE', note: 'PENDIENTE / INSTALADA / CERRADA / ANULADA']
+  hora_instalacion datetime
+  hora_cierre datetime
+  total_electores int [not null, default: 0]
+  indexes {
+    (id_proceso, numero_mesa) [unique]
+  }
+}
+
+Table miembro_mesa {
+  id_mesa int [not null]
+  id_docente int [not null]
+  rol varchar [not null, note: 'PRESIDENTE / SECRETARIO / VOCAL / SUPLENTE']
+  titular boolean [not null, default: false]
+  orden_sorteo int
+  asistio boolean
+  qr_credencial_hash char(64)
+  rol_titular varchar(12) [note: 'Columna generada: asegura un solo titular por rol']
+  indexes {
+    (id_mesa, id_docente) [pk]
+    (id_mesa, rol_titular) [unique]
+    (qr_credencial_hash) [unique]
+  }
+}
+
+Table personero {
+  id_personero int [pk, increment]
+  id_lista int [not null]
+  id_docente int [not null]
+  tipo varchar [not null, note: 'GENERAL / ALTERNO / MESA']
+  id_mesa int
+  estado_acreditacion varchar [not null, default: 'PENDIENTE', note: 'PENDIENTE / ACREDITADO / REVOCADO']
+  fecha_acreditacion datetime
+  qr_credencial_hash char(64)
+  indexes {
+    (id_lista, id_docente) [unique]
+    (qr_credencial_hash) [unique]
+  }
+}
+
+Table padron_electoral {
+  id_proceso int [not null]
+  id_cargo int [not null]
+  id_docente int [not null]
+  habilitado_para_votar boolean [not null, default: true]
+  ya_voto boolean [not null, default: false]
+  fecha_votacion datetime
+  motivo_inhabilitacion varchar(255)
+  fecha_generacion datetime [not null]
+  id_mesa int
+  indexes {
+    (id_proceso, id_cargo, id_docente) [pk]
+    (id_docente, id_proceso)
+    (id_mesa)
+    (id_cargo, habilitado_para_votar, ya_voto)
+  }
+}
+
+Table voto {
+  id_voto bigint [pk, increment]
+  id_proceso int [not null]
+  id_cargo int [not null]
+  id_lista_elegida int
+  tipo_voto varchar [not null, note: 'VALIDO / BLANCO / NULO']
+  fecha_hora datetime [not null]
+  id_mesa int
+  indexes {
+    (id_cargo, tipo_voto, id_lista_elegida)
+    (id_mesa, id_cargo)
+  }
+}
+
+Table constancia_voto {
+  id_constancia bigint [pk, increment]
+  id_proceso int [not null]
+  id_docente int [not null]
+  id_cargo int [not null]
+  token_qr_hash char(64) [not null]
+  fecha_emision datetime [not null]
+  fecha_expiracion datetime
+  estado varchar [not null, default: 'VIGENTE', note: 'VIGENTE / REVOCADA']
+  indexes {
+    (token_qr_hash) [unique]
+    (id_proceso, id_docente, id_cargo) [unique]
+  }
+}
+
+Table acta_electoral {
+  id_acta int [pk, increment]
+  id_mesa int [not null]
+  tipo varchar [not null, note: 'INSTALACION / SUFRAGIO / ESCRUTINIO']
+  contenido_json longtext [not null]
+  hash_integridad char(64) [not null]
+  token_qr_hash char(64) [not null]
+  fecha_emision datetime [not null]
+  estado varchar [not null, default: 'VIGENTE', note: 'VIGENTE / ANULADA']
+  indexes {
+    (token_qr_hash) [unique]
+    (id_mesa, tipo) [unique]
+  }
+}
+
+Table firma_acta {
+  id_firma int [pk, increment]
+  id_acta int [not null]
+  id_docente int [not null]
+  rol varchar(80) [not null]
+  firma_digital text
+  fecha_firma datetime [not null]
+  indexes {
+    (id_acta, id_docente) [unique]
+  }
+}
+
+Table resultado_electoral {
+  id_resultado int [pk, increment]
+  id_proceso int [not null]
+  id_cargo int [not null]
+  id_lista int
+  tipo_voto varchar [not null, note: 'VALIDO / BLANCO / NULO']
+  total_votos int [not null, default: 0]
+  porcentaje_validos decimal(5,2)
+  posicion int
+  fecha_computo datetime [not null]
+  indexes {
+    (id_cargo, posicion)
+  }
+}
+
+Table multa {
+  id_multa int [pk, increment]
+  id_docente int [not null]
+  id_proceso int [not null]
+  motivo varchar [not null, note: 'OMISO_VOTACION / OMISO_MESA']
+  uit_referencia decimal(10,2) [not null]
+  porcentaje_uit decimal(5,2) [not null]
+  monto decimal(10,2) [not null]
+  estado_pago varchar [not null, default: 'PENDIENTE', note: 'PENDIENTE / PAGADA / EXONERADA']
+  fecha_generacion datetime [not null]
+  fecha_pago datetime
+  observacion varchar(300)
+  indexes {
+    (id_docente, id_proceso, motivo) [unique]
+    (estado_pago)
+  }
+}
+
+Table log_auditoria {
+  id_log bigint [pk, increment]
+  id_usuario int
+  id_docente int
+  id_proceso int
+  accion varchar(100) [not null]
+  ip_origen varchar(45)
+  user_agent varchar(500)
+  fecha_hora datetime [not null]
+  detalle_json longtext
+  indexes {
+    (fecha_hora)
+    (accion, fecha_hora)
+  }
+}
+
+Table observacion_electoral {
+  id_observacion bigint [pk, increment]
+  id_personero int [not null]
+  id_proceso int [not null]
+  id_mesa int
+  id_acta int
+  descripcion text [not null]
+  estado varchar [not null, default: 'PENDIENTE', note: 'PENDIENTE / ATENDIDA / RECHAZADA']
+  respuesta_ceunp text
+  fecha_registro datetime [not null]
+  fecha_respuesta datetime
+}
+
+Table impugnacion_electoral {
+  id_impugnacion bigint [pk, increment]
+  id_personero int [not null]
+  id_proceso int [not null]
+  id_mesa int [not null]
+  id_acta int
+  motivo text [not null]
+  decision_mesa varchar [not null, default: 'PENDIENTE', note: 'PENDIENTE / ACEPTADA / RECHAZADA']
+  decision_ceunp varchar [not null, default: 'PENDIENTE', note: 'PENDIENTE / CONFIRMADA / MODIFICADA']
+  estado varchar [not null, default: 'PRESENTADA', note: 'PRESENTADA / RESUELTA / APELADA']
+  fecha_presentacion datetime [not null]
+  fecha_resolucion datetime
+}
+
+Ref: departamento.id_facultad > facultad.id_facultad
+Ref: docente.id_facultad > facultad.id_facultad
+Ref: docente.id_departamento > departamento.id_departamento
+Ref: cargo_admin.id_docente > docente.id_docente
+Ref: usuario.id_docente > docente.id_docente
+Ref: sesion_activa.id_usuario > usuario.id_usuario
+Ref: proceso_electoral.id_proceso_padre > proceso_electoral.id_proceso
+Ref: cargo_electoral.id_proceso > proceso_electoral.id_proceso
+Ref: cargo_categoria_permitida.id_cargo > cargo_electoral.id_cargo
+Ref: lista_electoral.id_cargo > cargo_electoral.id_cargo
+Ref: candidato.id_lista > lista_electoral.id_lista
+Ref: candidato.id_docente > docente.id_docente
+Ref: tacha.id_docente_denunciante > docente.id_docente
+Ref: tacha.id_candidato > candidato.id_candidato
+Ref: tacha.id_usuario_resuelve > usuario.id_usuario
+Ref: mesa_electoral.id_proceso > proceso_electoral.id_proceso
+Ref: miembro_mesa.id_mesa > mesa_electoral.id_mesa
+Ref: miembro_mesa.id_docente > docente.id_docente
+Ref: personero.id_lista > lista_electoral.id_lista
+Ref: personero.id_docente > docente.id_docente
+Ref: personero.id_mesa > mesa_electoral.id_mesa
+Ref: padron_electoral.(id_cargo, id_proceso) > cargo_electoral.(id_cargo, id_proceso)
+Ref: padron_electoral.id_docente > docente.id_docente
+Ref: padron_electoral.id_mesa > mesa_electoral.id_mesa
+Ref: voto.(id_cargo, id_proceso) > cargo_electoral.(id_cargo, id_proceso)
+Ref: voto.(id_lista_elegida, id_cargo) > lista_electoral.(id_lista, id_cargo)
+Ref: voto.id_mesa > mesa_electoral.id_mesa
+Ref: constancia_voto.(id_cargo, id_proceso) > cargo_electoral.(id_cargo, id_proceso)
+Ref: constancia_voto.id_docente > docente.id_docente
+Ref: acta_electoral.id_mesa > mesa_electoral.id_mesa
+Ref: firma_acta.id_acta > acta_electoral.id_acta
+Ref: firma_acta.id_docente > docente.id_docente
+Ref: resultado_electoral.(id_cargo, id_proceso) > cargo_electoral.(id_cargo, id_proceso)
+Ref: resultado_electoral.id_lista > lista_electoral.id_lista
+Ref: multa.id_docente > docente.id_docente
+Ref: multa.id_proceso > proceso_electoral.id_proceso
+Ref: log_auditoria.id_usuario > usuario.id_usuario
+Ref: log_auditoria.id_docente > docente.id_docente
+Ref: log_auditoria.id_proceso > proceso_electoral.id_proceso
+Ref: observacion_electoral.id_personero > personero.id_personero
+Ref: observacion_electoral.id_proceso > proceso_electoral.id_proceso
+Ref: observacion_electoral.id_mesa > mesa_electoral.id_mesa
+Ref: observacion_electoral.id_acta > acta_electoral.id_acta
+Ref: impugnacion_electoral.id_personero > personero.id_personero
+Ref: impugnacion_electoral.id_proceso > proceso_electoral.id_proceso
+Ref: impugnacion_electoral.id_mesa > mesa_electoral.id_mesa
+Ref: impugnacion_electoral.id_acta > acta_electoral.id_acta
+Ref: cargo_electoral.id_lista_ganadora > lista_electoral.id_lista
+
+TableGroup "Universidad y padron docente" {
+  facultad
+  departamento
+  docente
+  cargo_admin
+  cargo_excluido_sorteo
+  parametro_global
+}
+
+TableGroup "Proceso y listas" {
+  proceso_electoral
+  cargo_electoral
+  cargo_categoria_permitida
+  lista_electoral
+  candidato
+  tacha
+  personero
+}
+
+TableGroup "Mesas, padron y voto" {
+  mesa_electoral
+  miembro_mesa
+  padron_electoral
+  voto
+  constancia_voto
+  acta_electoral
+  firma_acta
+}
+
+TableGroup "Resultados y sanciones" {
+  resultado_electoral
+  multa
+}
+
+TableGroup "Seguridad y auditoria" {
+  usuario
+  sesion_activa
+  log_auditoria
+  observacion_electoral
+  impugnacion_electoral
+}

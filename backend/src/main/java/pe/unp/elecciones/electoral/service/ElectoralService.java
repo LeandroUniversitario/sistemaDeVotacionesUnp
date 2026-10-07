@@ -47,6 +47,7 @@ public class ElectoralService {
     private final CandidatoRepository candidatoRepository;
     private final CategoriaPermitidaRepository categoriaRepository;
     private final TachaRepository tachaRepository;
+    private final ProcedimientoDao dao;
 
     public ElectoralService(
             DocenteRepository docenteRepository,
@@ -55,7 +56,8 @@ public class ElectoralService {
             ListaElectoralRepository listaRepository,
             CandidatoRepository candidatoRepository,
             CategoriaPermitidaRepository categoriaRepository,
-            TachaRepository tachaRepository) {
+            TachaRepository tachaRepository,
+            ProcedimientoDao dao) {
         this.docenteRepository = docenteRepository;
         this.procesoRepository = procesoRepository;
         this.cargoRepository = cargoRepository;
@@ -63,6 +65,7 @@ public class ElectoralService {
         this.candidatoRepository = candidatoRepository;
         this.categoriaRepository = categoriaRepository;
         this.tachaRepository = tachaRepository;
+        this.dao = dao;
     }
 
     // ─── Docentes ────────────────────────────────────────────────────────────
@@ -159,6 +162,7 @@ public class ElectoralService {
                 && request.idJurisdiccion() == null) {
             throw badRequest("La jurisdicción específica es obligatoria para facultad o departamento");
         }
+        exigirProcesoEditable(idProceso);
         CargoElectoral cargo = new CargoElectoral(
                 idProceso, request.nombre(), request.nivelJurisdiccion(), request.idJurisdiccion());
         return cargoRepository.save(cargo);
@@ -179,6 +183,8 @@ public class ElectoralService {
         if (!cargoRepository.existsById(idCargo)) {
             throw notFound("Cargo electoral no encontrado");
         }
+        exigirProcesoEditable(cargoRepository.findById(idCargo)
+                .orElseThrow(() -> notFound("Cargo electoral no encontrado")).getIdProceso());
         return listaRepository.save(new ListaElectoral(idCargo, request.nombre(), request.simbolo()));
     }
 
@@ -186,14 +192,18 @@ public class ElectoralService {
 
     @Transactional
     public CategoriaPermitida permitirCategoria(Integer idCargo,
-            pe.unp.elecciones.electoral.domain.CategoriaDocente categoria) {
+            pe.unp.elecciones.electoral.domain.CategoriaDocente categoria,
+            Boolean puedeVotar, Boolean puedePostular) {
         if (!cargoRepository.existsById(idCargo)) {
             throw notFound("Cargo electoral no encontrado");
         }
         if (categoriaRepository.existsByIdCargoAndCategoria(idCargo, categoria)) {
             throw badRequest("La categoría ya está permitida para este cargo");
         }
-        return categoriaRepository.save(new CategoriaPermitida(idCargo, categoria));
+        exigirProcesoEditable(cargoRepository.findById(idCargo)
+                .orElseThrow(() -> notFound("Cargo electoral no encontrado")).getIdProceso());
+        return categoriaRepository.save(new CategoriaPermitida(idCargo, categoria,
+                puedeVotar == null || puedeVotar, puedePostular == null || puedePostular));
     }
 
     // ─── Candidatos ───────────────────────────────────────────────────────────
@@ -210,12 +220,17 @@ public class ElectoralService {
     public Candidato crearCandidato(Integer idLista, CandidatoRequest request) {
         ListaElectoral lista = listaRepository.findById(idLista)
                 .orElseThrow(() -> notFound("Lista electoral no encontrada"));
+        exigirProcesoEditable(cargoRepository.findById(lista.getIdCargo())
+                .orElseThrow(() -> notFound("Cargo electoral no encontrado")).getIdProceso());
+        if (lista.getEstado() != pe.unp.elecciones.electoral.domain.ListaEstado.INSCRITA) {
+            throw badRequest("RN12: la lista ya fue calificada; no admite nuevos candidatos");
+        }
         Docente docente = docenteRepository.findById(request.idDocente())
                 .orElseThrow(() -> notFound("Docente no encontrado"));
         if (docente.getEstado() != DocenteEstado.ACTIVO) {
             throw badRequest("Solo un docente activo puede integrar una lista");
         }
-        if (!categoriaRepository.existsByIdCargoAndCategoria(
+        if (!categoriaRepository.existsByIdCargoAndCategoriaAndPuedePostularTrue(
                 lista.getIdCargo(), docente.getCategoria())) {
             throw badRequest("La categoría del docente no está permitida para este cargo");
         }
@@ -242,24 +257,22 @@ public class ElectoralService {
                 new Tacha(request.idDocenteDenunciante(), request.idCandidato(), request.motivo()));
     }
 
-    @Transactional
-    public Tacha resolverTacha(Integer idTacha, TachaEstado resultado) {
-        if (resultado == TachaEstado.PENDIENTE) {
+    /**
+     * Resuelve la tacha con sp_resolver_tacha. Si es FUNDADA, el candidato queda
+     * EXCLUIDO y, por la inscripción en bloque (RN12), su lista pasa a TACHADA.
+     * Sin @Transactional: el procedimiento maneja su propia transacción.
+     */
+    public Tacha resolverTacha(Integer idTacha, TachaEstado resultado, String resolucion, Integer idUsuario) {
+        if (resultado == null || resultado == TachaEstado.PENDIENTE) {
             throw badRequest("Una tacha resuelta debe ser fundada o infundada");
         }
-        Tacha tacha = tachaRepository.findById(idTacha)
+        if (!tachaRepository.existsById(idTacha)) {
+            throw notFound("Tacha no encontrada");
+        }
+        dao.llamar("sp_resolver_tacha", ProcedimientoDao.SIN_SALIDA,
+                idTacha, resultado.name(), resolucion, idUsuario);
+        return tachaRepository.findById(idTacha)
                 .orElseThrow(() -> notFound("Tacha no encontrada"));
-        if (tacha.getEstado() != TachaEstado.PENDIENTE) {
-            throw badRequest("La tacha ya fue resuelta");
-        }
-        tacha.resolver(resultado);
-        if (resultado == TachaEstado.FUNDADA) {
-            Candidato candidato = candidatoRepository.findById(tacha.getIdCandidato())
-                    .orElseThrow(() -> notFound("Candidato no encontrado"));
-            candidato.excluir();
-            candidatoRepository.save(candidato);
-        }
-        return tachaRepository.save(tacha);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -289,6 +302,16 @@ public class ElectoralService {
     private void validarQuorum(BigDecimal quorum) {
         if (quorum.compareTo(BigDecimal.ZERO) < 0 || quorum.compareTo(new BigDecimal("100")) > 0) {
             throw badRequest("El quórum mínimo debe estar entre 0 y 100");
+        }
+    }
+
+    /** Cargos, listas y candidatos solo se modifican antes de la votación. */
+    private void exigirProcesoEditable(Integer idProceso) {
+        ProcesoElectoral proceso = procesoRepository.findById(idProceso)
+                .orElseThrow(() -> notFound("Proceso electoral no encontrado"));
+        if (proceso.getEstado() != ProcesoEstado.CREADO && proceso.getEstado() != ProcesoEstado.INSCRIPCION) {
+            throw badRequest("El proceso está en estado " + proceso.getEstado()
+                    + " y ya no admite cambios en cargos, listas ni candidatos.");
         }
     }
 

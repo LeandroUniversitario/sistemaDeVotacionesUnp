@@ -25,8 +25,9 @@ documentacion/    -> Documentacion tecnica y de negocio
 
 ### 1. Base de datos
 Ejecutar en MariaDB/MySQL:
-- base-de-datos/schema.sql
-- base-de-datos/InsertarFacultadesyDepartamentos.sql
+- base-de-datos/v2/elecciones_unp_v2_COMPLETO.sql (importar en phpMyAdmin; crea tablas, triggers, vistas, procedimientos y datos iniciales)
+- Usuario inicial: admin / Admin2026* (cambiar al ingresar)
+- Guia: base-de-datos/v2/ANALISIS_Y_GUIA_BD_v2.md y documentacion/BACKEND_v2.md
 
 ### 2. Backend
 `

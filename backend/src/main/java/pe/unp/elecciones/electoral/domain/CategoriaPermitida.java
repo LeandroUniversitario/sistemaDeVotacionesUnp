@@ -22,6 +22,14 @@ public class CategoriaPermitida {
     @Column(nullable = false)
     private CategoriaDocente categoria;
 
+    /** RF03: la categoría puede votar por este cargo. */
+    @Column(name = "puede_votar", nullable = false)
+    private boolean puedeVotar = true;
+
+    /** RF03: la categoría puede postular a este cargo. */
+    @Column(name = "puede_postular", nullable = false)
+    private boolean puedePostular = true;
+
     protected CategoriaPermitida() {
     }
 
@@ -32,4 +40,14 @@ public class CategoriaPermitida {
 
     public Integer getIdCargo() { return idCargo; }
     public CategoriaDocente getCategoria() { return categoria; }
+    public CategoriaPermitida(Integer idCargo, CategoriaDocente categoria,
+                              boolean puedeVotar, boolean puedePostular) {
+        this.idCargo = idCargo;
+        this.categoria = categoria;
+        this.puedeVotar = puedeVotar;
+        this.puedePostular = puedePostular;
+    }
+
+    public boolean isPuedeVotar() { return puedeVotar; }
+    public boolean isPuedePostular() { return puedePostular; }
 }

@@ -31,6 +31,16 @@ public class CargoElectoral {
     @Column(name = "id_jurisdiccion")
     private Integer idJurisdiccion;
 
+    // Columnas que administra la base de datos (sp_computar_resultados): solo lectura.
+    @Column(name = "porcentaje_minimo_victoria", insertable = false, updatable = false)
+    private java.math.BigDecimal porcentajeMinimoVictoria;
+
+    @Column(name = "estado_resultado", insertable = false, updatable = false)
+    private String estadoResultado;
+
+    @Column(name = "id_lista_ganadora", insertable = false, updatable = false)
+    private Integer idListaGanadora;
+
     protected CargoElectoral() {
     }
 
@@ -47,4 +57,7 @@ public class CargoElectoral {
     public String getNombre() { return nombre; }
     public NivelJurisdiccion getNivelJurisdiccion() { return nivelJurisdiccion; }
     public Integer getIdJurisdiccion() { return idJurisdiccion; }
+    public java.math.BigDecimal getPorcentajeMinimoVictoria() { return porcentajeMinimoVictoria; }
+    public String getEstadoResultado() { return estadoResultado; }
+    public Integer getIdListaGanadora() { return idListaGanadora; }
 }

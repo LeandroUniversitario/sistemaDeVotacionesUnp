@@ -17,6 +17,7 @@ public class ImportacionDocenteController {
         this.importService = importService;
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'CEUNP')")
     @PostMapping("/importar")
     public ResponseEntity<?> importar(@RequestParam("archivo") MultipartFile archivo) {
         if (archivo.isEmpty()) {
@@ -44,7 +45,7 @@ public class ImportacionDocenteController {
             "columnas", new String[]{"DNI", "Nombres", "Apellidos", "Categoría", "Dedicación", "Estado", "Facultad", "Departamento"},
             "categorias", new String[]{"PRINCIPAL", "ASOCIADO", "AUXILIAR"},
             "dedicaciones", new String[]{"DE", "TC", "TP"},
-            "estados", new String[]{"ACTIVO", "LICENCIA", "SUSPENDIDO"}
+            "estados", new String[]{"ACTIVO", "INACTIVO", "LICENCIA", "SUSPENDIDO"}
         ));
     }
 }

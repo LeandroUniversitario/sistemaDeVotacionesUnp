@@ -41,9 +41,11 @@ import pe.unp.elecciones.electoral.service.ElectoralService;
 public class ElectoralController {
 
     private final ElectoralService service;
+    private final pe.unp.elecciones.auth.UsuarioActual usuarioActual;
 
-    public ElectoralController(ElectoralService service) {
+    public ElectoralController(ElectoralService service, pe.unp.elecciones.auth.UsuarioActual usuarioActual) {
         this.service = service;
+        this.usuarioActual = usuarioActual;
     }
 
     // ─── Docentes ────────────────────────────────────────────────────────────
@@ -124,7 +126,8 @@ public class ElectoralController {
     public CategoriaPermitida permitirCategoria(
             @PathVariable Integer idCargo,
             @Valid @RequestBody CategoriaRequest request) {
-        return service.permitirCategoria(idCargo, request.categoria());
+        return service.permitirCategoria(idCargo, request.categoria(),
+                request.puedeVotar(), request.puedePostular());
     }
 
     // ─── Candidatos ───────────────────────────────────────────────────────────
@@ -159,7 +162,9 @@ public class ElectoralController {
     @PreAuthorize("hasAnyRole('ADMIN', 'CEUNP')")
     public Tacha resolverTacha(
             @PathVariable Integer idTacha,
-            @Valid @RequestBody ResolucionTachaRequest request) {
-        return service.resolverTacha(idTacha, request.estado());
+            @Valid @RequestBody ResolucionTachaRequest request,
+            org.springframework.security.core.Authentication authentication) {
+        return service.resolverTacha(idTacha, request.estado(), request.resolucion(),
+                usuarioActual.id(authentication));
     }
 }

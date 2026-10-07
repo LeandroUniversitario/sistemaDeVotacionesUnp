@@ -61,7 +61,10 @@ public final class ElectoralRequest {
             String simbolo) {
     }
 
-    public record CategoriaRequest(@NotNull CategoriaDocente categoria) {
+    public record CategoriaRequest(
+            @NotNull CategoriaDocente categoria,
+            Boolean puedeVotar,      // opcional: null = true
+            Boolean puedePostular) { // opcional: null = true
     }
 
     public record CandidatoRequest(
@@ -75,6 +78,8 @@ public final class ElectoralRequest {
             @NotBlank String motivo) {
     }
 
-    public record ResolucionTachaRequest(@NotNull TachaEstado estado) {
+    public record ResolucionTachaRequest(
+            @NotNull TachaEstado estado,
+            String resolucion) {     // opcional: fundamento del CEUNP
     }
 }

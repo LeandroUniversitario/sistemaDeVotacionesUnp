@@ -8,4 +8,6 @@ import pe.unp.elecciones.electoral.domain.CategoriaPermitidaId;
 
 public interface CategoriaPermitidaRepository extends JpaRepository<CategoriaPermitida, CategoriaPermitidaId> {
     boolean existsByIdCargoAndCategoria(Integer idCargo, CategoriaDocente categoria);
+
+    boolean existsByIdCargoAndCategoriaAndPuedePostularTrue(Integer idCargo, CategoriaDocente categoria);
 }

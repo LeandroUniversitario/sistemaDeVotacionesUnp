@@ -1,5 +1,6 @@
 package pe.unp.elecciones.electoral.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,6 +14,7 @@ public class MesaSufragio {
     @Column(name = "id_mesa")
     private Integer id;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_proceso", nullable = false)
     private ProcesoElectoral proceso;
@@ -24,23 +26,25 @@ public class MesaSufragio {
     private String ubicacion;
 
     @Column(name = "semilla_sorteo", nullable = false, length = 128)
-    private String semillaSorteo;
+    private String semillaSorteo = "PENDIENTE";
 
     @Column(name = "fecha_sorteo")
     private LocalDateTime fechaSorteo;
 
-    @Transient
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private MesaEstado estado = MesaEstado.PENDIENTE;
 
-    @Transient
+    @Column(name = "hora_instalacion")
     private LocalDateTime horaInstalacion;
 
-    @Transient
+    @Column(name = "hora_cierre")
     private LocalDateTime horaCierre;
 
-    @Transient
+    @Column(name = "total_electores", nullable = false)
     private Integer totalElectores = 0;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "mesa", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MiembroMesa> miembros;
 
