@@ -1,0 +1,84 @@
+@startuml Diagrama_Secuencia_Backend_Login
+skinparam style strictuml
+skinparam participantPadding 20
+
+title Diagrama de Secuencia del Backend - CUS-01 Iniciar Sesión
+
+participant "AuthController" as Controller
+participant "AuthenticationManager" as AuthManager
+participant "UsuarioRepository" as Repository
+participant "AuditoriaService" as Auditoria
+participant "JwtService" as JWT
+database "Base de Datos" as BD
+
+-> Controller: POST /api/auth/login
+activate Controller
+
+Controller -> Repository: findByUsername(username)
+activate Repository
+Repository -> BD: SELECT * FROM usuario WHERE username = ?
+activate BD
+BD --> Repository: resultadoConsulta
+deactivate BD
+Repository --> Controller: usuario
+deactivate Repository
+
+alt usuario inactivo
+    Controller -> Controller: throw ResponseStatusException(403)
+    <-- Controller: JSON { detail: "Acceso denegado..." }
+else bloqueado temporalmente
+    Controller -> Controller: throw ResponseStatusException(401)
+    <-- Controller: JSON { detail: "Cuenta bloqueada temporalmente..." }
+else validación OK
+    Controller -> AuthManager: authenticate(UsernamePasswordAuthenticationToken)
+    activate AuthManager
+    
+    alt credenciales inválidas (BadCredentialsException)
+        AuthManager --> Controller: throw Exception
+        deactivate AuthManager
+        Controller -> Repository: save(usuario.registrarIntentoFallido())
+        activate Repository
+        Repository -> BD: UPDATE usuario SET intentos_fallidos = ...
+        activate BD
+        BD --> Repository: registroOK
+        deactivate BD
+        Repository --> Controller: OK
+        deactivate Repository
+        
+        Controller -> Auditoria: registrar(LOGIN_FAILED)
+        activate Auditoria
+        Auditoria -> BD: INSERT INTO log_auditoria
+        Auditoria --> Controller: OK
+        deactivate Auditoria
+        
+        <-- Controller: JSON { detail: "Credenciales incorrectas..." }
+    else credenciales válidas
+        activate AuthManager
+        AuthManager --> Controller: Authentication
+        deactivate AuthManager
+        
+        Controller -> Repository: save(usuario.registrarAccesoExitoso())
+        activate Repository
+        Repository -> BD: UPDATE usuario SET intentos_fallidos = 0...
+        activate BD
+        BD --> Repository: registroOK
+        deactivate BD
+        Repository --> Controller: OK
+        deactivate Repository
+        
+        Controller -> Auditoria: registrar(LOGIN_SUCCESS)
+        activate Auditoria
+        Auditoria -> BD: INSERT INTO log_auditoria
+        Auditoria --> Controller: OK
+        deactivate Auditoria
+        
+        Controller -> JWT: generateToken(usuario)
+        activate JWT
+        JWT --> Controller: token JWT
+        deactivate JWT
+        
+        <-- Controller: JSON { token, username, rol }
+    end
+end
+deactivate Controller
+@enduml

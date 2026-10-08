@@ -1,0 +1,60 @@
+@startuml Diagrama_Secuencia_Frontend_Login
+skinparam style strictuml
+skinparam participantPadding 20
+skinparam boxPadding 10
+skinparam maxMessageSize 150
+
+title Diagrama de Secuencia del Frontend React - CUS-01 Iniciar Sesión
+
+actor "Usuario" as Actor
+participant "LoginPage.jsx" as Componente
+participant "useState" as Estado
+participant "fetch / API" as API
+participant "DOM / UI" as UI
+
+Actor -> Componente: Ingresa credenciales\ny hace clic en Iniciar Sesión
+activate Componente
+
+Componente -> Estado: setUsername(user), setPassword(pass)
+activate Estado
+Estado --> Componente: estadoActualizado
+deactivate Estado
+
+Componente -> Componente: validarFormulario()
+alt campos incompletos
+    Componente -> UI: Mostrar advertencia HTML nativa "Este campo es obligatorio"
+    activate UI
+    UI --> Componente: 
+    deactivate UI
+else datos válidos
+    Componente -> Estado: setError(''), setLoading(true)
+    activate Estado
+    Estado --> Componente: estadoActualizado
+    deactivate Estado
+    
+    Componente -> API: POST /api/auth/login
+    activate API
+    API --> Componente: respuestaJSON
+    deactivate API
+
+    alt éxito (200 OK)
+        Componente -> Componente: onLogin(datos)
+        Componente -> Estado: guardar JWT en sessionStorage
+        Componente -> UI: Enrutar a /dashboard/[módulo] según rol
+        activate UI
+        UI --> Componente: Vista renderizada
+        deactivate UI
+    else error 401/403 (Ej. credenciales inválidas, bloqueado)
+        Componente -> Componente: extraer errData.detail
+        Componente -> Estado: setError(mensaje)
+        activate Estado
+        Estado --> Componente: estadoActualizado
+        deactivate Estado
+        Componente -> UI: Mostrar alerta de error y aplicar clase .error-input
+        activate UI
+        UI --> Componente: 
+        deactivate UI
+    end
+end
+deactivate Componente
+@enduml

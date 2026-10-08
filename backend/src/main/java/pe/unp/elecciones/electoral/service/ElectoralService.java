@@ -1,6 +1,7 @@
 package pe.unp.elecciones.electoral.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -135,7 +136,7 @@ public class ElectoralService {
         ProcesoElectoral proceso = new ProcesoElectoral(
                 request.nombre(), request.fechaInicio(), request.fechaFin(),
                 ProcesoEstado.CREADO, request.tipo(), request.idProcesoPadre(),
-                request.quorumMinimo());
+                request.quorumMinimo(), request.fechaConvocatoria());
         return procesoRepository.save(proceso);
     }
 
@@ -288,14 +289,24 @@ public class ElectoralService {
         if (!request.fechaFin().isAfter(request.fechaInicio())) {
             throw badRequest("La fecha de fin debe ser posterior a la fecha de inicio.");
         }
-        // Duración sugerida: 6 horas (advertencia, no bloqueo)
-        long horas = ChronoUnit.HOURS.between(request.fechaInicio(), request.fechaFin());
-        if (horas < 4 || horas > 12) {
-            // no bloqueamos, pero registramos en detalle (lo puede revisar el frontend)
-        }
         // Segunda vuelta requiere proceso padre
         if (request.tipo() == ProcesoTipo.SEGUNDA_VUELTA && request.idProcesoPadre() == null) {
             throw badRequest("La segunda vuelta debe indicar el proceso electoral padre.");
+        }
+        // RN02: fecha de convocatoria debe estar 30-45 días antes del sufragio
+        if (request.fechaConvocatoria() != null) {
+            LocalDate diaSufragio = request.fechaInicio().toLocalDate();
+            long diasAntes = ChronoUnit.DAYS.between(request.fechaConvocatoria(), diaSufragio);
+            if (diasAntes < 30) {
+                throw badRequest(
+                    "RN02 — La convocatoria debe publicarse al menos 30 días naturales antes del sufragio. " +
+                    "Actualmente hay solo " + diasAntes + " días entre ambas fechas.");
+            }
+            if (diasAntes > 45) {
+                throw badRequest(
+                    "RN02 — La convocatoria no puede publicarse con más de 45 días naturales de antelación al sufragio. " +
+                    "Actualmente hay " + diasAntes + " días entre ambas fechas.");
+            }
         }
     }
 
