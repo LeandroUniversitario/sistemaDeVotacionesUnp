@@ -24,9 +24,20 @@ export default function LoginPage({ onLogin }) {
         body: JSON.stringify({ username, password }),
       });
       if (!response.ok) {
-        throw new Error(response.status === 401
-          ? 'Usuario o contraseña inválidos.'
-          : 'No se pudo iniciar sesión.');
+        let message = 'No se pudo iniciar sesión.';
+        try {
+          const errData = await response.json();
+          if (errData.detail) {
+            message = errData.detail;
+          } else if (response.status === 401) {
+            message = 'Credenciales incorrectas. Por favor, verifique su usuario y contraseña';
+          }
+        } catch (e) {
+          if (response.status === 401) {
+            message = 'Credenciales incorrectas. Por favor, verifique su usuario y contraseña';
+          }
+        }
+        throw new Error(message);
       }
       onLogin(await response.json());
     } catch (loginError) {
@@ -66,6 +77,7 @@ export default function LoginPage({ onLogin }) {
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="current-password"
                 required
+                className={error && error.includes('Credenciales') ? 'error-input' : ''}
               />
             </span>
           </label>

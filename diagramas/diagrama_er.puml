@@ -44,6 +44,7 @@ entity "ProcesoElectoral" as proceso {
   * id_proceso : INT <<PK>>
   --
   * nombre : VARCHAR
+  * fecha_convocatoria : DATE
   * fecha_inicio : DATETIME
   * fecha_fin : DATETIME
   * estado : VARCHAR

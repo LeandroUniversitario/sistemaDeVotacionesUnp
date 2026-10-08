@@ -33,6 +33,15 @@ public class Usuario {
     @Column(name = "activo", nullable = false)
     private boolean activo;
 
+    @Column(name = "intentos_fallidos", nullable = false)
+    private int intentosFallidos;
+
+    @Column(name = "bloqueado_hasta")
+    private java.time.LocalDateTime bloqueadoHasta;
+
+    @Column(name = "ultimo_acceso")
+    private java.time.LocalDateTime ultimoAcceso;
+
     protected Usuario() {
     }
 
@@ -42,6 +51,7 @@ public class Usuario {
         this.rol = rol;
         this.idDocente = idDocente;
         this.activo = true;
+        this.intentosFallidos = 0;
     }
 
     void cambiarEstado(boolean activo) {
@@ -54,6 +64,19 @@ public class Usuario {
 
     void cambiarRol(Rol nuevoRol) {
         this.rol = nuevoRol;
+    }
+
+    public void registrarIntentoFallido() {
+        this.intentosFallidos++;
+        if (this.intentosFallidos >= 5) {
+            this.bloqueadoHasta = java.time.LocalDateTime.now().plusMinutes(15);
+        }
+    }
+
+    public void registrarAccesoExitoso() {
+        this.intentosFallidos = 0;
+        this.bloqueadoHasta = null;
+        this.ultimoAcceso = java.time.LocalDateTime.now();
     }
 
     public Integer getId() {
@@ -78,5 +101,17 @@ public class Usuario {
 
     public boolean isActivo() {
         return activo;
+    }
+
+    public int getIntentosFallidos() {
+        return intentosFallidos;
+    }
+
+    public java.time.LocalDateTime getBloqueadoHasta() {
+        return bloqueadoHasta;
+    }
+
+    public java.time.LocalDateTime getUltimoAcceso() {
+        return ultimoAcceso;
     }
 }

@@ -1,0 +1,51 @@
+@startuml Diagrama_Secuencia_Backend_Parametros
+skinparam style strictuml
+
+title Diagrama de Secuencia del Backend - CUS-04 Configurar Parámetros
+
+participant "ParametroController" as Controller
+participant "ParametroService" as Service
+participant "ParametroRepository" as Repository
+participant "AuditoriaService" as Auditoria
+database "Base de Datos" as BD
+
+-> Controller: PATCH /api/parametros (body)
+activate Controller
+
+Controller -> Service: actualizarMultiples(body)
+activate Service
+
+loop para cada parámetro modificado
+    Service -> Repository: findById(clave)
+    activate Repository
+    Repository -> BD: SELECT * FROM parametro_global...
+    activate BD
+    BD --> Repository: parametro
+    deactivate BD
+    Repository --> Service: parametro
+    deactivate Repository
+    
+    Service -> Service: parametro.setValor(nuevoValor)
+    
+    Service -> Repository: save(parametro)
+    activate Repository
+    Repository -> BD: UPDATE parametro_global SET ...
+    activate BD
+    BD --> Repository: OK
+    deactivate BD
+    Repository --> Service: OK
+    deactivate Repository
+    
+    Service -> Auditoria: registrar("PARAMETRO_ACTUALIZADO", clave, ...)
+    activate Auditoria
+    Auditoria -> BD: INSERT INTO log_auditoria
+    Auditoria --> Service: OK
+    deactivate Auditoria
+end
+
+Service --> Controller: listaActualizada
+deactivate Service
+
+<-- Controller: JSON Response
+deactivate Controller
+@enduml

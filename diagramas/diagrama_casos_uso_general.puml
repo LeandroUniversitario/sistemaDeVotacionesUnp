@@ -3,90 +3,170 @@ left to right direction
 skinparam actorStyle awesome
 skinparam packageStyle rectangle
 skinparam backgroundcolor transparent
+skinparam defaultFontName Helvetica
 
 skinparam usecase {
     BackgroundColor #EAF4FC
     BorderColor #2980B9
-    FontName Helvetica
-    FontSize 14
+    FontSize 13
     ArrowColor #2980B9
 }
 
 skinparam actor {
     BackgroundColor #FDEBD0
     BorderColor #D35400
-    FontName Helvetica
-    FontSize 14
+    FontSize 13
     FontColor #D35400
 }
 
 skinparam rectangle {
     BackgroundColor #FAFAFA
-    BorderColor #BDC3C7
-    FontName Helvetica
-    FontSize 16
+    BorderColor #2C3E50
+    FontSize 15
     FontStyle bold
 }
 
-actor "CEUNP" as comite
-actor "Administrador" as admin
-actor "Docente elector" as elector
-actor "Representante de lista" as representante
-actor "Personero general" as personeroGeneral
-actor "Personero de mesa" as personeroMesa
-actor "Miembro de mesa" as miembroMesa
-
-rectangle "Sistema de Control de Elecciones Universitarias" {
-  usecase "Gestionar padrón docente" as UC6
-  usecase "Crear proceso electoral" as UC3
-  usecase "Generar padrón electoral" as UC4
-  usecase "Inscribir lista electoral" as UC1
-  usecase "Subsanar observaciones" as UC16
-  usecase "Validar candidatura" as UC2
-  usecase "Resolver tachas" as UC12
-  usecase "Sortear mesa electoral" as UC7
-  usecase "Emitir voto" as UC5
-  usecase "Autenticar usuario" as UC14
-  usecase "Generar actas y resultados" as UC8
-  usecase "Verificar constancia QR" as UC15
-  usecase "Resolver impugnaciones\ny nulidades" as UC9
-  usecase "Presentar impugnación" as UC17
-  usecase "Presentar apelación" as UC18
-  usecase "Registrar observación" as UC19
-  usecase "Consultar actas electorales" as UC20
-  usecase "Instalar mesa y realizar escrutinio" as UC21
-  usecase "Validar habilitación" as UC10
-  usecase "Descargar constancia de voto" as UC11
-  usecase "Acreditar personeros" as UC13
+skinparam package {
+    BackgroundColor #F0F8FF
+    BorderColor #5DADE2
+    FontSize 12
+    FontStyle bold
+    FontColor #1A5276
 }
 
-admin --> UC6
-comite --> UC3
-comite --> UC2
-comite --> UC7
-comite --> UC8
-comite --> UC9
-comite --> UC12
-comite --> UC13
-representante --> UC1
-representante --> UC16
-elector --> UC5
-elector --> UC15
-personeroGeneral --> UC16
-personeroGeneral --> UC17
-personeroGeneral --> UC18
-personeroGeneral --> UC19
-personeroGeneral --> UC20
-personeroMesa --> UC17
-personeroMesa --> UC18
-personeroMesa --> UC19
-personeroMesa --> UC20
-miembroMesa --> UC21
+' ==========================================
+' ACTORES IZQUIERDA
+' ==========================================
+together {
+    actor "Administrador" as admin
+    actor "Representante\nde lista" as representante
+    actor "Docente elector" as elector
+}
 
-UC3 .> UC4 : <<include>>
-UC5 .> UC10 : <<include>>
-UC5 .> UC14 : <<include>>
-UC1 .> UC10 : <<include>>
-UC11 .> UC5 : <<extend>>
+' ==========================================
+' ACTORES DERECHA
+' ==========================================
+together {
+    actor "CEUNP" as comite
+    actor "Miembro de mesa" as miembroMesa
+    actor "Personero general" as personeroGeneral
+    actor "Personero de mesa" as personeroMesa
+}
+
+' ==========================================
+' SISTEMA SICEUNP
+' ==========================================
+rectangle "Sistema de Control de Elecciones Universitarias (SICEUNP)" {
+
+    ' --- Acceso ---
+    package "Acceso al Sistema" {
+        usecase "Autenticar usuario" as UC_Auth
+    }
+
+    ' --- Administración ---
+    package "Administración" {
+        usecase "Gestionar usuarios y roles" as UC_Users
+        usecase "Configurar parámetros globales" as UC_Params
+        usecase "Consultar bitácora de auditoría" as UC_Bitacora
+    }
+
+    ' --- Proceso Electoral ---
+    package "Proceso Electoral" {
+        usecase "Crear proceso electoral" as UC_Proceso
+        usecase "Gestionar padrón electoral" as UC_Padron
+        usecase "Inscribir lista electoral" as UC_Listas
+        usecase "Validar candidaturas y listas" as UC_ValidarListas
+        usecase "Gestionar tachas electorales" as UC_Tachas
+        usecase "Realizar sorteos de\ncédula y mesa" as UC_Sorteo
+    }
+
+    ' --- Acreditaciones y Credenciales ---
+    package "Acreditación y Credenciales" {
+        usecase "Acreditar y gestionar personeros" as UC_Personeros
+        usecase "Generar credenciales y pases QR" as UC_Credenciales
+    }
+
+    ' --- Votación ---
+    package "Votación" {
+        usecase "Validar habilitación\ndel elector" as UC_Validar
+        usecase "Emitir voto en cabina" as UC_Voto
+    }
+
+    ' --- Escrutinio, Impugnaciones y Cómputo ---
+    package "Mesa Electoral y Resultados" {
+        usecase "Instalar mesa y\nrealizar escrutinio" as UC_Escrutinio
+        usecase "Gestionar impugnaciones\ny nulidades" as UC_Impugnaciones
+        usecase "Realizar cómputo general\ny proclamación" as UC_Computo
+    }
+}
+
+' ==========================================
+' CONEXIONES — ADMINISTRADOR
+' ==========================================
+admin --> UC_Auth
+admin --> UC_Users
+admin --> UC_Params
+admin --> UC_Bitacora
+
+' ==========================================
+' CONEXIONES — REPRESENTANTE DE LISTA
+' ==========================================
+representante --> UC_Auth
+representante --> UC_Listas
+representante --> UC_Personeros
+
+' ==========================================
+' CONEXIONES — DOCENTE ELECTOR
+' ==========================================
+elector --> UC_Auth
+elector --> UC_Validar
+elector --> UC_Voto
+elector --> UC_Credenciales
+
+' ==========================================
+' CONEXIONES — CEUNP
+' ==========================================
+comite --> UC_Auth
+comite --> UC_Proceso
+comite --> UC_Padron
+comite --> UC_ValidarListas
+comite --> UC_Tachas
+comite --> UC_Sorteo
+comite --> UC_Personeros
+comite --> UC_Credenciales
+comite --> UC_Impugnaciones
+comite --> UC_Computo
+
+' ==========================================
+' CONEXIONES — MIEMBRO DE MESA
+' ==========================================
+miembroMesa --> UC_Auth
+miembroMesa --> UC_Validar
+miembroMesa --> UC_Escrutinio
+miembroMesa --> UC_Impugnaciones
+
+' ==========================================
+' CONEXIONES — PERSONERO GENERAL
+' (Fiscaliza todo el proceso electoral)
+' ==========================================
+personeroGeneral --> UC_Auth
+personeroGeneral --> UC_ValidarListas
+personeroGeneral --> UC_Credenciales
+personeroGeneral --> UC_Escrutinio
+personeroGeneral --> UC_Impugnaciones
+
+' ==========================================
+' CONEXIONES — PERSONERO DE MESA
+' (Fiscaliza en el ámbito de su mesa)
+' ==========================================
+personeroMesa --> UC_Auth
+personeroMesa --> UC_Credenciales
+personeroMesa --> UC_Escrutinio
+personeroMesa --> UC_Impugnaciones
+
+' ==========================================
+' RELACIONES INCLUDE
+' ==========================================
+UC_Voto .> UC_Validar : <<include>>
 
 @enduml
