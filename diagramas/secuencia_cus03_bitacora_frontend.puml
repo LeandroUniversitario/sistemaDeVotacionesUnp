@@ -1,0 +1,31 @@
+@startuml Diagrama_Secuencia_Frontend_Bitacora
+skinparam style strictuml
+
+title Diagrama de Secuencia del Frontend React - CUS-03 Consultar Bitácora
+
+actor "Administrador" as Actor
+participant "BitacoraPage.jsx" as Componente
+participant "useState" as Estado
+participant "fetch / API" as API
+participant "DOM / UI" as UI
+
+Actor -> Componente: Ingresa al módulo "Bitácora"
+activate Componente
+Componente -> API: GET /api/auditoria?page=0&size=20
+activate API
+API --> Componente: pageResponseJSON
+deactivate API
+Componente -> Estado: setLogs(datos), setPaginacion(metadata)
+Componente -> UI: Renderizar tabla paginada
+deactivate Componente
+
+Actor -> Componente: Ingresa filtros (acción, fecha) y busca
+activate Componente
+Componente -> API: GET /api/auditoria?accion=...&fecha=...
+activate API
+API --> Componente: pageResponseJSON
+deactivate API
+Componente -> Estado: actualizar logs y paginación
+Componente -> UI: Renderizar tabla filtrada
+deactivate Componente
+@enduml

@@ -1,0 +1,16 @@
+# Maven / Java
+target/
+*.class
+*.jar
+*.war
+
+# Node / React
+node_modules/
+dist/
+.vite/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.bin

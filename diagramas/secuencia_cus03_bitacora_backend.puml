@@ -1,0 +1,31 @@
+@startuml Diagrama_Secuencia_Backend_Bitacora
+skinparam style strictuml
+
+title Diagrama de Secuencia del Backend - CUS-03 Consultar Bitácora
+
+participant "AuditoriaController" as Controller
+participant "AuditoriaService" as Service
+participant "LogAuditoriaRepository" as Repository
+database "Base de Datos" as BD
+
+-> Controller: GET /api/auditoria?page=0&size=20&accion=...
+activate Controller
+
+Controller -> Service: buscar(filtros, pageable)
+activate Service
+
+Service -> Repository: buscarFiltrado(filtros, pageable)
+activate Repository
+Repository -> BD: SELECT * FROM log_auditoria WHERE ... LIMIT ...
+activate BD
+BD --> Repository: registros
+deactivate BD
+Repository --> Service: Page<LogAuditoria>
+deactivate Repository
+
+Service --> Controller: Page<LogAuditoria>
+deactivate Service
+
+<-- Controller: JSON PageResponse
+deactivate Controller
+@enduml

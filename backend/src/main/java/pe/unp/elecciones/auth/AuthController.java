@@ -18,6 +18,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import pe.unp.elecciones.electoral.service.AuditoriaService;
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -27,33 +30,58 @@ public class AuthController {
     private final UsuarioRepository usuarioRepository;
     private final JwtService jwtService;
     private final UsuarioService usuarioService;
+    private final AuditoriaService auditoriaService;
 
     public AuthController(
             AuthenticationManager authenticationManager,
             UsuarioRepository usuarioRepository,
             JwtService jwtService,
-            UsuarioService usuarioService) {
+            UsuarioService usuarioService,
+            AuditoriaService auditoriaService) {
         this.authenticationManager = authenticationManager;
         this.usuarioRepository = usuarioRepository;
         this.jwtService = jwtService;
         this.usuarioService = usuarioService;
+        this.auditoriaService = auditoriaService;
     }
 
     @PostMapping("/login")
-    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+    public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest requestHttp) {
+        Usuario usuario = usuarioRepository.findByUsername(request.username()).orElse(null);
+
+        if (usuario != null) {
+            if (!usuario.isActivo()) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acceso denegado. Su cuenta se encuentra inactiva. Contacte con el Administrador o CEUNP");
+            }
+            if (usuario.getBloqueadoHasta() != null && usuario.getBloqueadoHasta().isAfter(LocalDateTime.now())) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cuenta bloqueada temporalmente por demasiados intentos fallidos. Intente nuevamente en 15 minutos");
+            }
+        }
+
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.username(), request.password()));
-            Usuario usuario = usuarioRepository.findByUsername(authentication.getName())
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.UNAUTHORIZED, "Usuario o contraseña inválidos"));
+            
+            if (usuario == null) {
+                usuario = usuarioRepository.findByUsername(authentication.getName()).orElseThrow();
+            }
+
+            usuario.registrarAccesoExitoso();
+            usuarioRepository.save(usuario);
+            auditoriaService.registrar(usuario.getId(), null, "LOGIN_SUCCESS", requestHttp.getRemoteAddr(), requestHttp.getHeader("User-Agent"), null);
+
             return new LoginResponse(
                     jwtService.generateToken(usuario),
                     usuario.getUsername(),
                     usuario.getRol().name());
         } catch (BadCredentialsException exception) {
+            if (usuario != null) {
+                usuario.registrarIntentoFallido();
+                usuarioRepository.save(usuario);
+                auditoriaService.registrar(usuario.getId(), null, "LOGIN_FAILED", requestHttp.getRemoteAddr(), requestHttp.getHeader("User-Agent"), null);
+            }
             throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED, "Usuario o contraseña inválidos");
+                    HttpStatus.UNAUTHORIZED, "Credenciales incorrectas. Por favor, verifique su usuario y contraseña");
         }
     }
 

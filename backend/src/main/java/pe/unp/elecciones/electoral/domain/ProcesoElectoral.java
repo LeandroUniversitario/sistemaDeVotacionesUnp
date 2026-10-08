@@ -1,6 +1,7 @@
 package pe.unp.elecciones.electoral.domain;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
@@ -44,12 +45,19 @@ public class ProcesoElectoral {
     @Column(name = "quorum_minimo", nullable = false, precision = 5, scale = 2)
     private BigDecimal quorumMinimo;
 
+    /**
+     * Fecha oficial de convocatoria (Art. 7 Res. N.º 0462-CU-2019).
+     * Debe estar entre 30 y 45 días antes de fecha_inicio (RN02).
+     */
+    @Column(name = "fecha_convocatoria")
+    private LocalDate fechaConvocatoria;
+
     protected ProcesoElectoral() {
     }
 
     public ProcesoElectoral(String nombre, LocalDateTime fechaInicio, LocalDateTime fechaFin,
                      ProcesoEstado estado, ProcesoTipo tipo, Integer idProcesoPadre,
-                     BigDecimal quorumMinimo) {
+                     BigDecimal quorumMinimo, LocalDate fechaConvocatoria) {
         this.nombre = nombre;
         this.fechaInicio = fechaInicio;
         this.fechaFin = fechaFin;
@@ -57,6 +65,7 @@ public class ProcesoElectoral {
         this.tipo = tipo;
         this.idProcesoPadre = idProcesoPadre;
         this.quorumMinimo = quorumMinimo;
+        this.fechaConvocatoria = fechaConvocatoria;
     }
 
     public Integer getId() { return id; }
@@ -67,4 +76,5 @@ public class ProcesoElectoral {
     public ProcesoTipo getTipo() { return tipo; }
     public Integer getIdProcesoPadre() { return idProcesoPadre; }
     public BigDecimal getQuorumMinimo() { return quorumMinimo; }
+    public LocalDate getFechaConvocatoria() { return fechaConvocatoria; }
 }

@@ -1,0 +1,35 @@
+@startuml Diagrama_Secuencia_Frontend_Parametros
+skinparam style strictuml
+
+title Diagrama de Secuencia del Frontend React - CUS-04 Configurar Parámetros
+
+actor "Administrador" as Actor
+participant "ParametrosPage.jsx" as Componente
+participant "useState" as Estado
+participant "fetch / API" as API
+participant "DOM / UI" as UI
+
+Actor -> Componente: Ingresa al módulo "Parámetros"
+activate Componente
+Componente -> API: GET /api/parametros
+activate API
+API --> Componente: parametrosJSON
+deactivate API
+Componente -> Estado: setParams(parametros)
+Componente -> UI: Renderizar formulario
+deactivate Componente
+
+Actor -> Componente: Cambia valores numéricos y Guarda
+activate Componente
+Componente -> Componente: validarValores(>0, <=100)
+alt datos inválidos (no numérico, negativo, >100%)
+    Componente -> UI: Mostrar alerta de validación
+else datos válidos
+    Componente -> API: PATCH /api/parametros
+    activate API
+    API --> Componente: respuestaJSON
+    deactivate API
+    Componente -> UI: Mostrar mensaje "Parámetros actualizados"
+end
+deactivate Componente
+@enduml

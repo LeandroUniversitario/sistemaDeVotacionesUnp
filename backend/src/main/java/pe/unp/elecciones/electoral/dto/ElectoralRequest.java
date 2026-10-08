@@ -1,6 +1,7 @@
 package pe.unp.elecciones.electoral.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import jakarta.validation.constraints.NotBlank;
@@ -47,7 +48,8 @@ public final class ElectoralRequest {
             @NotNull LocalDateTime fechaFin,
             @NotNull ProcesoTipo tipo,
             Integer idProcesoPadre,
-            @NotNull BigDecimal quorumMinimo) {
+            @NotNull BigDecimal quorumMinimo,
+            LocalDate fechaConvocatoria) {   // RN02: 30-45 días antes de fecha_inicio
     }
 
     public record CargoRequest(

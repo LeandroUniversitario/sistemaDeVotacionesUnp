@@ -1,0 +1,52 @@
+@startuml Diagrama_Secuencia_Backend_Usuarios
+skinparam style strictuml
+
+title Diagrama de Secuencia del Backend - CUS-02 Gestionar Usuarios (Crear)
+
+participant "AuthController" as Controller
+participant "UsuarioService" as Service
+participant "UsuarioRepository" as Repository
+participant "AuditoriaService" as Auditoria
+database "Base de Datos" as BD
+
+-> Controller: POST /api/auth/users
+activate Controller
+
+Controller -> Service: crear(CrearUsuarioRequest)
+activate Service
+
+Service -> Repository: existsByUsername()
+activate Repository
+Repository -> BD: SELECT count(*) WHERE username = ?
+activate BD
+BD --> Repository: count
+deactivate BD
+Repository --> Service: existe / noExiste
+deactivate Repository
+
+alt username ya existe
+    Service -> Service: throw ResponseStatusException
+    Controller <-- Service: error
+    <-- Controller: JSON 400 Bad Request
+else datos válidos
+    Service -> Repository: save(nuevoUsuario)
+    activate Repository
+    Repository -> BD: INSERT INTO usuario (...)
+    activate BD
+    BD --> Repository: insertOK
+    deactivate BD
+    Repository --> Service: usuarioCreado
+    deactivate Repository
+    
+    Service -> Auditoria: registrar("USUARIO_CREADO")
+    activate Auditoria
+    Auditoria -> BD: INSERT INTO log_auditoria
+    Auditoria --> Service: OK
+    deactivate Auditoria
+    
+    Service --> Controller: usuarioCreado
+    <-- Controller: JSON UserResponse
+end
+deactivate Service
+deactivate Controller
+@enduml
