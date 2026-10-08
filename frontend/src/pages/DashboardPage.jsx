@@ -13,6 +13,7 @@ import SorteosPage from './SorteosPage';
 import ImportarDocentesPage from './ImportarDocentesPage';
 import ParametrosPage from './ParametrosPage';
 import BitacoraPage from './BitacoraPage';
+import CargosExcluidosPage from './CargosExcluidosPage';
 
 const EMPTY_PROCESS = {
   nombre: '',
@@ -40,6 +41,7 @@ const MENU_POR_ROL = {
     { key: 'nuevo',      label: 'Crear proceso',         icon: 'plus',      color: '#f59e0b', bg: '#fef3c7' },
     { key: 'usuarios',   label: 'Usuarios',              icon: 'user',      color: '#ef4444', bg: '#fee2e2' },
     { key: 'parametros', label: 'Parámetros',            icon: 'settings',  color: '#6366f1', bg: '#e0e7ff' },
+    { key: 'cargos-excluidos', label: 'Excepciones Sorteo', icon: 'shield', color: '#f43f5e', bg: '#ffe4e6' },
     { key: 'bitacora',   label: 'Bitácora',              icon: 'shield',    color: '#14b8a6', bg: '#ccfbf1' },
   ],
   CEUNP: [
@@ -82,6 +84,7 @@ const SECTION_TITLES = {
   sorteos: 'Sorteo de Miembros',
   'importar-docentes': 'Importar Padrón de Docentes',
   parametros: 'Parámetros globales',
+  'cargos-excluidos': 'Excepciones de Sorteo (RN20)',
   bitacora: 'Bitácora de auditoría',
   multas: 'Gestión de Multas (RN35)',
   fotocheck: 'Mi Fotocheck Digital',
@@ -364,6 +367,11 @@ export default function DashboardPage({ session, onLogout }) {
         {/* Parámetros globales — ETAPA 2 */}
         {section === 'parametros' && session.rol === 'ADMIN' && (
           <ParametrosPage onSessionExpired={onLogout} />
+        )}
+
+        {/* Cargos excluidos */}
+        {section === 'cargos-excluidos' && session.rol === 'ADMIN' && (
+          <CargosExcluidosPage canManage={canManage} onSessionExpired={onLogout} />
         )}
 
         {/* Bitácora / Auditoría */}

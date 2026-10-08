@@ -426,13 +426,13 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
         </div>
       )}
 
-      {/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 MODAL VER DETALLE \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */}
+      {/* ═════════ MODAL VER DETALLE ═════════ */}
       {viewDocente && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setViewDocente(null)}>
           <div className="modal-card" style={{ maxWidth: 520 }}>
             <div className="modal-header">
               <h2 style={{ fontSize: '1rem' }}>Ficha del docente</h2>
-              <button className="modal-close" onClick={() => setViewDocente(null)}>\u2715</button>
+              <button className="modal-close" onClick={() => setViewDocente(null)}>✕</button>
             </div>
             <div className="modal-form" style={{ paddingTop: 8 }}>
               {/* Cabecera del perfil */}
@@ -463,11 +463,11 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
               {/* Grid de datos */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 20px' }}>
                 {[
-                  { label: 'Categor\u00eda', value: viewDocente.categoria },
-                  { label: 'Dedicaci\u00f3n', value: viewDocente.dedicacion },
-                  { label: 'ID Facultad', value: viewDocente.idFacultad ?? '\u2014' },
-                  { label: 'ID Departamento', value: viewDocente.idDepartamento ?? '\u2014' },
-                  { label: 'Habilitado para votar', value: viewDocente.habilitadoParaVotar ? '\u2705 S\u00ed' : '\u274c No' },
+                  { label: 'Categoría', value: viewDocente.categoria },
+                  { label: 'Dedicación', value: viewDocente.dedicacion },
+                  { label: 'ID Facultad', value: viewDocente.idFacultad ?? '—' },
+                  { label: 'ID Departamento', value: viewDocente.idDepartamento ?? '—' },
+                  { label: 'Habilitado para votar', value: viewDocente.habilitadoParaVotar ? '✅ Sí' : '❌ No' },
                   { label: 'ID interno', value: `#${viewDocente.id}` },
                 ].map(({ label, value }) => (
                   <div key={label} style={{ background: '#f8fafc', borderRadius: 10, padding: '10px 14px', border: '1px solid #e3e9f1' }}>
@@ -484,7 +484,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
               <div className="modal-actions" style={{ marginTop: 20 }}>
                 {canManage && (
                   <button className="btn-ghost" onClick={() => { setViewDocente(null); openEdit(viewDocente); }}>
-                    \u270f\ufe0f Editar
+                    ✏️ Editar
                   </button>
                 )}
                 <button className="btn-primary" onClick={() => setViewDocente(null)}>Cerrar</button>
