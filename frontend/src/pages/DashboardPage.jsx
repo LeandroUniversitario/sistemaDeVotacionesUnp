@@ -49,6 +49,7 @@ const MENU_POR_ROL = {
     { key: 'nuevo', label: 'Crear proceso', icon: 'plus', color: '#f59e0b', bg: '#fef3c7' },
     { key: 'candidaturas', label: 'Candidaturas', icon: 'list', color: '#06b6d4', bg: '#cffafe' },
     { key: 'tachas', label: 'Tachas', icon: 'shield', color: '#f97316', bg: '#ffedd5' },
+    { key: 'cargos-excluidos', label: 'Excepciones Sorteo', icon: 'shield', color: '#f43f5e', bg: '#ffe4e6' },
     { key: 'personeros', label: 'Personeros y Acreditaciones', icon: 'users', color: '#8b5cf6', bg: '#ede9fe' },
     { key: 'credenciales', label: 'Credenciales y QR', icon: 'user', color: '#10b981', bg: '#d1fae5' },
     { key: 'sorteos', label: 'Sorteo de Mesas', icon: 'list', color: '#eab308', bg: '#fef9c3' },
@@ -471,8 +472,8 @@ export default function DashboardPage({ session, onLogout }) {
         )}
 
         {/* Cargos excluidos */}
-        {section === 'cargos-excluidos' && session.rol === 'ADMIN' && (
-          <CargosExcluidosPage canManage={canManage} onSessionExpired={onLogout} />
+        {section === 'cargos-excluidos' && (isAdmin || canManage) && (
+          <CargosExcluidosPage canManage={isAdmin || canManage} onSessionExpired={onLogout} />
         )}
 
         {/* Bitácora / Auditoría */}
