@@ -21,19 +21,26 @@ Table docente {
   id_departamento integer [not null]
 }
 
-Table cargo_admin {
-  id_cargo_admin integer [primary key, increment]
-  id_docente integer [not null]
-  nombre_cargo varchar [not null]
-  fecha_inicio date [not null]
-  fecha_fin date
-  vigente boolean
+Table catalogo_cargo {
+  id_catalogo_cargo integer [primary key, increment]
+  nombre_cargo varchar [unique, not null]
+  nivel varchar [not null]
+  activo boolean [not null, default: true]
 }
 
 Table cargo_excluido_sorteo {
   id_cargo_excluido integer [primary key, increment]
-  nombre_cargo varchar [not null]
-  nivel varchar [not null]
+  id_catalogo_cargo integer [unique, not null]
+  activo boolean [not null, default: true]
+}
+
+Table cargo_admin {
+  id_cargo_admin integer [primary key, increment]
+  id_docente integer [not null]
+  id_catalogo_cargo integer [not null]
+  fecha_inicio date [not null]
+  fecha_fin date
+  vigente boolean [not null, default: true]
 }
 
 Table proceso_electoral {
@@ -229,6 +236,8 @@ Ref: departamento.id_facultad > facultad.id_facultad
 Ref: docente.id_facultad > facultad.id_facultad
 Ref: docente.id_departamento > departamento.id_departamento
 Ref: cargo_admin.id_docente > docente.id_docente
+Ref: cargo_admin.id_catalogo_cargo > catalogo_cargo.id_catalogo_cargo
+Ref: cargo_excluido_sorteo.id_catalogo_cargo - catalogo_cargo.id_catalogo_cargo
 
 // Módulo Proceso Electoral
 Ref: proceso_electoral.id_proceso_padre > proceso_electoral.id_proceso

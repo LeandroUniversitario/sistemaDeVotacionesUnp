@@ -22,22 +22,27 @@ entity "Docente" as docente {
   * id_facultad : INT <<FK>>
   * id_departamento : INT <<FK>>
 }
-entity "CargoAdministrativo" as cargo_admin {
-  * id_cargo_admin : INT <<PK>>
-  --
-  * id_docente : INT <<FK>>
-  * nombre_cargo : VARCHAR
-  * nivel : VARCHAR
-  * fecha_inicio : DATE
-  * fecha_fin : DATE
-  * vigente : BOOLEAN
-}
-entity "CargoExcluidoSorteo" as excluido {
-  * id_cargo_excluido : INT <<PK>>
+entity "CatalogoCargo" as catalogo {
+  * id_catalogo_cargo : INT <<PK>>
   --
   * nombre_cargo : VARCHAR <<UQ>>
   * nivel : VARCHAR
   * activo : BOOLEAN
+}
+entity "CargoExcluidoSorteo" as excluido {
+  * id_cargo_excluido : INT <<PK>>
+  --
+  * id_catalogo_cargo : INT <<FK, UQ>>
+  * activo : BOOLEAN
+}
+entity "CargoAdministrativo" as cargo_admin {
+  * id_cargo_admin : INT <<PK>>
+  --
+  * id_docente : INT <<FK>>
+  * id_catalogo_cargo : INT <<FK>>
+  * fecha_inicio : DATE
+  * fecha_fin : DATE
+  * vigente : BOOLEAN
 }
 
 entity "ProcesoElectoral" as proceso {
@@ -237,7 +242,8 @@ facultad ||--o{ departamento
 facultad ||--o{ docente
 departamento ||--o{ docente
 docente ||--o{ cargo_admin
-cargo_admin }o--o{ excluido : "coincide con catálogo"
+catalogo ||--o{ cargo_admin
+catalogo ||--o| excluido : "es excluido"
 proceso ||--o{ proceso : "segunda vuelta"
 proceso ||--o{ cargo
 cargo ||--o{ categoria

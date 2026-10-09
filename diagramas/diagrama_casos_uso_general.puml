@@ -1,5 +1,7 @@
 @startuml Diagrama_Casos_Uso_General
 left to right direction
+skinparam nodesep 50
+skinparam ranksep 150
 skinparam actorStyle awesome
 skinparam packageStyle rectangle
 skinparam backgroundcolor transparent
@@ -68,6 +70,8 @@ rectangle "Sistema de Control de Elecciones Universitarias (SICEUNP)" {
         usecase "Gestionar usuarios y roles" as UC_Users
         usecase "Configurar parámetros globales" as UC_Params
         usecase "Consultar bitácora de auditoría" as UC_Bitacora
+        usecase "Gestionar catálogo de\ncargos institucionales" as UC_Catalogo
+        usecase "Gestionar autoridades\ndocentes" as UC_Autoridades
     }
 
     ' --- Proceso Electoral ---
@@ -78,6 +82,7 @@ rectangle "Sistema de Control de Elecciones Universitarias (SICEUNP)" {
         usecase "Validar candidaturas y listas" as UC_ValidarListas
         usecase "Gestionar tachas electorales" as UC_Tachas
         usecase "Realizar sorteos de\ncédula y mesa" as UC_Sorteo
+        usecase "Configurar exclusiones\nde sorteo" as UC_Exclusiones
     }
 
     ' --- Acreditaciones y Credenciales ---
@@ -103,70 +108,74 @@ rectangle "Sistema de Control de Elecciones Universitarias (SICEUNP)" {
 ' ==========================================
 ' CONEXIONES — ADMINISTRADOR
 ' ==========================================
-admin --> UC_Auth
-admin --> UC_Users
-admin --> UC_Params
-admin --> UC_Bitacora
+admin -[#2980B9]-> UC_Auth
+admin -[#2980B9]-> UC_Users
+admin -[#2980B9]-> UC_Params
+admin -[#2980B9]-> UC_Bitacora
+admin -[#2980B9]-> UC_Catalogo
+admin -[#2980B9]-> UC_Autoridades
 
 ' ==========================================
 ' CONEXIONES — REPRESENTANTE DE LISTA
 ' ==========================================
-representante --> UC_Auth
-representante --> UC_Listas
-representante --> UC_Personeros
+representante -[#8E44AD]-> UC_Auth
+representante -[#8E44AD]-> UC_Listas
+representante -[#8E44AD]-> UC_Personeros
 
 ' ==========================================
 ' CONEXIONES — DOCENTE ELECTOR
 ' ==========================================
-elector --> UC_Auth
-elector --> UC_Validar
-elector --> UC_Voto
-elector --> UC_Credenciales
+elector -[#D35400]-> UC_Auth
+elector -[#D35400]-> UC_Validar
+elector -[#D35400]-> UC_Voto
+elector -[#D35400]-> UC_Credenciales
 
 ' ==========================================
 ' CONEXIONES — CEUNP
 ' ==========================================
-comite --> UC_Auth
-comite --> UC_Proceso
-comite --> UC_Padron
-comite --> UC_ValidarListas
-comite --> UC_Tachas
-comite --> UC_Sorteo
-comite --> UC_Personeros
-comite --> UC_Credenciales
-comite --> UC_Impugnaciones
-comite --> UC_Computo
+UC_Auth <-[#27AE60]- comite
+UC_Proceso <-[#27AE60]- comite
+UC_Padron <-[#27AE60]- comite
+UC_ValidarListas <-[#27AE60]- comite
+UC_Tachas <-[#27AE60]- comite
+UC_Sorteo <-[#27AE60]- comite
+UC_Exclusiones <-[#27AE60]- comite
+UC_Personeros <-[#27AE60]- comite
+UC_Credenciales <-[#27AE60]- comite
+UC_Impugnaciones <-[#27AE60]- comite
+UC_Computo <-[#27AE60]- comite
 
 ' ==========================================
 ' CONEXIONES — MIEMBRO DE MESA
 ' ==========================================
-miembroMesa --> UC_Auth
-miembroMesa --> UC_Validar
-miembroMesa --> UC_Escrutinio
-miembroMesa --> UC_Impugnaciones
+UC_Auth <-[#16A085]- miembroMesa
+UC_Validar <-[#16A085]- miembroMesa
+UC_Escrutinio <-[#16A085]- miembroMesa
+UC_Impugnaciones <-[#16A085]- miembroMesa
 
 ' ==========================================
 ' CONEXIONES — PERSONERO GENERAL
 ' (Fiscaliza todo el proceso electoral)
 ' ==========================================
-personeroGeneral --> UC_Auth
-personeroGeneral --> UC_ValidarListas
-personeroGeneral --> UC_Credenciales
-personeroGeneral --> UC_Escrutinio
-personeroGeneral --> UC_Impugnaciones
+UC_Auth <-[#C0392B]- personeroGeneral
+UC_ValidarListas <-[#C0392B]- personeroGeneral
+UC_Credenciales <-[#C0392B]- personeroGeneral
+UC_Escrutinio <-[#C0392B]- personeroGeneral
+UC_Impugnaciones <-[#C0392B]- personeroGeneral
 
 ' ==========================================
 ' CONEXIONES — PERSONERO DE MESA
 ' (Fiscaliza en el ámbito de su mesa)
 ' ==========================================
-personeroMesa --> UC_Auth
-personeroMesa --> UC_Credenciales
-personeroMesa --> UC_Escrutinio
-personeroMesa --> UC_Impugnaciones
+UC_Auth <-[#E84393]- personeroMesa
+UC_Credenciales <-[#E84393]- personeroMesa
+UC_Escrutinio <-[#E84393]- personeroMesa
+UC_Impugnaciones <-[#E84393]- personeroMesa
 
 ' ==========================================
-' RELACIONES INCLUDE
+' RELACIONES INCLUDE / EXTEND
 ' ==========================================
 UC_Voto .> UC_Validar : <<include>>
+UC_Sorteo .> UC_Exclusiones : <<include>>
 
 @enduml

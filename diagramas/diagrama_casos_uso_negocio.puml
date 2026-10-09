@@ -50,6 +50,7 @@ actor "PNP / Fiscalía" as pnp <<Externo>>
 ' ==========================================
 rectangle "Proceso de Elecciones Universitarias UNP (Negocio)" {
     usecase "CUN01: Convocar elecciones" as CUN01
+    usecase "CUN13: Configurar catálogo de cargos y exclusiones" as CUN13
     usecase "CUN02: Elaborar y publicar el padrón electoral" as CUN02
     usecase "CUN03: Inscribir lista de candidatos" as CUN03
     usecase "CUN04: Resolver tachas" as CUN04
@@ -69,6 +70,7 @@ rectangle "Proceso de Elecciones Universitarias UNP (Negocio)" {
 
 ' CEUNP participa en casi toda la gestión y resolución
 ceunp --> CUN01
+ceunp --> CUN13
 ceunp --> CUN02
 ceunp --> CUN03
 ceunp --> CUN04

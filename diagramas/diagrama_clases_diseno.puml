@@ -65,14 +65,20 @@ package "Capa de Lógica de Negocio (Control)" {
 
 package "Capa de Entidades (Entity)" {
     class Docente
-    class CargoAdministrativo {
+    class CatalogoCargo {
         - nombreCargo: String
         - nivel: String
+        - activo: boolean
+    }
+    class CargoAdministrativo {
         - fechaInicio: Date
         - fechaFin: Date
+        - vigente: boolean
         + estaVigente(): boolean
     }
-    class CargoExcluidoSorteo
+    class CargoExcluidoSorteo {
+        - activo: boolean
+    }
     class ProcesoElectoral
     class CargoElectoral {
         - idProceso: int
@@ -165,7 +171,8 @@ SorteoMesaController --> MesaElectoralRepository
 PadronController --> PadronElectoralRepository
 
 Docente "1" -- "*" CargoAdministrativo
-CargoAdministrativo "*" -- "*" CargoExcluidoSorteo : "se contrasta"
+CatalogoCargo "1" -- "*" CargoAdministrativo
+CatalogoCargo "1" -- "0..1" CargoExcluidoSorteo : "es excluido"
 ProcesoElectoral "1" *-- "*" CargoElectoral
 CargoElectoral "1" -- "*" CargoCategoriaPermitida
 CargoElectoral "1" *-- "*" ListaElectoral

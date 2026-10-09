@@ -49,6 +49,7 @@ DROP TABLE IF EXISTS cargo_electoral;
 DROP TABLE IF EXISTS proceso_electoral;
 DROP TABLE IF EXISTS cargo_excluido_sorteo;
 DROP TABLE IF EXISTS cargo_admin;
+DROP TABLE IF EXISTS catalogo_cargo;
 DROP TABLE IF EXISTS usuario;
 DROP TABLE IF EXISTS parametro_global;
 DROP TABLE IF EXISTS docente;
@@ -106,28 +107,36 @@ CREATE TABLE parametro_global (
   descripcion VARCHAR(500) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Catálogo configurable por el CEUNP (RN20): cargos que impiden ser miembro de mesa
-CREATE TABLE cargo_excluido_sorteo (
-  id_cargo_excluido INT AUTO_INCREMENT PRIMARY KEY,
+-- Catálogo general de todos los cargos administrativos/institucionales posibles
+CREATE TABLE catalogo_cargo (
+  id_catalogo_cargo INT AUTO_INCREMENT PRIMARY KEY,
   nombre_cargo      VARCHAR(150) NOT NULL,
   nivel             VARCHAR(80)  NOT NULL,
   activo            BOOLEAN      NOT NULL DEFAULT TRUE,
-  UNIQUE KEY uq_cargo_excluido_nombre (nombre_cargo)
+  UNIQUE KEY uq_catalogo_cargo_nombre (nombre_cargo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Cargos administrativos que ejerce cada docente (autoridades)
+-- Catálogo configurable por el CEUNP (RN20): qué cargos del catálogo general impiden ser miembro de mesa
+CREATE TABLE cargo_excluido_sorteo (
+  id_cargo_excluido INT AUTO_INCREMENT PRIMARY KEY,
+  id_catalogo_cargo INT NOT NULL,
+  activo            BOOLEAN NOT NULL DEFAULT TRUE,
+  UNIQUE KEY uq_cargo_excluido_catalogo (id_catalogo_cargo),
+  CONSTRAINT fk_cargo_excluido_catalogo FOREIGN KEY (id_catalogo_cargo) REFERENCES catalogo_cargo(id_catalogo_cargo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Cargos administrativos que ejerce cada docente actualmente (autoridades)
 CREATE TABLE cargo_admin (
-  id_cargo_admin INT AUTO_INCREMENT PRIMARY KEY,
-  id_docente     INT NOT NULL,
-  nombre_cargo   VARCHAR(150) NOT NULL,     -- debe coincidir con cargo_excluido_sorteo.nombre_cargo para excluir
-  nivel          VARCHAR(80)  NOT NULL,
-  fecha_inicio   DATE NOT NULL,
-  fecha_fin      DATE NULL,
-  vigente        BOOLEAN NOT NULL DEFAULT TRUE,
+  id_cargo_admin    INT AUTO_INCREMENT PRIMARY KEY,
+  id_docente        INT NOT NULL,
+  id_catalogo_cargo INT NOT NULL,
+  fecha_inicio      DATE NOT NULL,
+  fecha_fin         DATE NULL,
+  vigente           BOOLEAN NOT NULL DEFAULT TRUE,
   KEY ix_cargo_admin_vigente (id_docente, vigente),
-  KEY ix_cargo_admin_nombre (nombre_cargo),
   CONSTRAINT chk_cargo_admin_fechas CHECK (fecha_fin IS NULL OR fecha_fin >= fecha_inicio),
-  CONSTRAINT fk_cargo_admin_docente FOREIGN KEY (id_docente) REFERENCES docente(id_docente)
+  CONSTRAINT fk_cargo_admin_docente FOREIGN KEY (id_docente) REFERENCES docente(id_docente),
+  CONSTRAINT fk_cargo_admin_catalogo FOREIGN KEY (id_catalogo_cargo) REFERENCES catalogo_cargo(id_catalogo_cargo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================================
@@ -585,7 +594,7 @@ BEGIN
   DECLARE v_n INT DEFAULT 0;
   SELECT COUNT(*) INTO v_n
     FROM cargo_admin ca
-    JOIN cargo_excluido_sorteo ce ON ce.nombre_cargo = ca.nombre_cargo AND ce.activo = 1
+    JOIN cargo_excluido_sorteo ce ON ce.id_catalogo_cargo = ca.id_catalogo_cargo AND ce.activo = 1
    WHERE ca.id_docente = p_id_docente
      AND ca.vigente = 1
      AND ca.fecha_inicio <= CURDATE()
@@ -2833,10 +2842,9 @@ INSERT INTO parametro_global (clave, valor, descripcion) VALUES
 ON DUPLICATE KEY UPDATE descripcion = VALUES(descripcion);
 
 -- ---------------------------------------------------------------------
--- RN20: cargos que impiden ser miembro de mesa (catálogo editable por el CEUNP).
--- cargo_admin.nombre_cargo debe escribirse igual que aquí.
+-- RN20: catálogo general de cargos y cargos que impiden ser miembro de mesa.
 -- ---------------------------------------------------------------------
-INSERT INTO cargo_excluido_sorteo (nombre_cargo, nivel) VALUES
+INSERT INTO catalogo_cargo (nombre_cargo, nivel) VALUES
   ('Rector', 'UNIVERSIDAD'),
   ('Vicerrector Académico', 'UNIVERSIDAD'),
   ('Vicerrector de Investigación', 'UNIVERSIDAD'),
@@ -2847,6 +2855,10 @@ INSERT INTO cargo_excluido_sorteo (nombre_cargo, nivel) VALUES
   ('Director de Escuela Profesional', 'FACULTAD'),
   ('Jefe de Departamento Académico', 'DEPARTAMENTO')
 ON DUPLICATE KEY UPDATE nivel = VALUES(nivel);
+
+INSERT INTO cargo_excluido_sorteo (id_catalogo_cargo)
+SELECT id_catalogo_cargo FROM catalogo_cargo
+ON DUPLICATE KEY UPDATE activo = VALUES(activo);
 
 -- ---------------------------------------------------------------------
 -- Usuario administrador inicial
