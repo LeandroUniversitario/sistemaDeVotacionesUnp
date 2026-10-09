@@ -1,0 +1,26 @@
+@startuml Colaboracion_Emitir_Voto
+skinparam linetype ortho
+skinparam object {
+    BackgroundColor #FEF9E7
+    BorderColor #F39C12
+    ArrowColor #2980B9
+}
+skinparam object<<actor>> {
+    BackgroundColor #E8F8F5
+    BorderColor #1ABC9C
+}
+
+object "elector: Docente" as actor <<actor>>
+object ":EmisionVotoView" as view
+object ":VotacionController" as ctrl
+object ":PadronElectoralRepository" as padron
+object ":VotoRepository" as votoRepo
+object ":ConstanciaVotoRepository" as constanciaRepo
+
+actor -right- view : " 1: iniciarVotacion()\n 4: mostrarOpciones()\n 5: seleccionarLista(idLista)\n 10: mostrarConstancia() >"
+view -right- ctrl : " 2: validarHabilitacion()\n 6: registrarVoto() >"
+ctrl -up- padron : " 3: verificarHabilitacion()\n 8: marcarComoVotado() >"
+ctrl -right- votoRepo : " 7: guardar() >"
+ctrl -down- constanciaRepo : " 9: emitir() >"
+
+@enduml

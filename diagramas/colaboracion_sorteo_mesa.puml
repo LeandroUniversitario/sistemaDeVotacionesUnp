@@ -1,0 +1,26 @@
+@startuml Colaboracion_Sorteo_Mesa
+skinparam linetype ortho
+skinparam object {
+    BackgroundColor #FEF9E7
+    BorderColor #F39C12
+    ArrowColor #2980B9
+}
+skinparam object<<actor>> {
+    BackgroundColor #E8F8F5
+    BorderColor #1ABC9C
+}
+
+object "comite: CEUNP" as actor <<actor>>
+object ":SorteoMesaView" as view
+object ":SorteoMesaController" as ctrl
+object ":PadronElectoralRepository" as padron
+object ":CargoExcluidoRepository" as excluidos
+object ":MesaElectoralRepository" as mesaRepo
+
+actor -right- view : " 1: iniciarSorteo()\n 6: mostrarResultados() >"
+view -right- ctrl : " 2: ejecutarSorteo() >"
+ctrl -up- padron : " 3: obtenerDocentesHabilitados() >"
+ctrl -right- excluidos : " 4: obtenerExcluidosSorteo() >"
+ctrl -down- mesaRepo : " 5: guardarMiembrosMesa() >"
+
+@enduml
