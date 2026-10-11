@@ -269,32 +269,40 @@ export default function UsuariosPage({ teachers, onSessionExpired }) {
               <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
             </div>
             <form className="modal-form" onSubmit={createUser}>
-              <label>Nombre de usuario
+              <div className="form-group">
+                <label>Nombre de usuario</label>
                 <input
                   value={form.username}
-                  pattern="[A-Za-z0-9._-]+"
+                  pattern="[A-Za-z0-9._\-]+"
                   minLength={3} maxLength={80}
                   onChange={e => handleUsernameChange(e.target.value)}
+                  autoComplete="off"
+                  data-lpignore="true"
                   required
                 />
                 {usernameWarning && <span className="field-warning">{usernameWarning}</span>}
-              </label>
-              <label>Contraseña
+              </div>
+              <div className="form-group">
+                <label>Contraseña</label>
                 <input
                   type="password" minLength={8} autoComplete="new-password"
                   value={form.password}
+                  data-lpignore="true"
                   onChange={e => setForm({ ...form, password: e.target.value })}
                   required
                 />
-              </label>
-              <label>Rol
+              </div>
+              <div className="form-group">
+                <label>Rol</label>
                 <select value={form.rol} onChange={e => setForm({ ...form, rol: e.target.value })}>
                   {ROLES.map(r => <option key={r}>{r}</option>)}
                 </select>
-              </label>
-              <label>
-                Vincular con docente del padrón
-                {ROLES_CON_DOCENTE.includes(form.rol) && <span className="required-mark"> *</span>}
+              </div>
+              <div className="form-group">
+                <label>
+                  Vincular con docente del padrón
+                  {ROLES_CON_DOCENTE.includes(form.rol) && <span className="required-mark"> *</span>}
+                </label>
                 {/* Buscador de docente */}
                 <div className="docente-search-wrap" ref={teacherDropRef}>
                   <input
@@ -351,7 +359,7 @@ export default function UsuariosPage({ teachers, onSessionExpired }) {
                 {ROLES_CON_DOCENTE.includes(form.rol) && !form.idDocente && (
                   <span className="field-warning">Obligatorio para el rol {form.rol}</span>
                 )}
-              </label>
+              </div>
               <div className="modal-actions">
                 <button type="button" className="btn-ghost" onClick={() => setShowModal(false)}>Cancelar</button>
                 <button type="submit" className="btn-primary" disabled={saving || !!usernameWarning}>

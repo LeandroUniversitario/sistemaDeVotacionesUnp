@@ -1,0 +1,94 @@
+@startuml Diagrama_Modelo_Dominio_Ejecucion
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor #D5F5E3
+    BorderColor #239B56
+    ArrowColor #117A65
+}
+
+class ProcesoElectoral {
+  nombre
+  fechaConvocatoria
+  fechaSufragio
+  estado
+}
+
+class MesaSufragio {
+  número
+  local
+  estado
+  horaInstalación
+}
+
+class RegistroSorteo {
+  tipo
+  fechaHora
+  semilla
+  resultado
+}
+
+class ComputoGeneral {
+  participación%
+  resultado
+}
+
+class ResolucionCEUNP {
+  tipo
+  fecha
+  contenido
+}
+
+class MiembroMesa {
+  cargo
+  condición (titular/suplente)
+  asistió
+}
+
+class AsistenciaSufragio {
+  horaIngreso
+  firma/huella
+}
+
+class Voto {
+  opción (lista/blanco/nulo)
+  mesa
+}
+
+class ActaElectoral {
+  tipo (instalación/sufragio/escrutinio)
+  hash
+  estado
+}
+
+class Docente {
+  dni
+  nombres
+  categoría
+  vínculoLaboral
+  licenciaSinGoce
+}
+
+class Impugnacion {
+  motivo
+  resolución
+  apelada
+}
+
+ProcesoElectoral "1" -- "1..*" MesaSufragio
+ProcesoElectoral "1" -- "1..*" RegistroSorteo
+ProcesoElectoral "1" -- "1" ComputoGeneral
+ProcesoElectoral "1" -- "0..*" ResolucionCEUNP
+
+MesaSufragio -- "6" MiembroMesa
+MesaSufragio -- "0..*" AsistenciaSufragio
+MesaSufragio -- "0..*" Voto
+MesaSufragio -- "3" ActaElectoral
+
+ComputoGeneral --> ActaElectoral : consolida
+
+ActaElectoral -- "0..*" Impugnacion
+
+MiembroMesa ..> Docente : es
+AsistenciaSufragio ..> Docente : de
+
+@enduml

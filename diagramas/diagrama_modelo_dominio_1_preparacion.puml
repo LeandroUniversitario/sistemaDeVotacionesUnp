@@ -1,0 +1,79 @@
+@startuml Diagrama_Modelo_Dominio_Preparacion
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor #FEF9E7
+    BorderColor #F39C12
+    ArrowColor #D35400
+}
+
+class ProcesoElectoral {
+  nombre
+  fechaConvocatoria
+  fechaSufragio
+  estado
+}
+
+class ActividadCronograma {
+  actividad
+  fechaInicio
+  fechaFin
+}
+
+class PadronElectoral {
+  versión
+  estado (borrador/aprobado)
+}
+
+class ListaFormula {
+  nombre
+  símbolo
+  ordenEnCédula
+  estado
+}
+
+class Candidato {
+  cargo (Rector/VR)
+  hojaDeVida
+  estado
+}
+
+class Personero {
+  tipo (general/alterno/mesa)
+  firma
+}
+
+class Docente {
+  dni
+  nombres
+  categoría
+  vínculoLaboral
+  licenciaSinGoce
+}
+
+class Tacha {
+  fecha
+  motivo
+  estado
+}
+
+class CredencialQR {
+  token
+  tipo
+  estado
+}
+
+ProcesoElectoral "1" -- "1..*" ActividadCronograma
+ProcesoElectoral "1" -- "1" PadronElectoral
+ProcesoElectoral "1" -- "1..*" ListaFormula
+
+PadronElectoral -- "incluye 1..*" Docente
+
+ListaFormula -- "3" Candidato
+ListaFormula -- "1..*" Personero
+
+Candidato ..> Docente : es
+Candidato -- "0..*" Tacha
+
+Docente "1" -- "1" CredencialQR
+
+@enduml

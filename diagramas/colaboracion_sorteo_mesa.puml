@@ -1,26 +1,62 @@
-@startuml Colaboracion_Sorteo_Mesa
-skinparam linetype ortho
-skinparam object {
-    BackgroundColor #FEF9E7
-    BorderColor #F39C12
-    ArrowColor #2980B9
+@startuml
+' Diagrama de Colaboración - Sorteo de Mesa (Múltiples Controles por Botón)
+skinparam style strictuml
+skinparam node {
+    BackgroundColor transparent
+    BorderColor transparent
 }
-skinparam object<<actor>> {
-    BackgroundColor #E8F8F5
-    BorderColor #1ABC9C
-}
+skinparam packageStyle rectangle
 
-object "comite: CEUNP" as actor <<actor>>
-object ":SorteoMesaView" as view
-object ":SorteoMesaController" as ctrl
-object ":PadronElectoralRepository" as padron
-object ":CargoExcluidoRepository" as excluidos
-object ":MesaElectoralRepository" as mesaRepo
+actor ": CEUNP" as ceunp
+boundary ": InterfazSorteoMesa" as interfaz
 
-actor -right- view : " 1: iniciarSorteo()\n 6: mostrarResultados() >"
-view -right- ctrl : " 2: ejecutarSorteo() >"
-ctrl -up- padron : " 3: obtenerDocentesHabilitados() >"
-ctrl -right- excluidos : " 4: obtenerExcluidosSorteo() >"
-ctrl -down- mesaRepo : " 5: guardarMiembrosMesa() >"
+' Controles (Uno por cada botón de la interfaz)
+control ": btnBuscar" as cBuscar
+control ": btnGenerarSorteo" as cSortear
+control ": btnReemplazarMiembro" as cEditar
+control ": btnAnularSorteo" as cAnular
+control ": btnGuardar" as cGuardar
+
+' Entidades de Base de Datos
+entity ": MesaElectoral" as eMesa
+entity ": PadronElectoral" as ePadron
+entity ": MiembroMesa" as eMiembro
+
+' Interacción principal del actor
+ceunp -right- interfaz : 1: interactuar()
+
+' -----------------------------------------------------
+' 1. Búsqueda de mesa
+' -----------------------------------------------------
+interfaz -up- cBuscar : 2: buscar(nro) > \n < 5: mostrarDatos()
+cBuscar -right- eMesa : 3: getMesa(nro) > \n < 4: return(Mesa)
+
+' -----------------------------------------------------
+' 2. Botón Sortear (Ejecuta algoritmo lógico)
+' -----------------------------------------------------
+interfaz -right- cSortear : 6: sortear() > \n < 9: mostrarResultados()
+cSortear -up- ePadron : 7: getHabilitados() >
+cSortear -right- eMiembro : 8: instanciar() >
+
+' -----------------------------------------------------
+' 3. Botón Reemplazar (Editar un miembro manualmente si hay excusa)
+' -----------------------------------------------------
+interfaz -right- cEditar : 10: reemplazar(id) > \n < 13: ok()
+cEditar -right- ePadron : 11: getHabilitados() >
+cEditar -down- eMiembro : 12: updateInstancia() >
+
+' -----------------------------------------------------
+' 4. Botón Anular Sorteo
+' -----------------------------------------------------
+interfaz -down- cAnular : 14: anular() > \n < 17: ok()
+cAnular -down- eMesa : 15: resetSemilla() >
+cAnular -right- eMiembro : 16: deleteByMesa() >
+
+' -----------------------------------------------------
+' 5. Botón Guardar Sorteo (Persistencia final)
+' -----------------------------------------------------
+interfaz -down- cGuardar : 18: guardar() > \n < 21: confirmacion()
+cGuardar -right- eMiembro : 19: insertAll() >
+cGuardar -up- eMesa : 20: updateFechaYSemilla() >
 
 @enduml

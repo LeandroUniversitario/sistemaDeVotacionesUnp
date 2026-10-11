@@ -48,8 +48,8 @@ Table parametro_global {
   descripcion varchar(500)
 }
 
-Table cargo_excluido_sorteo {
-  id_cargo_excluido int [pk, increment]
+Table catalogo_cargo {
+  id_catalogo_cargo int [pk, increment]
   nombre_cargo varchar(150) [not null]
   nivel varchar(80) [not null]
   activo boolean [not null, default: true]
@@ -58,17 +58,24 @@ Table cargo_excluido_sorteo {
   }
 }
 
+Table cargo_excluido_sorteo {
+  id_cargo_excluido int [pk, increment]
+  id_catalogo_cargo int [not null]
+  activo boolean [not null, default: true]
+  indexes {
+    (id_catalogo_cargo) [unique]
+  }
+}
+
 Table cargo_admin {
   id_cargo_admin int [pk, increment]
   id_docente int [not null]
-  nombre_cargo varchar(150) [not null]
-  nivel varchar(80) [not null]
+  id_catalogo_cargo int [not null]
   fecha_inicio date [not null]
   fecha_fin date
   vigente boolean [not null, default: true]
   indexes {
     (id_docente, vigente)
-    (nombre_cargo)
   }
 }
 
@@ -392,6 +399,8 @@ Ref: departamento.id_facultad > facultad.id_facultad
 Ref: docente.id_facultad > facultad.id_facultad
 Ref: docente.id_departamento > departamento.id_departamento
 Ref: cargo_admin.id_docente > docente.id_docente
+Ref: cargo_admin.id_catalogo_cargo > catalogo_cargo.id_catalogo_cargo
+Ref: cargo_excluido_sorteo.id_catalogo_cargo - catalogo_cargo.id_catalogo_cargo
 Ref: usuario.id_docente > docente.id_docente
 Ref: sesion_activa.id_usuario > usuario.id_usuario
 Ref: proceso_electoral.id_proceso_padre > proceso_electoral.id_proceso
@@ -443,6 +452,7 @@ TableGroup "Universidad y padron docente" {
   docente
   cargo_admin
   cargo_excluido_sorteo
+  catalogo_cargo
   parametro_global
 }
 

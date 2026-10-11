@@ -194,6 +194,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .modal-close { background: transparent; border: 0; color: #9aa8b9; font-size: 1.2rem; padding: 4px 8px; }
 .modal-close:hover { color: #172033; }
 .modal-form { padding: 18px 26px 26px; display: grid; gap: 2px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+.form-group > label { font-size: 0.85rem; font-weight: 700; color: #364358; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 
 /* Parámetros globales */

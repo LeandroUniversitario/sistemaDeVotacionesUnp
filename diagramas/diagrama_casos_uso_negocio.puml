@@ -68,6 +68,8 @@ rectangle "Proceso de Elecciones Universitarias UNP (Negocio)" {
 ' RELACIONES
 ' ==========================================
 
+' --- ACTORES A LA IZQUIERDA ---
+
 ' CEUNP participa en casi toda la gestión y resolución
 ceunp --> CUN01
 ceunp --> CUN13
@@ -80,36 +82,38 @@ ceunp --> CUN10
 ceunp --> CUN11
 ceunp --> CUN12
 
-' Recursos Humanos provee datos
-rrhh --> CUN02
-
-' ONPE asesora
-onpe --> CUN06
-onpe --> CUN11
-
-' PNP da seguridad
-pnp --> CUN07
-pnp --> CUN08
-pnp --> CUN09
-
 ' Listas y Candidatos
 lista --> CUN03
+lista --> CUN05
 
 ' Personeros fiscalizan
-lista --> CUN05
 personero --> CUN06
 personero --> CUN07
 personero --> CUN08
 personero --> CUN09
 personero --> CUN10
 
+' Recursos Humanos provee datos
+rrhh --> CUN02
+
+' --- ACTORES A LA DERECHA ---
+
+' ONPE asesora
+CUN06 <-- onpe
+CUN11 <-- onpe
+
+' PNP da seguridad
+CUN07 <-- pnp
+CUN08 <-- pnp
+CUN09 <-- pnp
+
 ' Docente Elector
-elector --> CUN04 : "Presenta Tacha"
-elector --> CUN08 : "Vota"
+CUN04 <-- elector : "Presenta Tacha"
+CUN08 <-- elector : "Vota"
 
 ' Miembros de Mesa ejecutan el día de la elección
-miembro --> CUN07
-miembro --> CUN08
-miembro --> CUN09
+CUN07 <-- miembro
+CUN08 <-- miembro
+CUN09 <-- miembro
 
 @enduml
