@@ -2,6 +2,9 @@
 ' Diagrama de actividades - Proceso de elección de docentes UNP con sistema y QR
 ' Base normativa: Reglamento de Elecciones de Rector y Vicerrectores, RCU N° 0462-CU-2019
 ' Alcance: solo estamento docente. Voto digital con cédula física de respaldo.
+' Versión corregida: el docente no inicia sesión en el terminal. El Secretario lo verifica
+' con QR y DNI, el sistema emite una habilitación de un solo uso y "Votó" se marca solo
+' dentro de la transacción del voto (estados: Pendiente, Habilitado, Votó).
 
 title Proceso de elección docente UNP con sistema y QR - Diagrama de actividades
 
@@ -159,30 +162,64 @@ endif
 repeat
   |Elector / Representante de lista / Personero|
   :Llega a la mesa y presenta su DNI y su QR;
-  note right: **FASE 8 - Sufragio**\nArt. 46, 47, 50 y 56
+  note right: **FASE 8 - Sufragio**\nArt. 46, 47, 50 y 56\nEl docente no inicia sesión: el QR solo identifica\nal elector ante el Secretario
   |Miembro de mesa|
-  :Escanea el QR del elector
-  y compara con el DNI;
+  :El Secretario escanea el QR del elector;
   |Sistema|
-  :Valida en el padrón de la mesa:
-  hábil y aún no ha votado;
+  :Valida el código QR (vigente, no revocado)
+  y consulta el padrón de la mesa:
+  hábil y en estado Pendiente (no ha votado);
   if (¿Elector habilitado?) then (sí)
-    :Registra la asistencia
-    y bloquea un segundo ingreso;
+    :Muestra al Secretario los nombres
+    y la fotografía del padrón;
+    |Miembro de mesa|
+    :Compara con el DNI y con el rostro
+    del elector y confirma;
+    |Sistema|
+    :Registra la asistencia con la hora,
+    bloquea un segundo ingreso
+    y pasa al elector a estado Habilitado;
+    :Emite una habilitación de un solo uso
+    y habilita un terminal para ese elector;
     |Miembro de mesa|
     :Indica el ingreso solo a la cámara secreta;
     |Elector / Representante de lista / Personero|
-    :Elige su opción en el terminal de votación;
-    |Sistema|
-    :Registra el voto sin vínculo con el elector;
-    :Imprime la cédula con la elección;
-    |Elector / Representante de lista / Personero|
-    :Verifica la cédula y la deposita en el ánfora;
-    :Firma y coloca su huella;
+    :Elige su opción en el terminal de votación
+    y la confirma;
+    if (¿Confirmó su opción?) then (sí)
+      |Sistema|
+      :Transacción atómica:
+      marca al elector como Votó,
+      consume la habilitación
+      y guarda el voto sin vínculo con el elector;
+      if (¿Se registró el voto?) then (sí)
+        :Emite la constancia de participación
+        e imprime la cédula con la elección;
+        note right: Si falla la impresión, el terminal reimprime\ndesde su memoria temporal
+        :Confirma la impresión, borra la elección
+        del terminal y lo deja libre;
+        |Elector / Representante de lista / Personero|
+        :Verifica la cédula y la deposita en el ánfora;
+        :Firma y coloca su huella;
+      else (no)
+        :Revierte todo: el elector sigue Habilitado
+        y no se imprime cédula;
+        |Miembro de mesa|
+        :El Presidente registra la incidencia
+        y puede autorizar la rehabilitación del terminal;
+        note right: Si falla el terminal, se pasa al elector a otro\no, en último caso, vota con cédula física\nregistrada como voto por contingencia
+      endif
+    else (no)
+      |Miembro de mesa|
+      :El Presidente registra la incidencia
+      (no marcó ninguna opción o abandonó el terminal);
+      note right: No se imprime cédula\nPuede autorizar la rehabilitación del terminal\nSi el elector se retira, queda como asistió y no votó
+    endif
   else (no)
     |Miembro de mesa|
-    :Niega el voto
-    no figura en el padrón o suplantación;
+    :Niega el voto:
+    no figura en el padrón de esa mesa,
+    ya fue registrado o hay suplantación;
     |Sistema|
     :Registra la incidencia;
   endif
@@ -194,10 +231,12 @@ repeat while (¿Antes de las 15:00 y quedan electores?) is (sí) not (no)
 solo votan quienes están dentro;
 note right: **FASE 9 - Cierre del sufragio**\nArt. 51
 |Sistema|
-:Cierra el sufragio y genera la lista
-de electores que no votaron;
+:Cierra el sufragio, deshabilita los terminales
+y genera la lista de electores que no votaron;
 :Calcula el total de electores que votaron
-y genera el acta de sufragio con QR;
+(estado Votó) y registra a los Habilitados sin votar
+como asistió y no votó;
+:Genera el acta de sufragio con QR;
 |Miembro de mesa|
 :Revisa y firma el acta de sufragio;
 
@@ -217,6 +256,7 @@ endif
 |Miembro de mesa|
 :Lee cada cédula en voz alta y clasifica
 el voto como válido, nulo o en blanco;
+note right: Una cédula con marcas ajenas a lo impreso\nse considera nula (propuesta a validar con el CEUNP)
 |Elector / Representante de lista / Personero|
 if (¿El personero impugna un voto?) then (sí)
   |Miembro de mesa|
@@ -304,6 +344,8 @@ legend right
   Art. = artículo del Reglamento de Elecciones UNP, RCU N° 0462-CU-2019
   El voto digital y la cédula física deben coincidir
   El QR nunca contiene el voto ni datos del elector
+  El docente no inicia sesión: el terminal se habilita con una habilitación de un solo uso
+  Estados del elector: Pendiente, Habilitado, Votó (solo dentro de la transacción del voto)
 endlegend
 
 @enduml
