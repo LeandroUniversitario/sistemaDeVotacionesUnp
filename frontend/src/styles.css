@@ -758,6 +758,114 @@ input:focus, select:focus, textarea:focus {
 .page-btn:hover:not(:disabled) { background: var(--gray-200); }
 .page-btn:disabled { opacity: .4; cursor: default; }
 
+/* ═══════════════════════════════════════════════════════════════════
+   CREAR PROCESO (multi-paso)
+   ═══════════════════════════════════════════════════════════════════ */
+.crear-proceso-shell { display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Stepper ─────────────────────────────────────────────────────── */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 20px 0 4px;
+}
+
+.stepper-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.stepper-circle {
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  font-size: .82rem; font-weight: 700;
+  background: var(--gray-200);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background var(--t-mid), color var(--t-mid);
+}
+.stepper-circle.current {
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 0 0 4px #dbeafe;
+}
+.stepper-circle.done {
+  background: #10b981;
+  color: #fff;
+}
+
+.stepper-label {
+  font-size: .82rem; font-weight: 600;
+  color: var(--text-body);
+  white-space: nowrap;
+}
+
+.stepper-line {
+  flex: 1;
+  height: 2px;
+  min-width: 40px;
+  background: var(--gray-200);
+  margin: 0 12px;
+  border-radius: 2px;
+  transition: background var(--t-mid);
+}
+.stepper-line.done { background: #10b981; }
+
+/* ── Layout dos columnas (paso 2) ─────────────────────────────── */
+.cp-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+/* ── Lista de cargos ─────────────────────────────────────────── */
+.cargo-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.cargo-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--gray-50);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.cargo-icon { display: inline-flex; color: #06b6d4; }
+.cargo-info { display: flex; align-items: center; gap: 10px; flex: 1; }
+.cargo-info strong { font-size: .88rem; color: var(--text-main); }
+
+/* ── Resumen de confirmación (paso 3) ─────────────────────────── */
+.confirm-summary { display: flex; flex-direction: column; gap: 16px; padding: 16px 0; }
+.confirm-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--gray-50);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.confirm-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px; height: 38px;
+  border-radius: var(--r-md);
+  flex-shrink: 0;
+}
+.confirm-icon.blue   { background: #dbeafe; color: #2563eb; }
+.confirm-icon.green  { background: #d1fae5; color: #059669; }
+.confirm-icon.amber  { background: #fef3c7; color: #d97706; }
+
+@media (max-width: 900px) {
+  .cp-layout { grid-template-columns: 1fr; }
+}
+
+
 /* ── Combobox de docente ─────────────────────────────────────────── */
 .docente-search-wrap { position: relative; }
 .docente-search-wrap input { width: 100%; }

@@ -13,10 +13,10 @@ const LABELS = {
  * Solo accesible para el rol ADMIN.
  */
 export default function ParametrosPage({ onSessionExpired }) {
-  const [params, setParams]   = useState({});
-  const [form, setForm]       = useState({});
+  const [params, setParams] = useState({});
+  const [form, setForm] = useState({});
   const [feedback, setFeedback] = useState(null);
-  const [saving, setSaving]   = useState(false);
+  const [saving, setSaving] = useState(false);
   const [changed, setChanged] = useState(false);
 
   async function loadParams() {
@@ -146,14 +146,14 @@ export default function ParametrosPage({ onSessionExpired }) {
             <span className="preview-value">S/. {uit.toFixed(2)}</span>
           </div>
           <div className="preview-card warn">
-            <span className="preview-label"><MenuIcon name="ballot" size={14} style={{marginRight:4}} /> Multa elector omiso</span>
+            <span className="preview-label"><MenuIcon name="ballot" size={14} style={{ marginRight: 4 }} /> Multa elector omiso</span>
             <span className="preview-value">
               S/. {(uit * pctElector / 100).toFixed(2)}
               <small> ({pctElector}% de la UIT)</small>
             </span>
           </div>
           <div className="preview-card danger">
-            <span className="preview-label"><MenuIcon name="scale" size={14} style={{marginRight:4}} /> Multa miembro de mesa omiso</span>
+            <span className="preview-label"><MenuIcon name="scale" size={14} style={{ marginRight: 4 }} /> Multa miembro de mesa omiso</span>
             <span className="preview-value">
               S/. {(uit * pctMiembro / 100).toFixed(2)}
               <small> ({pctMiembro}% de la UIT)</small>

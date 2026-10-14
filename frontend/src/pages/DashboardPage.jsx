@@ -14,6 +14,7 @@ import ImportarDocentesPage from './ImportarDocentesPage';
 import ParametrosPage from './ParametrosPage';
 import BitacoraPage from './BitacoraPage';
 import CargosExcluidosPage from './CargosExcluidosPage';
+import CrearProcesoPage from './CrearProcesoPage';
 
 const EMPTY_PROCESS = {
   nombre: '',
@@ -572,70 +573,13 @@ export default function DashboardPage({ session, onLogout }) {
           <section className="panel"><div className="panel-heading"><h2>Pase de Votación QR (RF62)</h2></div><p style={{ padding: '1rem' }}>Muestre este código al Secretario para habilitar su cabina secreta. Válido para un solo uso.</p><div style={{ textAlign: 'center', padding: '2rem' }}><img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=VOTO-${session.username}`} alt="QR Pase" /></div></section>
         )}
 
-        {/* Nuevo proceso */}
+        {/* Nuevo proceso — flujo multi-paso */}
         {section === 'nuevo' && canManage && (
-          <section className="panel form-panel">
-            <div className="panel-heading">
-              <div>
-                <h2>Crear proceso electoral</h2>
-                <p className="muted">Registra una primera o segunda vuelta para iniciar su configuración.</p>
-              </div>
-            </div>
-            <form className="process-form" onSubmit={createProcess}>
-              <label>Nombre del proceso
-                <input value={processForm.nombre}
-                  onChange={(event) => updateProcessField('nombre', event.target.value)} required />
-              </label>
-              <div className="form-row">
-                <label>Fecha de convocatoria oficial
-                  <input
-                    type="date"
-                    value={processForm.fechaConvocatoria}
-                    onChange={(event) => updateProcessField('fechaConvocatoria', event.target.value)}
-                  />
-                  {processForm.fechaConvocatoria && processForm.fechaInicio && (() => {
-                    const fConv = new Date(processForm.fechaConvocatoria + 'T00:00:00');
-                    const fInic = new Date(processForm.fechaInicio.split('T')[0] + 'T00:00:00');
-                    const dias = Math.round((fInic - fConv) / (1000 * 60 * 60 * 24));
-                    const ok = dias >= 30 && dias <= 45;
-                    return (
-                      <small style={{ color: ok ? '#10b981' : '#ef4444', marginTop: 4 }}>
-                        {ok ? `✓ ${dias} días de anticipación (dentro de los 30-45 requeridos)` : `⚠ ${dias} días — la convocatoria debe ser de 30 a 45 días antes del sufragio (RN02)`}
-                      </small>
-                    );
-                  })()}
-                </label>
-              </div>
-              <div className="form-row">
-                <label>Fecha y hora de inicio del sufragio
-                  <input type="datetime-local" value={processForm.fechaInicio}
-                    onChange={(event) => updateProcessField('fechaInicio', event.target.value)} required />
-                </label>
-                <label>Fecha y hora de fin del sufragio
-                  <input type="datetime-local" value={processForm.fechaFin}
-                    onChange={(event) => updateProcessField('fechaFin', event.target.value)} required />
-                </label>
-              </div>
-              <div className="form-row">
-                <label>Tipo de proceso
-                  <select value={processForm.tipo}
-                    onChange={(event) => updateProcessField('tipo', event.target.value)}>
-                    <option value="PRIMERA_VUELTA">Primera vuelta</option>
-                    <option value="SEGUNDA_VUELTA">Segunda vuelta</option>
-                  </select>
-                </label>
-                <label>Quórum mínimo (%)
-                  <input type="number" min="0" max="100" step="0.01" value={processForm.quorumMinimo}
-                    onChange={(event) => updateProcessField('quorumMinimo', event.target.value)} required />
-                </label>
-              </div>
-              <div className="form-actions">
-                <button type="button" className="secondary-button"
-                  onClick={() => setSection('resumen')}>Cancelar</button>
-                <button type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Crear proceso'}</button>
-              </div>
-            </form>
-          </section>
+          <CrearProcesoPage
+            onSuccess={() => { loadData(); setSection('procesos'); }}
+            onCancel={() => setSection('resumen')}
+            onSessionExpired={onLogout}
+          />
         )}
       </main>
     </div>
