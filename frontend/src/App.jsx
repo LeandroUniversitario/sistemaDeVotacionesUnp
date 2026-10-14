@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import './index.css';
+import MenuIcon from './components/MenuIcon';
 
 // Mockup data based on UML Use Cases defined previously
 const actorRoles = [
-  { id: 'admin', label: '👤 Administrador' },
-  { id: 'comite', label: '⚖️ CEUNP' },
-  { id: 'elector', label: '🎓 Docente Elector' },
-  { id: 'miembro_mesa', label: '🪑 Miembro de Mesa' },
-  { id: 'lista', label: '⭐ Lista / Candidato' },
-  { id: 'personero', label: '👁️ Personero' }
+  { id: 'admin', label: 'Administrador' },
+  { id: 'comite', label: 'CEUNP' },
+  { id: 'elector', label: 'Docente Elector' },
+  { id: 'miembro_mesa', label: 'Miembro de Mesa' },
+  { id: 'lista', label: 'Lista / Candidato' },
+  { id: 'personero', label: 'Personero' }
 ];
 
 const mockupsData = {
@@ -16,56 +17,56 @@ const mockupsData = {
     title: 'Panel de Administrador',
     desc: 'Gestión y configuración del padrón general de la universidad.',
     actions: [
-      { id: 'UC6', title: 'Gestionar Padrón Docente', desc: 'Registrar, actualizar o dar de baja docentes en la base de datos de la UNP.', icon: '👥' },
-      { id: 'CONF', title: 'Configuración de Sistema', desc: 'Ajustes globales de seguridad, base de datos y auditoría del sistema.', icon: '⚙️' }
+      { id: 'UC6', title: 'Gestionar Padrón Docente', desc: 'Registrar, actualizar o dar de baja docentes en la base de datos de la UNP.', icon: 'users' },
+      { id: 'CONF', title: 'Configuración de Sistema', desc: 'Ajustes globales de seguridad, base de datos y auditoría del sistema.', icon: 'settings' }
     ]
   },
   comite: {
     title: 'Panel del CEUNP',
     desc: 'Supervisión, configuración y ejecución de las etapas del proceso electoral.',
     actions: [
-      { id: 'UC3', title: 'Crear Proceso Electoral', desc: 'Configurar cronograma, cargos, quórum mínimo (60%) y posibles segundas vueltas.', icon: '📅' },
-      { id: 'UC2', title: 'Validar Listas', desc: 'Revisar inscripciones de fórmulas (Rector + Vicerrectores) y aprobar o rechazar.', icon: '✅' },
-      { id: 'UC12', title: 'Resolver Tachas', desc: 'Atender cuestionamientos escritos contra candidatos presentados por docentes del padrón.', icon: '⚖️' },
-      { id: 'UC13', title: 'Acreditar Personeros', desc: 'Validar y otorgar credenciales a personeros generales y de mesa propuestos por las listas.', icon: '👁️' },
-      { id: 'UC7', title: 'Sortear Mesa Electoral', desc: 'Ejecutar algoritmo de sorteo de 6 miembros por mesa (3 titulares, 3 suplentes).', icon: '🎲' },
-      { id: 'UC_QUORUM', title: 'Monitoreo de Quórum', desc: 'Panel en tiempo real para visualizar porcentaje de participación (Vista SQL).', icon: '📈' },
-      { id: 'UC_MULTA', title: 'Gestión de Multas (RN35)', desc: 'Generar cobros automáticos a omisos al sufragio (2.5% UIT) y omisos a mesa (3% UIT).', icon: '💰' }
+      { id: 'UC3', title: 'Crear Proceso Electoral', desc: 'Configurar cronograma, cargos, quórum mínimo (60%) y posibles segundas vueltas.', icon: 'calendar' },
+      { id: 'UC2', title: 'Validar Listas', desc: 'Revisar inscripciones de fórmulas (Rector + Vicerrectores) y aprobar o rechazar.', icon: 'check' },
+      { id: 'UC12', title: 'Resolver Tachas', desc: 'Atender cuestionamientos escritos contra candidatos presentados por docentes del padrón.', icon: 'scale' },
+      { id: 'UC13', title: 'Acreditar Personeros', desc: 'Validar y otorgar credenciales a personeros generales y de mesa propuestos por las listas.', icon: 'eye' },
+      { id: 'UC7', title: 'Sortear Mesa Electoral', desc: 'Ejecutar algoritmo de sorteo de 6 miembros por mesa (3 titulares, 3 suplentes).', icon: 'sorteo' },
+      { id: 'UC_QUORUM', title: 'Monitoreo de Quórum', desc: 'Panel en tiempo real para visualizar porcentaje de participación (Vista SQL).', icon: 'graph' },
+      { id: 'UC_MULTA', title: 'Gestión de Multas', desc: 'Generar cobros automáticos a omisos al sufragio (2.5% UIT) y omisos a mesa (3% UIT).', icon: 'coins' }
     ]
   },
   elector: {
     title: 'Portal del Elector',
     desc: 'Módulo estrictamente confidencial para ejercer el derecho a voto.',
     actions: [
-      { id: 'INFO', title: 'Descargar Pase QR (RF62)', desc: 'Verificar local de votación y descargar QR de acceso de uso único.', icon: '📱' },
-      { id: 'UC5', title: 'Emitir Voto por Lista', desc: 'Ingresar a la cabina, escanear Pase QR y elegir una fórmula. Voto anónimo garantizado.', icon: '🗳️' },
-      { id: 'UC11', title: 'Descargar Constancia', desc: 'Obtener constancia digital tras haber emitido el voto correctamente.', icon: '📄' }
+      { id: 'INFO', title: 'Descargar Pase QR (RF62)', desc: 'Verificar local de votación y descargar QR de acceso de uso único.', icon: 'qr' },
+      { id: 'UC5', title: 'Emitir Voto por Lista', desc: 'Ingresar a la cabina, escanear Pase QR y elegir una fórmula. Voto anónimo garantizado.', icon: 'vote' },
+      { id: 'UC11', title: 'Descargar Constancia', desc: 'Obtener constancia digital tras haber emitido el voto correctamente.', icon: 'file' }
     ]
   },
   miembro_mesa: {
     title: 'Gestor de Mesa Electoral',
     desc: 'Panel exclusivo para el Presidente, Secretario y Vocal de Mesa.',
     actions: [
-      { id: 'INST', title: 'Instalación de Mesa (RF56)', desc: 'Acreditar identidad escaneando el Fotocheck QR de Miembro de Mesa.', icon: '🪑' },
-      { id: 'SCAN', title: 'Escanear Elector (RF62)', desc: 'Pistola lectora: Validar QR del docente, registrar asistencia y habilitar cabina secreta.', icon: '🔍' },
-      { id: 'UC8', title: 'Escrutinio y Actas (RF52)', desc: 'Cierre de votación y generación de Actas (Instalación, Sufragio, Escrutinio) con QR SHA-256.', icon: '📊' }
+      { id: 'INST', title: 'Instalación de Mesa (RF56)', desc: 'Acreditar identidad escaneando el Fotocheck QR de Miembro de Mesa.', icon: 'shield' },
+      { id: 'SCAN', title: 'Escanear Elector (RF62)', desc: 'Pistola lectora: Validar QR del docente, registrar asistencia y habilitar cabina secreta.', icon: 'scan' },
+      { id: 'UC8', title: 'Escrutinio y Actas (RF52)', desc: 'Cierre de votación y generación de Actas (Instalación, Sufragio, Escrutinio) con QR SHA-256.', icon: 'table' }
     ]
   },
   lista: {
     title: 'Portal de la Lista Electoral',
     desc: 'Gestión de postulaciones (fórmulas completas) a cargos de la UNP.',
     actions: [
-      { id: 'UC1', title: 'Inscribir Lista de Candidatos', desc: 'Inscribir fórmula completa subiendo Planes de Gobierno y Hojas de Vida públicas (RN15).', icon: '📝' },
-      { id: 'STATE', title: 'Estado de Lista', desc: 'Seguimiento del proceso de validación o resolución de tachas.', icon: '🔍' }
+      { id: 'UC1', title: 'Inscribir Lista de Candidatos', desc: 'Inscribir fórmula completa subiendo Planes de Gobierno y Hojas de Vida públicas (RN15).', icon: 'ballot' },
+      { id: 'STATE', title: 'Estado de Lista', desc: 'Seguimiento del proceso de validación o resolución de tachas.', icon: 'search' }
     ]
   },
   personero: {
     title: 'Portal del Personero',
     desc: 'Módulo de fiscalización y auditoría del proceso electoral.',
     actions: [
-      { id: 'CRED', title: 'Acreditarse en Mesa (RF51)', desc: 'Identificarse ante los miembros de mesa usando su Credencial QR digital.', icon: '📱' },
-      { id: 'UC9', title: 'Impugnar Votos / Actas', desc: 'Registrar observaciones sobre eventos anómalos durante el escrutinio de una mesa.', icon: '🛑' },
-      { id: 'AUDIT', title: 'Auditar Hash de Actas (RF52)', desc: 'Escanear QR de actas electorales físicas para validar criptográficamente (SHA-256) los resultados.', icon: '🔐' }
+      { id: 'CRED', title: 'Acreditarse en Mesa (RF51)', desc: 'Identificarse ante los miembros de mesa usando su Credencial QR digital.', icon: 'qr' },
+      { id: 'UC9', title: 'Impugnar Votos / Actas', desc: 'Registrar observaciones sobre eventos anómalos durante el escrutinio de una mesa.', icon: 'alert' },
+      { id: 'AUDIT', title: 'Auditar Hash de Actas (RF52)', desc: 'Escanear QR de actas electorales físicas para validar criptográficamente (SHA-256) los resultados.', icon: 'key' }
     ]
   }
 };
@@ -75,7 +76,7 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [dni, setDni] = useState('');
   const [password, setPassword] = useState('');
-  
+
   // Dashboard state to simulate actor switching
   const [activeActor, setActiveActor] = useState('admin');
 
@@ -100,7 +101,7 @@ function App() {
       <>
         <div className="bg-shape shape-1"></div>
         <div className="bg-shape shape-2"></div>
-        
+
         <main className="login-container">
           <header className="login-header">
             <div className="unp-logo">UNP</div>
@@ -110,27 +111,27 @@ function App() {
 
           <form onSubmit={handleLogin}>
             <div className="form-group">
-              <input 
-                type="text" 
-                id="dni" 
-                className="form-input" 
+              <input
+                type="text"
+                id="dni"
+                className="form-input"
                 placeholder="DNI / Usuario"
                 value={dni}
                 onChange={(e) => setDni(e.target.value)}
-                required 
+                required
               />
               <label htmlFor="dni" className="form-label">Usuario ("admin")</label>
             </div>
 
             <div className="form-group">
-              <input 
-                type="password" 
-                id="password" 
-                className="form-input" 
+              <input
+                type="password"
+                id="password"
+                className="form-input"
                 placeholder="Contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required 
+                required
               />
               <label htmlFor="password" className="form-label">Contraseña ("123")</label>
             </div>
@@ -154,7 +155,7 @@ function App() {
       <div className="bg-shape shape-2" style={{ opacity: 0.3 }}></div>
 
       <div className="dashboard-layout">
-        
+
         {/* Barra Lateral / Selector de Actor */}
         <aside className="sidebar">
           <div className="sidebar-header">
@@ -165,7 +166,7 @@ function App() {
 
           <nav className="sidebar-menu">
             {actorRoles.map(actor => (
-              <button 
+              <button
                 key={actor.id}
                 className={`menu-item ${activeActor === actor.id ? 'active' : ''}`}
                 onClick={() => setActiveActor(actor.id)}
@@ -173,9 +174,9 @@ function App() {
                 {actor.label}
               </button>
             ))}
-            
+
             <button className="menu-item logout-btn" onClick={handleLogout}>
-              🚪 Cerrar Sesión
+              Cerrar Sesión
             </button>
           </nav>
         </aside>
@@ -190,7 +191,7 @@ function App() {
           <div className="cards-grid">
             {currentPanel.actions.map((action, index) => (
               <div key={action.id} className="action-card">
-                <div className="card-icon">{action.icon}</div>
+                <div className="card-icon"><MenuIcon name={action.icon} size={28} /></div>
                 <h3>{action.title}</h3>
                 <p>{action.desc}</p>
               </div>

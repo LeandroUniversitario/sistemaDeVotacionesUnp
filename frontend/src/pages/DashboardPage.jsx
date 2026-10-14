@@ -33,43 +33,50 @@ const MENU_ICONS = {
   parametros: 'settings', bitacora: 'shield',
 };
 
-// ─── Menú por rol (orden, visibilidad y color de ícono) ──────────────────
+// ─── Menú por rol con categorías estilo CampaignHub ───────────────────────
 const MENU_POR_ROL = {
   ADMIN: [
-    { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6', bg: '#dbeafe' },
-    { key: 'usuarios', label: 'Usuarios', icon: 'user', color: '#ef4444', bg: '#fee2e2' },
-    { key: 'parametros', label: 'Parámetros', icon: 'settings', color: '#6366f1', bg: '#e0e7ff' },
-    { key: 'cargos-excluidos', label: 'Excepciones Sorteo', icon: 'shield', color: '#f43f5e', bg: '#ffe4e6' },
-    { key: 'bitacora', label: 'Bitácora', icon: 'shield', color: '#14b8a6', bg: '#ccfbf1' },
+    { group: 'WORKSPACE' },
+    { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6' },
+    { key: 'usuarios', label: 'Usuarios', icon: 'users', color: '#ef4444' },
+    { key: 'parametros', label: 'Parámetros', icon: 'settings', color: '#6366f1' },
+    { key: 'cargos-excluidos', label: 'Excepciones Sorteo', icon: 'shield', color: '#f43f5e' },
+    { key: 'bitacora', label: 'Bitácora', icon: 'eye', color: '#14b8a6' },
   ],
   CEUNP: [
-    { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6', bg: '#dbeafe' },
-    { key: 'procesos', label: 'Procesos electorales', icon: 'calendar', color: '#10b981', bg: '#d1fae5' },
-    { key: 'docentes', label: 'Padrón y docentes', icon: 'users', color: '#8b5cf6', bg: '#ede9fe' },
-    { key: 'nuevo', label: 'Crear proceso', icon: 'plus', color: '#f59e0b', bg: '#fef3c7' },
-    { key: 'candidaturas', label: 'Candidaturas', icon: 'list', color: '#06b6d4', bg: '#cffafe' },
-    { key: 'tachas', label: 'Tachas', icon: 'shield', color: '#f97316', bg: '#ffedd5' },
-    { key: 'cargos-excluidos', label: 'Excepciones Sorteo', icon: 'shield', color: '#f43f5e', bg: '#ffe4e6' },
-    { key: 'personeros', label: 'Personeros y Acreditaciones', icon: 'users', color: '#8b5cf6', bg: '#ede9fe' },
-    { key: 'credenciales', label: 'Credenciales y QR', icon: 'user', color: '#10b981', bg: '#d1fae5' },
-    { key: 'sorteos', label: 'Sorteo de Mesas', icon: 'list', color: '#eab308', bg: '#fef9c3' },
-    { key: 'computo', label: 'Cómputo y Proclamación', icon: 'dashboard', color: '#6366f1', bg: '#e0e7ff' },
-    { key: 'impugnaciones', label: 'Impugnaciones y Nulidades', icon: 'shield', color: '#ef4444', bg: '#fee2e2' },
-    { key: 'multas', label: 'Gestión Multas (RN35)', icon: 'list', color: '#f97316', bg: '#ffedd5' },
+    { group: 'WORKSPACE' },
+    { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6' },
+    { key: 'procesos', label: 'Procesos electorales', icon: 'calendar', color: '#10b981' },
+    { key: 'docentes', label: 'Padrón y docentes', icon: 'users', color: '#8b5cf6' },
+    { key: 'nuevo', label: 'Crear proceso', icon: 'plus', color: '#f59e0b' },
+    { group: 'OPERACIONES' },
+    { key: 'candidaturas', label: 'Candidaturas', icon: 'ballot', color: '#06b6d4' },
+    { key: 'tachas', label: 'Tachas', icon: 'scale', color: '#f97316' },
+    { key: 'cargos-excluidos', label: 'Excepciones Sorteo', icon: 'shield', color: '#f43f5e' },
+    { key: 'personeros', label: 'Personeros', icon: 'person', color: '#8b5cf6' },
+    { key: 'credenciales', label: 'Credenciales y QR', icon: 'qr', color: '#10b981' },
+    { key: 'sorteos', label: 'Sorteo de Mesas', icon: 'sorteo', color: '#eab308' },
+    { group: 'RESULTADOS' },
+    { key: 'computo', label: 'Cómputo y Proclamación', icon: 'trophy', color: '#6366f1' },
+    { key: 'impugnaciones', label: 'Impugnaciones y Nulidades', icon: 'alert', color: '#ef4444' },
+    { key: 'multas', label: 'Gestión Multas', icon: 'coins', color: '#f97316' },
   ],
   MIEMBRO_MESA: [
-    { key: 'mesa', label: 'Mi Mesa de Sufragio', icon: 'shield', color: '#14b8a6', bg: '#ccfbf1' },
-    { key: 'terminal', label: 'Terminal de Votación', icon: 'person', color: '#6366f1', bg: '#e0e7ff' },
-    { key: 'fotocheck', label: 'Fotocheck QR (RF56)', icon: 'user', color: '#f59e0b', bg: '#fef3c7' },
+    { group: 'WORKSPACE' },
+    { key: 'mesa', label: 'Mi Mesa de Sufragio', icon: 'table', color: '#14b8a6' },
+    { key: 'terminal', label: 'Terminal de Votación', icon: 'vote', color: '#6366f1' },
+    { key: 'fotocheck', label: 'Fotocheck QR (RF56)', icon: 'qr', color: '#f59e0b' },
   ],
   PERSONERO: [
-    { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6', bg: '#dbeafe' },
-    { key: 'credencial', label: 'Credencial QR (RF51)', icon: 'user', color: '#10b981', bg: '#d1fae5' },
-    { key: 'tachas', label: 'Tachas e Impugnaciones', icon: 'shield', color: '#f97316', bg: '#ffedd5' },
+    { group: 'WORKSPACE' },
+    { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6' },
+    { key: 'credencial', label: 'Credencial QR (RF51)', icon: 'qr', color: '#10b981' },
+    { key: 'tachas', label: 'Tachas e Impugnaciones', icon: 'scale', color: '#f97316' },
   ],
   DOCENTE: [
-    { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6', bg: '#dbeafe' },
-    { key: 'pase', label: 'Descargar Pase QR', icon: 'user', color: '#8b5cf6', bg: '#ede9fe' },
+    { group: 'WORKSPACE' },
+    { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6' },
+    { key: 'pase', label: 'Descargar Pase QR', icon: 'qr', color: '#8b5cf6' },
   ],
 };
 
@@ -93,7 +100,7 @@ const SECTION_TITLES = {
   parametros: 'Parámetros globales',
   'cargos-excluidos': 'Excepciones de Sorteo (RN20)',
   bitacora: 'Bitácora de auditoría',
-  multas: 'Gestión de Multas (RN35)',
+  multas: 'Gestión de Multas',
   fotocheck: 'Mi Fotocheck Digital',
   credencial: 'Credencial de Personero',
   pase: 'Pase de Votación QR',
@@ -210,56 +217,62 @@ export default function DashboardPage({ session, onLogout }) {
     <div className="app-shell">
       {/* ── Sidebar ──────────────────────────────────────────────── */}
       <aside className="sidebar">
-        {/* ── Logo + nombre del sistema ── */}
+        {/* ── Logo + cabecera estilo CampaignHub ── */}
         <div className="sidebar-brand">
-          <div className="brand-mark">
-            <img
-              src="/escudo-unp.png"
-              alt="Escudo UNP"
-              width="52"
-              height="52"
-              style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain' }}
-            />
-          </div>
-          <div className="sidebar-brand-text">
-            <p className="sidebar-code">SICEUNP</p>
-            <p className="sidebar-title">Sistema de Control de<br />Elecciones Docentes</p>
-            <p className="sidebar-subtitle">Universidad Nacional de Piura</p>
+          <div className="brand-header-row">
+            <div className="brand-logo-wrap">
+              <img
+                src="/escudo-unp.png"
+                alt="Escudo UNP"
+                style={{ width: 26, height: 26, objectFit: 'contain', display: 'block' }}
+              />
+            </div>
+            <div className="brand-info">
+              <h2 className="brand-title">SICEUNP</h2>
+              <span className="brand-badge">{session.rol}</span>
+            </div>
           </div>
         </div>
 
         <nav className="nav-list" aria-label="Navegación principal">
-          {/* ── Menú principal según rol ── */}
-          {(MENU_POR_ROL[session.rol] ?? []).map(({ key, label, icon }) => (
-            <button
-              key={key}
-              className={`nav-item${section === key ? ' active' : ''}`}
-              onClick={() => setSection(key)}
-            >
-              <MenuIcon name={icon} />
-              {label}
-            </button>
-          ))}
+          {/* ── Menú principal según rol con grupos ── */}
+          {(MENU_POR_ROL[session.rol] ?? []).map((item, idx) => {
+            if (item.group) {
+              // Ocultamos la etiqueta del primer grupo (WORKSPACE)
+              if (item.group === 'WORKSPACE') return null;
+              return (
+                <div key={`group-${idx}`} className="nav-section-title">
+                  {item.group}
+                </div>
+              );
+            }
+            return (
+              <button
+                key={item.key}
+                className={`nav-item${section === item.key ? ' active' : ''}`}
+                onClick={() => setSection(item.key)}
+                title={item.label}
+              >
+                <span className="nav-icon" style={{ color: item.color }}>
+                  <MenuIcon name={item.icon} size={19} />
+                </span>
+                <span className="nav-label">{item.label}</span>
+              </button>
+            );
+          })}
 
-          {/* ── Configuración: solo Mi cuenta ── */}
-          <div className="nav-divider" />
+          {/* ── Sección GENERAL estilo CampaignHub ── */}
+          <div className="nav-section-title">GENERAL</div>
           <button
-            className="nav-section-label nav-section-button"
-            onClick={() => setSettingsOpen(o => !o)}
+            className={`nav-item${section === 'cuenta' ? ' active' : ''}`}
+            onClick={() => setSection('cuenta')}
+            title="Configuración de la cuenta"
           >
-            <MenuIcon name="settings" />
-            Configuración
-            <span className={`nav-chevron ${settingsOpen ? 'open' : ''}`} aria-hidden="true" />
+            <span className="nav-icon" style={{ color: '#6366f1' }}>
+              <MenuIcon name="settings" size={19} />
+            </span>
+            <span className="nav-label">Configuración</span>
           </button>
-          {settingsOpen && (
-            <button
-              className={`nav-item nav-subitem ${section === 'cuenta' ? 'active' : ''}`}
-              onClick={() => setSection('cuenta')}
-            >
-              <MenuIcon name="user" />
-              Mi cuenta
-            </button>
-          )}
         </nav>
 
         <div className="sidebar-footer">
@@ -267,14 +280,16 @@ export default function DashboardPage({ session, onLogout }) {
             <div className="account-avatar">{session.username.charAt(0).toUpperCase()}</div>
             <div className="account-details">
               <strong>{session.username}</strong>
-              <span>Rol: {session.rol}</span>
+              <span>{session.rol}</span>
             </div>
-            <button className="sidebar-logout" onClick={onLogout} aria-label="Cerrar sesión">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M10 17l5-5-5-5M15 12H3M21 3v18" />
-              </svg>
-            </button>
           </div>
+          <button
+            className="logout-icon-btn"
+            onClick={onLogout}
+            title="Cerrar sesión"
+          >
+            <MenuIcon name="logout" size={17} />
+          </button>
         </div>
       </aside>
 

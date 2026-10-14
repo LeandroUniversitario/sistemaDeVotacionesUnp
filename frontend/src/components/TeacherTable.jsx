@@ -52,7 +52,7 @@ export default function TeacherTable({ teachers = [], loading = false }) {
         <div style={{ flex: '1 1 240px', minWidth: '200px' }}>
           <input
             type="text"
-            placeholder="🔍 Buscar por DNI, nombres o apellidos..."
+            placeholder="Buscar por DNI, nombres o apellidos..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             style={{ margin: 0 }}

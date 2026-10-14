@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { apiRequest } from '../api/apiClient';
+import MenuIcon from '../components/MenuIcon';
 
 const ROLES = ['ADMIN', 'CEUNP', 'DOCENTE', 'PERSONERO', 'MIEMBRO_MESA'];
 const ROLES_CON_DOCENTE = ['CEUNP', 'DOCENTE', 'PERSONERO', 'MIEMBRO_MESA'];
@@ -187,7 +188,7 @@ export default function UsuariosPage({ teachers, onSessionExpired }) {
       {/* ── Barra de búsqueda y filtros ── */}
       <div className="filter-bar">
         <div className="search-box">
-          <span className="search-icon">🔍</span>
+          <span className="search-icon"><MenuIcon name="search" size={16} /></span>
           <input
             type="text"
             placeholder="Buscar por username o ID docente..."
@@ -239,19 +240,19 @@ export default function UsuariosPage({ teachers, onSessionExpired }) {
                     <button
                       className="icon-btn" title="Editar rol"
                       onClick={() => { setEditUser(user); setNewRol(user.rol); }}
-                    >✏️</button>
+                    ><MenuIcon name="edit" size={14} /></button>
                     {/* Restablecer contraseña */}
                     <button
                       className="icon-btn" title="Restablecer contraseña"
                       onClick={() => { setResetUser(user); setNewPassword(''); }}
-                    >🔑</button>
+                    ><MenuIcon name="key" size={14} /></button>
                     {/* Activar / Inactivar */}
                     <button
                       className={`icon-btn ${user.activo ? 'danger' : 'success'}`}
                       title={user.activo ? 'Desactivar' : 'Activar'}
                       disabled={saving}
                       onClick={() => toggleUser(user)}
-                    >{user.activo ? '🚫' : '✅'}</button>
+                    >{user.activo ? <MenuIcon name="close" size={14} /> : <MenuIcon name="check" size={14} />}</button>
                   </td>
                 </tr>
               ))}

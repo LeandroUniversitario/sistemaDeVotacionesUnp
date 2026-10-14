@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { apiRequest } from '../api/apiClient';
+import MenuIcon from '../components/MenuIcon';
 
 const CATEGORIAS = ['PRINCIPAL', 'ASOCIADO', 'AUXILIAR'];
 const DEDICACIONES = ['DE', 'TC', 'TP'];
@@ -89,7 +90,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
       setShowCreate(false);
       setForm(FORM_INIT);
       setDniWarning('');
-      setFeedback({ type: 'success', text: `✅ Docente ${form.apellidos}, ${form.nombres} registrado correctamente.` });
+      setFeedback({ type: 'success', text: `Docente ${form.apellidos}, ${form.nombres} registrado correctamente.` });
       onRefresh();
     } catch (err) {
       if (err.message === 'SESSION_EXPIRED') onSessionExpired();
@@ -127,7 +128,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
         }),
       });
       setEditDocente(null);
-      setFeedback({ type: 'success', text: `✅ Docente actualizado correctamente.` });
+      setFeedback({ type: 'success', text: `Docente actualizado correctamente.` });
       onRefresh();
     } catch (err) {
       if (err.message === 'SESSION_EXPIRED') onSessionExpired();
@@ -143,7 +144,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
     try {
       await apiRequest(`/api/docentes/${deleteDocente.id}`, { method: 'DELETE' });
       setDeleteDocente(null);
-      setFeedback({ type: 'success', text: `✅ Docente eliminado del padrón.` });
+      setFeedback({ type: 'success', text: `Docente eliminado del padrón.` });
       onRefresh();
     } catch (err) {
       setDeleteDocente(null);
@@ -168,7 +169,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
     setShowApproveModal(false);
     setFeedback({
       type: 'success',
-      text: '🔒 Padrón Definitivo Aprobado y Publicado Oficialmente. Las modificaciones y altas de docentes han sido congeladas (RF12 / Art. 18).',
+      text: 'Padrón Definitivo Aprobado y Publicado Oficialmente. Las modificaciones y altas de docentes han sido congeladas (RF12 / Art. 18).',
     });
   }
 
@@ -177,7 +178,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
     localStorage.removeItem('siceunp_padron_aprobado');
     setFeedback({
       type: 'success',
-      text: '🔓 Padrón reabierto para ajustes por el CEUNP.',
+      text: 'Padrón reabierto para ajustes por el CEUNP.',
     });
   }
 
@@ -205,7 +206,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
           boxShadow: '0 4px 12px rgba(4, 120, 87, 0.25)',
         }}>
           <div>
-            <strong>🔒 Padrón Definitivo Aprobado y Congelado (RF12)</strong>
+            <strong><MenuIcon name="lock" size={14} style={{marginRight:6, verticalAlign:'middle'}} /> Padrón Definitivo Aprobado y Congelado (RF12)</strong>
             <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.9 }}>
               {habilitados.length} Docentes Habilitados con derecho a voto · {excluidos.length} Excluidos por Art. 27b (Licencias / Inactivos)
             </p>
@@ -224,7 +225,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
                 fontSize: '0.8rem',
               }}
             >
-              🔓 Reabrir Padrón
+            <MenuIcon name="lock" size={13} style={{marginRight:5, verticalAlign:'middle'}} /> Reabrir Padrón
             </button>
           )}
         </div>
@@ -280,7 +281,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
       {/* ── Barra de filtros ── */}
       <div className="filter-bar">
         <div className="search-box">
-          <span className="search-icon">🔍</span>
+          <span className="search-icon"><MenuIcon name="search" size={16} /></span>
           <input
             type="text"
             placeholder="Buscar por DNI, nombres o apellidos..."
@@ -352,24 +353,24 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
                           className="icon-btn"
                           title="Ver detalles"
                           onClick={() => setViewDocente(t)}
-                        >👁️</button>
+                        ><MenuIcon name="eye" size={14} /></button>
                         {canManage && !padronAprobado && (
                           <>
                             <button
                               className="icon-btn"
                               title="Editar docente"
                               onClick={() => openEdit(t)}
-                            >✏️</button>
+                            ><MenuIcon name="edit" size={14} /></button>
                             <button
                               className="icon-btn danger"
                               title="Eliminar docente"
                               onClick={() => setDeleteDocente(t)}
-                            >🗑️</button>
+                            ><MenuIcon name="trash" size={14} /></button>
                           </>
                         )}
                         {canManage && padronAprobado && (
                           <span title="Bloqueado por Padrón Definitivo (RF12)" style={{ opacity: 0.6, fontSize: '0.8rem', fontStyle: 'italic', color: '#64748b' }}>
-                            🔒 Edición bloqueada (RF12)
+                            <MenuIcon name="lock" size={12} style={{marginRight:4}} /> Edición bloqueada (RF12)
                           </span>
                         )}
                       </div>
@@ -444,7 +445,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
               <div className="modal-actions">
                 <button type="button" className="btn-ghost" onClick={() => setShowCreate(false)}>Cancelar</button>
                 <button type="submit" className="btn-primary" disabled={saving || !!dniWarning}>
-                  {saving ? 'Guardando…' : '✅ Registrar docente'}
+                  {saving ? 'Guardando…' : 'Registrar docente'}
                 </button>
               </div>
             </form>
@@ -495,7 +496,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
               <div className="modal-actions">
                 <button type="button" className="btn-ghost" onClick={() => setEditDocente(null)}>Cancelar</button>
                 <button type="submit" className="btn-primary" disabled={saving}>
-                  {saving ? 'Guardando…' : '💾 Guardar cambios'}
+                  {saving ? 'Guardando…' : 'Guardar cambios'}
                 </button>
               </div>
             </form>
@@ -519,7 +520,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
                 {deleteDocente.apellidos}, {deleteDocente.nombres}
               </p>
               <div className="immutable-notice" style={{ marginBottom: '16px' }}>
-                <span>⚠️</span>
+                <span><MenuIcon name="alert" size={16} /></span>
                 <span>Esta acción no se puede deshacer. Si el docente tiene candidaturas asociadas, la eliminación será rechazada.</span>
               </div>
               <div className="modal-actions">
@@ -530,7 +531,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
                   disabled={saving}
                   onClick={handleDelete}
                 >
-                  {saving ? 'Eliminando…' : '🗑️ Sí, eliminar'}
+                  {saving ? 'Eliminando…' : 'Sí, eliminar'}
                 </button>
               </div>
             </div>
@@ -579,7 +580,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
                   { label: 'Dedicación', value: viewDocente.dedicacion },
                   { label: 'ID Facultad', value: viewDocente.idFacultad ?? '—' },
                   { label: 'ID Departamento', value: viewDocente.idDepartamento ?? '—' },
-                  { label: 'Habilitado para votar', value: viewDocente.habilitadoParaVotar ? '✅ Sí' : '❌ No' },
+                  { label: 'Habilitado para votar', value: viewDocente.habilitadoParaVotar ? 'Sí' : 'No' },
                   { label: 'ID interno', value: `#${viewDocente.id}` },
                 ].map(({ label, value }) => (
                   <div key={label} style={{ background: '#f8fafc', borderRadius: 10, padding: '10px 14px', border: '1px solid #e3e9f1' }}>
@@ -596,7 +597,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
               <div className="modal-actions" style={{ marginTop: 20 }}>
                 {canManage && !padronAprobado && (
                   <button className="btn-ghost" onClick={() => { setViewDocente(null); openEdit(viewDocente); }}>
-                    ✏️ Editar
+                    <MenuIcon name="edit" size={14} style={{marginRight:5}} /> Editar
                   </button>
                 )}
                 <button className="btn-primary" onClick={() => setViewDocente(null)}>Cerrar</button>
@@ -633,7 +634,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
 
                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: 14 }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#991b1b', textTransform: 'uppercase' }}>
-                    ⚠ Excluidos (Art. 27b)
+                    Excluidos (Art. 27b)
                   </div>
                   <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#b91c1c', marginTop: 4 }}>
                     {excluidos.length}
@@ -644,7 +645,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
 
               {/* Advertencia RF12 */}
               <div style={{ background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: 10, padding: 12, fontSize: '0.85rem', color: '#92400e', marginBottom: 20 }}>
-                <strong>⚠️ Regla RF12 (Congelamiento de Padrón):</strong>
+                <strong><MenuIcon name="alert" size={14} style={{marginRight:5, verticalAlign:'middle'}} /> Regla RF12 (Congelamiento de Padrón):</strong>
                 <p style={{ margin: '4px 0 0', lineHeight: 1.4 }}>
                   Una vez confirmado, el padrón definitivo quedará oficialmente cerrado. <strong>No se permitirán más ediciones, altas ni bajas de docentes</strong> para garantizar la seguridad y transparencia del sufragio.
                 </p>
@@ -667,7 +668,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
                   }}
                   onClick={handleConfirmarAprobacion}
                 >
-                  🔒 Confirmar y Aprobar Padrón
+                  <MenuIcon name="lock" size={14} style={{marginRight:6, verticalAlign:'middle'}} /> Confirmar y Aprobar Padrón
                 </button>
               </div>
             </div>

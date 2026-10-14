@@ -1,20 +1,21 @@
 import { useEffect, useState, useCallback } from 'react';
 import { apiRequest } from '../api/apiClient';
+import MenuIcon from '../components/MenuIcon';
 
 const ACCIONES_LABEL = {
-  LOGIN_OK: '✅ Login exitoso',
-  LOGIN_FAIL: '❌ Login fallido',
-  CREAR_PROCESO: '🗳️ Crear proceso',
-  IMPORTAR_PADRON: '📥 Importar padrón',
-  APROBAR_PADRON: '✔️ Aprobar padrón',
-  CREAR_CANDIDATURA: '👤 Crear candidatura',
-  RESOLVER_TACHA: '⚖️ Resolver tacha',
-  EJECUTAR_SORTEO: '🎲 Ejecutar sorteo',
-  EMISION_VOTO: '🗳️ Emisión de voto',
-  CAMBIO_PASSWORD: '🔑 Cambio de contraseña',
-  CREAR_USUARIO: '👤 Crear usuario',
-  INACTIVAR_USUARIO: '🚫 Inactivar usuario',
-  CAMBIO_PARAMETRO: '⚙️ Cambio de parámetro',
+  LOGIN_OK: 'Login exitoso',
+  LOGIN_FAIL: 'Login fallido',
+  CREAR_PROCESO: 'Crear proceso',
+  IMPORTAR_PADRON: 'Importar padrón',
+  APROBAR_PADRON: 'Aprobar padrón',
+  CREAR_CANDIDATURA: 'Crear candidatura',
+  RESOLVER_TACHA: 'Resolver tacha',
+  EJECUTAR_SORTEO: 'Ejecutar sorteo',
+  EMISION_VOTO: 'Emisión de voto',
+  CAMBIO_PASSWORD: 'Cambio de contraseña',
+  CREAR_USUARIO: 'Crear usuario',
+  INACTIVAR_USUARIO: 'Inactivar usuario',
+  CAMBIO_PARAMETRO: 'Cambio de parámetro',
 };
 
 /**
@@ -97,13 +98,13 @@ export default function BitacoraPage({ onSessionExpired }) {
       <div className="page-header">
         <p className="page-subtitle">Registro inalterable de todas las acciones del sistema</p>
         <div className="audit-badges">
-          <span className="badge-audit">🔒 INSERT-ONLY</span>
-          <span className="badge-audit warn">🕵️ Solo lectura</span>
+          <span className="badge-audit"><MenuIcon name="lock" size={12} /> INSERT-ONLY</span>
+          <span className="badge-audit warn"><MenuIcon name="eye" size={12} /> Solo lectura</span>
         </div>
       </div>
 
       <div className="immutable-notice">
-        <span>⚠️</span>
+        <span><MenuIcon name="alert" size={16} /></span>
         <span>
           La bitácora es <strong>inalterable e inmutable</strong>. No existen acciones de edición o eliminación
           sobre este registro. Los eventos de emisión de voto no revelan la opción elegida por el elector,

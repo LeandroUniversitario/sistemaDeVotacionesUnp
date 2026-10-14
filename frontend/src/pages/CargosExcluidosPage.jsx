@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../api/apiClient';
+import MenuIcon from '../components/MenuIcon';
 
 const FORM_INIT = {
   nombreCargo: '',
@@ -45,7 +46,7 @@ export default function CargosExcluidosPage({ canManage, onSessionExpired }) {
       });
       setShowCreate(false);
       setForm(FORM_INIT);
-      setFeedback({ type: 'success', text: `✅ Cargo excluido agregado correctamente.` });
+      setFeedback({ type: 'success', text: `Cargo excluido agregado correctamente.` });
       loadCargos();
     } catch (err) {
       if (err.message === 'SESSION_EXPIRED') onSessionExpired();
@@ -73,7 +74,7 @@ export default function CargosExcluidosPage({ canManage, onSessionExpired }) {
         body: JSON.stringify(editForm)
       });
       setEditCargo(null);
-      setFeedback({ type: 'success', text: `✅ Cargo actualizado correctamente.` });
+      setFeedback({ type: 'success', text: `Cargo actualizado correctamente.` });
       loadCargos();
     } catch (err) {
       if (err.message === 'SESSION_EXPIRED') onSessionExpired();
@@ -88,7 +89,7 @@ export default function CargosExcluidosPage({ canManage, onSessionExpired }) {
     try {
       await apiRequest(`/api/cargos-excluidos/${deleteCargo.id}`, { method: 'DELETE' });
       setDeleteCargo(null);
-      setFeedback({ type: 'success', text: `✅ Cargo eliminado correctamente.` });
+      setFeedback({ type: 'success', text: `Cargo eliminado correctamente.` });
       loadCargos();
     } catch (err) {
       if (err.message === 'SESSION_EXPIRED') onSessionExpired();
@@ -146,8 +147,8 @@ export default function CargosExcluidosPage({ canManage, onSessionExpired }) {
                     {canManage && (
                       <td>
                         <div className="action-cell">
-                          <button className="icon-btn" title="Editar" onClick={() => openEdit(c)}>✏️</button>
-                          <button className="icon-btn danger" title="Eliminar" onClick={() => setDeleteCargo(c)}>🗑️</button>
+                          <button className="icon-btn" title="Editar" onClick={() => openEdit(c)}><MenuIcon name="edit" size={14} /></button>
+                          <button className="icon-btn danger" title="Eliminar" onClick={() => setDeleteCargo(c)}><MenuIcon name="trash" size={14} /></button>
                         </div>
                       </td>
                     )}
@@ -189,7 +190,7 @@ export default function CargosExcluidosPage({ canManage, onSessionExpired }) {
               <div className="modal-actions">
                 <button type="button" className="btn-ghost" onClick={() => setShowCreate(false)}>Cancelar</button>
                 <button type="submit" className="btn-primary" disabled={saving}>
-                  {saving ? 'Guardando…' : '✅ Guardar'}
+                  {saving ? 'Guardando…' : 'Guardar'}
                 </button>
               </div>
             </form>
@@ -227,7 +228,7 @@ export default function CargosExcluidosPage({ canManage, onSessionExpired }) {
               <div className="modal-actions">
                 <button type="button" className="btn-ghost" onClick={() => setEditCargo(null)}>Cancelar</button>
                 <button type="submit" className="btn-primary" disabled={saving}>
-                  {saving ? 'Guardando…' : '💾 Guardar cambios'}
+                  {saving ? 'Guardando…' : 'Guardar cambios'}
                 </button>
               </div>
             </form>
@@ -247,7 +248,7 @@ export default function CargosExcluidosPage({ canManage, onSessionExpired }) {
               <div className="modal-actions" style={{ marginTop: '20px' }}>
                 <button className="btn-ghost" onClick={() => setDeleteCargo(null)}>Cancelar</button>
                 <button className="btn-primary" style={{ background: '#dc2626' }} disabled={saving} onClick={handleDelete}>
-                  {saving ? 'Eliminando…' : '🗑️ Eliminar'}
+                  {saving ? 'Eliminando…' : 'Eliminar'}
                 </button>
               </div>
             </div>

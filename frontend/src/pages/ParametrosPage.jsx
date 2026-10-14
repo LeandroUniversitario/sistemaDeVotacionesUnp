@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../api/apiClient';
+import MenuIcon from '../components/MenuIcon';
 
 const LABELS = {
-  UIT: { label: 'Valor de la UIT vigente (S/.)', icon: '💵', desc: 'Unidad Impositiva Tributaria vigente' },
-  MULTA_ELECTOR_OMISO_PCT: { label: 'Multa elector omiso (%)', icon: '📋', desc: 'Porcentaje de la UIT para electores que no voten' },
-  MULTA_MIEMBRO_MESA_OMISO_PCT: { label: 'Multa miembro de mesa omiso (%)', icon: '⚖️', desc: 'Porcentaje de la UIT para miembros que no asistan' },
+  UIT: { label: 'Valor de la UIT vigente (S/.)', icon: 'coins', desc: 'Unidad Impositiva Tributaria vigente' },
+  MULTA_ELECTOR_OMISO_PCT: { label: 'Multa elector omiso (%)', icon: 'ballot', desc: 'Porcentaje de la UIT para electores que no voten' },
+  MULTA_MIEMBRO_MESA_OMISO_PCT: { label: 'Multa miembro de mesa omiso (%)', icon: 'scale', desc: 'Porcentaje de la UIT para miembros que no asistan' },
 };
 
 /**
@@ -64,7 +65,7 @@ export default function ParametrosPage({ onSessionExpired }) {
         method: 'PUT',
         body: JSON.stringify(form),
       });
-      setFeedback({ type: 'success', text: '✅ Parámetros guardados. El cambio ha sido registrado en la bitácora.' });
+      setFeedback({ type: 'success', text: 'Parámetros guardados. El cambio ha sido registrado en la bitácora.' });
       await loadParams();
     } catch (err) {
       if (err.message === 'SESSION_EXPIRED') onSessionExpired();
@@ -99,7 +100,7 @@ export default function ParametrosPage({ onSessionExpired }) {
 
           {Object.keys(LABELS).map(clave => (
             <div className="param-field" key={clave}>
-              <div className="param-icon">{LABELS[clave].icon}</div>
+              <div className="param-icon"><MenuIcon name={LABELS[clave].icon} size={20} /></div>
               <div className="param-info">
                 <label htmlFor={clave}>{LABELS[clave].label}</label>
                 <span className="param-desc">{LABELS[clave].desc}</span>
@@ -127,7 +128,7 @@ export default function ParametrosPage({ onSessionExpired }) {
               Descartar cambios
             </button>
             <button type="submit" className="btn-primary" disabled={saving || !changed}>
-              {saving ? 'Guardando...' : '💾 Guardar parámetros'}
+              {saving ? 'Guardando...' : 'Guardar parámetros'}
             </button>
           </div>
         </form>
@@ -145,14 +146,14 @@ export default function ParametrosPage({ onSessionExpired }) {
             <span className="preview-value">S/. {uit.toFixed(2)}</span>
           </div>
           <div className="preview-card warn">
-            <span className="preview-label">📋 Multa elector omiso</span>
+            <span className="preview-label"><MenuIcon name="ballot" size={14} style={{marginRight:4}} /> Multa elector omiso</span>
             <span className="preview-value">
               S/. {(uit * pctElector / 100).toFixed(2)}
               <small> ({pctElector}% de la UIT)</small>
             </span>
           </div>
           <div className="preview-card danger">
-            <span className="preview-label">⚖️ Multa miembro de mesa omiso</span>
+            <span className="preview-label"><MenuIcon name="scale" size={14} style={{marginRight:4}} /> Multa miembro de mesa omiso</span>
             <span className="preview-value">
               S/. {(uit * pctMiembro / 100).toFixed(2)}
               <small> ({pctMiembro}% de la UIT)</small>
