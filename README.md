@@ -25,9 +25,10 @@ documentacion/    -> Documentacion tecnica y de negocio
 
 ### 1. Base de datos
 Ejecutar en MariaDB/MySQL:
-- base-de-datos/v2/elecciones_unp_v2_COMPLETO.sql (importar en phpMyAdmin; crea tablas, triggers, vistas, procedimientos y datos iniciales)
+- `base-de-datos/01_crear_base_de_datos.sql` (crea tablas, triggers, vistas, procedimientos y datos iniciales)
+- `base-de-datos/02_limpiar_datos_electorales.sql` (limpia y reinicia datos electorales para una nueva elección)
 - Usuario inicial: admin / Admin2026* (cambiar al ingresar)
-- Guia: base-de-datos/v2/ANALISIS_Y_GUIA_BD_v2.md y documentacion/BACKEND_v2.md
+- Guía: `base-de-datos/README.md` y `documentacion/BACKEND_v2.md`
 
 ### 2. Backend
 `
