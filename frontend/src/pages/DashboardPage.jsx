@@ -3,19 +3,23 @@ import { apiRequest } from '../api/apiClient';
 import MenuIcon from '../components/MenuIcon';
 import ProcessTable from '../components/ProcessTable';
 import DocentesPage from './DocentesPage';
-import CandidaturasPage from './CandidaturasPage';
-import TachasPage from './TachasPage';
 import UsuariosPage from './UsuariosPage';
 import CuentaPage from './CuentaPage';
 import MiembroMesaPage from './MiembroMesaPage';
 import TerminalVotacionPage from './TerminalVotacionPage';
-import SorteosPage from './SorteosPage';
 import ImportarDocentesPage from './ImportarDocentesPage';
 import ParametrosPage from './ParametrosPage';
 import BitacoraPage from './BitacoraPage';
 import CargosExcluidosPage from './CargosExcluidosPage';
 import ConvocatoriaPage from './convocatoria/ConvocatoriaPage';
 import PadronPage from './padron/PadronPage';
+import InscripcionPage from './inscripcion/InscripcionPage';
+import TachasGestionPage from './tachas/TachasGestionPage';
+import PersonerosPage from './personeros/PersonerosPage';
+import SorteoMesaPage from './sorteo/SorteoMesaPage';
+import CredencialesPage from './credenciales/CredencialesPage';
+import MisCredencialesPage from './credenciales/MisCredencialesPage';
+import VerificarCredencialPanel from './credenciales/VerificarCredencialPanel';
 
 // ─── Mapas de iconos por sección ─────────────────────────────────────────
 const MENU_ICONS = {
@@ -43,12 +47,12 @@ const MENU_POR_ROL = {
     { key: 'padron', label: 'Padrón electoral', icon: 'list', color: '#0ea5e9' },
     { key: 'docentes', label: 'Docentes', icon: 'users', color: '#8b5cf6' },
     { group: 'OPERACIONES' },
-    { key: 'candidaturas', label: 'Candidaturas', icon: 'ballot', color: '#06b6d4' },
+    { key: 'candidaturas', label: 'Inscripción de listas', icon: 'ballot', color: '#06b6d4' },
     { key: 'tachas', label: 'Tachas', icon: 'scale', color: '#f97316' },
     { key: 'cargos-excluidos', label: 'Excepciones Sorteo', icon: 'shield', color: '#f43f5e' },
     { key: 'personeros', label: 'Personeros', icon: 'person', color: '#8b5cf6' },
     { key: 'credenciales', label: 'Credenciales y QR', icon: 'qr', color: '#10b981' },
-    { key: 'sorteos', label: 'Sorteo de Mesas', icon: 'sorteo', color: '#eab308' },
+    { key: 'sorteos', label: 'Sorteos', icon: 'sorteo', color: '#eab308' },
     { group: 'RESULTADOS' },
     { key: 'computo', label: 'Cómputo y Proclamación', icon: 'trophy', color: '#6366f1' },
     { key: 'impugnaciones', label: 'Impugnaciones y Nulidades', icon: 'alert', color: '#ef4444' },
@@ -59,6 +63,7 @@ const MENU_POR_ROL = {
     { key: 'mesa', label: 'Mi Mesa de Sufragio', icon: 'table', color: '#14b8a6' },
     { key: 'terminal', label: 'Terminal de Votación', icon: 'vote', color: '#6366f1' },
     { key: 'fotocheck', label: 'Fotocheck QR (RF56)', icon: 'qr', color: '#f59e0b' },
+    { key: 'verificar-qr', label: 'Verificar credencial QR', icon: 'scan', color: '#10b981' },
   ],
   PERSONERO: [
     { group: 'WORKSPACE' },
@@ -69,7 +74,8 @@ const MENU_POR_ROL = {
   DOCENTE: [
     { group: 'WORKSPACE' },
     { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6' },
-    { key: 'pase', label: 'Descargar Pase QR', icon: 'qr', color: '#8b5cf6' },
+    { key: 'pase', label: 'Mi pase de votación QR', icon: 'qr', color: '#8b5cf6' },
+    { key: 'tachas', label: 'Presentar tacha', icon: 'scale', color: '#f97316' },
   ],
 };
 
@@ -78,25 +84,26 @@ const SECTION_TITLES = {
   convocatoria: 'Convocatoria y cronograma',
   padron: 'Padrón electoral',
   docentes: 'Docentes',
-  candidaturas: 'Candidaturas',
+  candidaturas: 'Inscripción de listas',
   tachas: 'Tachas electorales',
   personeros: 'Personeros y Acreditaciones',
-  credenciales: 'Generación de Credenciales y Códigos QR',
+  credenciales: 'Credenciales y códigos QR',
   computo: 'Cómputo General y Proclamación de Resultados',
   impugnaciones: 'Resolución de Impugnaciones y Nulidades',
   usuarios: 'Usuarios del sistema',
   cuenta: 'Configuración de mi cuenta',
   mesa: 'Mi Mesa de Sufragio',
   terminal: 'Terminal de Votación',
-  sorteos: 'Sorteo de Miembros',
+  sorteos: 'Sorteos: miembros de mesa y cédula',
   'importar-docentes': 'Importar Padrón de Docentes',
   parametros: 'Parámetros globales',
   'cargos-excluidos': 'Excepciones de Sorteo (RN20)',
   bitacora: 'Bitácora de auditoría',
   multas: 'Gestión de Multas',
-  fotocheck: 'Mi Fotocheck Digital',
-  credencial: 'Credencial de Personero',
-  pase: 'Pase de Votación QR',
+  fotocheck: 'Mi fotocheck digital',
+  'verificar-qr': 'Verificar credenciales QR',
+  credencial: 'Mi credencial de personero',
+  pase: 'Mi pase de votación QR',
 };
 
 /**
@@ -115,7 +122,6 @@ export default function DashboardPage({ session, onLogout }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [processes, setProcesses] = useState([]);
   const [teachers, setTeachers] = useState([]);
-  const [selectedProcess, setSelectedProcess] = useState(null);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState(null);
 
@@ -405,30 +411,20 @@ export default function DashboardPage({ session, onLogout }) {
           <ImportarDocentesPage onImportSuccess={() => { loadData(); setSection('docentes'); }} />
         )}
 
-        {/* Candidaturas */}
-        {section === 'candidaturas' && (
-          <CandidaturasPage
-            processes={processes}
-            teachers={teachers}
-            selectedProcess={selectedProcess}
-            onProcessChange={setSelectedProcess}
-            canManage={canManage}
-            onSessionExpired={onLogout}
-          />
+        {/* CUS03 · Gestionar inscripción de listas (CEUNP) */}
+        {section === 'candidaturas' && canManage && (
+          <InscripcionPage onSessionExpired={onLogout} />
         )}
 
         {/* Tachas */}
+        {/* CUS04 · Gestionar tachas (docente elector presenta, CEUNP resuelve) */}
         {section === 'tachas' && (
-          <TachasPage
-            processes={processes}
-            teachers={teachers}
-            canManage={canManage}
-            onSessionExpired={onLogout}
-          />
+          <TachasGestionPage session={session} onSessionExpired={onLogout} />
         )}
 
         {/* Sorteos */}
-        {section === 'sorteos' && <SorteosPage processes={processes} />}
+        {/* CUS06 · Realizar sorteos (CEUNP) */}
+        {section === 'sorteos' && canManage && <SorteoMesaPage onSessionExpired={onLogout} />}
 
         {/* Usuarios */}
         {section === 'usuarios' && session.rol === 'ADMIN' && (
@@ -460,32 +456,14 @@ export default function DashboardPage({ session, onLogout }) {
         {section === 'terminal' && <TerminalVotacionPage />}
 
         {/* Módulos de CEUNP */}
-        {section === 'personeros' && (
-          <section className="panel">
-            <div className="panel-heading">
-              <div>
-                <h2>Personeros y Acreditaciones</h2>
-                <p className="muted">Gestión de registro y acreditación de personeros generales y de mesa por lista electoral.</p>
-              </div>
-            </div>
-            <div style={{ padding: '1.5rem', color: 'var(--text-main)', fontSize: 14 }}>
-              <p>Módulo para la inscripción, validación de requisitos y emisión de constancias de acreditación para personeros designados por las listas candidatas.</p>
-            </div>
-          </section>
+        {/* CUS05 · Acreditar personeros (CEUNP) */}
+        {section === 'personeros' && canManage && (
+          <PersonerosPage onSessionExpired={onLogout} />
         )}
 
-        {section === 'credenciales' && (
-          <section className="panel">
-            <div className="panel-heading">
-              <div>
-                <h2>Credenciales y Códigos QR</h2>
-                <p className="muted">Generación masiva de credenciales de miembros de mesa, personeros y pases QR de electores.</p>
-              </div>
-            </div>
-            <div style={{ padding: '1.5rem', color: 'var(--text-main)', fontSize: 14 }}>
-              <p>Emisión y descarga de credenciales digitales con firma y códigos QR para comprobación de identidad el día de la jornada electoral.</p>
-            </div>
-          </section>
+        {/* CUS07 · Emitir credenciales y QR (CEUNP) */}
+        {section === 'credenciales' && canManage && (
+          <CredencialesPage onSessionExpired={onLogout} />
         )}
 
         {section === 'computo' && (
@@ -519,15 +497,11 @@ export default function DashboardPage({ session, onLogout }) {
         {section === 'multas' && (
           <section className="panel"><div className="panel-heading"><h2>Módulo de Multas (RN35)</h2></div><p style={{ padding: '1rem' }}>Generación y cálculo automático del 2.5% UIT (Omisos a sufragio) y 3% UIT (Omisos a mesa) cruzando la tabla `padron_electoral`.</p></section>
         )}
-        {section === 'fotocheck' && (
-          <section className="panel"><div className="panel-heading"><h2>Fotocheck Digital (RF56)</h2></div><p style={{ padding: '1rem' }}>Presente este código QR al momento de instalar la mesa. Es infalsificable y de uso único.</p><div style={{ textAlign: 'center', padding: '2rem' }}><img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=FOTOCHECK-${session.username}`} alt="QR Fotocheck" /></div></section>
-        )}
-        {section === 'credencial' && (
-          <section className="panel"><div className="panel-heading"><h2>Credencial de Personero (RF51)</h2></div><p style={{ padding: '1rem' }}>Presente este código QR al presidente de mesa para acreditarse e iniciar la fiscalización.</p><div style={{ textAlign: 'center', padding: '2rem' }}><img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=PERSONERO-${session.username}`} alt="QR Credencial" /></div></section>
-        )}
-        {section === 'pase' && (
-          <section className="panel"><div className="panel-heading"><h2>Pase de Votación QR (RF62)</h2></div><p style={{ padding: '1rem' }}>Muestre este código al Secretario para habilitar su cabina secreta. Válido para un solo uso.</p><div style={{ textAlign: 'center', padding: '2rem' }}><img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=VOTO-${session.username}`} alt="QR Pase" /></div></section>
-        )}
+        {/* CUS07 · Credenciales propias (QR generado en el navegador, sin servicios externos) */}
+        {section === 'fotocheck' && <MisCredencialesPage foco="MIEMBRO_MESA" onSessionExpired={onLogout} />}
+        {section === 'credencial' && <MisCredencialesPage foco="PERSONERO" onSessionExpired={onLogout} />}
+        {section === 'pase' && <MisCredencialesPage foco="ELECTOR" onSessionExpired={onLogout} />}
+        {section === 'verificar-qr' && <VerificarCredencialPanel onSessionExpired={onLogout} />}
 
       </main>
     </div>

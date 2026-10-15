@@ -1,0 +1,40 @@
+@startuml
+' CUS20 · Calificar listas inscritas — Diagrama de Secuencia
+' (referencia para dibujarlo en Rational Rose)
+skinparam style strictuml
+
+actor ": CEUNP" as ceunp
+boundary ": PantallaCalificacion" as pantalla
+control ": RevisarExpediente" as cRevisar
+control ": CalificarLista" as cCalificar
+entity ": ListaElectoral" as eLista
+entity ": Candidato" as eCandidato
+entity ": Tacha" as eTacha
+entity ": LogAuditoria" as eLog
+
+ceunp -> pantalla : 1: seleccionarProceso(id_proceso)
+activate pantalla
+pantalla -> cRevisar : 2: obtenerListasInscritas(id_proceso)
+activate cRevisar
+cRevisar -> eLista : 3: consultarListas(id_proceso, 'INSCRITA')
+cRevisar -> eCandidato : 4: consultarCandidatos(id_lista)
+cRevisar -> eTacha : 5: consultarTachasPendientes(id_lista)
+cRevisar --> pantalla : 6: mostrarExpediente(listas)
+deactivate cRevisar
+
+ceunp -> pantalla : 7: registrarCalificacion(id_lista, decision, motivo)
+pantalla -> cCalificar : 8: calificarLista(id_lista, decision, motivo)
+activate cCalificar
+cCalificar -> eTacha : 9: verificarRequisitos(id_lista)
+alt decision = ADMITIR
+  cCalificar -> eCandidato : 10: actualizarValidacion(id_lista, 'APROBADO')
+  cCalificar -> eLista : 11: actualizarEstado(id_lista, 'ADMITIDA', null)
+else decision = EXCLUIR (extend: Excluir lista)
+  cCalificar -> eCandidato : 10: actualizarValidacion(id_lista, 'EXCLUIDO')
+  cCalificar -> eLista : 11: actualizarEstado(id_lista, 'EXCLUIDA', motivo)
+end
+cCalificar -> eLog : 12: registrarAuditoria('VALIDAR_LISTA')
+cCalificar --> pantalla : 13: notificarCalificacion()
+deactivate cCalificar
+deactivate pantalla
+@enduml

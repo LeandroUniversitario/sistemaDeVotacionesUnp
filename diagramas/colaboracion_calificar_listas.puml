@@ -1,0 +1,32 @@
+@startuml
+' CUS20 · Calificar listas inscritas — Diagrama de Colaboración
+' (referencia para dibujarlo en Rational Rose)
+skinparam style strictuml
+skinparam packageStyle rectangle
+
+actor ": CEUNP" as ceunp
+boundary ": PantallaCalificacion" as pantalla
+
+control ": RevisarExpediente" as cRevisar
+control ": CalificarLista" as cCalificar
+
+entity ": ListaElectoral" as eLista
+entity ": Candidato" as eCandidato
+entity ": Tacha" as eTacha
+entity ": LogAuditoria" as eLog
+
+ceunp -right- pantalla : 1: seleccionarProceso(id_proceso) >\n7: registrarCalificacion(id_lista, decision, motivo) >
+
+' ── Revisión del expediente ──────────────────────────────
+pantalla -up- cRevisar : 2: obtenerListasInscritas(id_proceso) >\n< 6: mostrarExpediente(listas)
+cRevisar -right- eLista : 3: consultarListas(id_proceso, 'INSCRITA') >
+cRevisar -down- eCandidato : 4: consultarCandidatos(id_lista) >
+cRevisar -right- eTacha : 5: consultarTachasPendientes(id_lista) >
+
+' ── Calificación ─────────────────────────────────────────
+pantalla -down- cCalificar : 8: calificarLista(id_lista, decision, motivo) >\n< 13: notificarCalificacion()
+cCalificar -right- eTacha : 9: verificarRequisitos(id_lista) >
+cCalificar -right- eCandidato : 10: actualizarValidacion(id_lista, estado) >
+cCalificar -up- eLista : 11: actualizarEstado(id_lista, estado, motivo) >
+cCalificar -down- eLog : 12: registrarAuditoria(accion) >
+@enduml

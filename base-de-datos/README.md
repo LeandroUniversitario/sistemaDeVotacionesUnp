@@ -11,6 +11,7 @@ Guía rápida de scripts de base de datos para MariaDB / MySQL (XAMPP).
 | **`01_crear_base_de_datos.sql`** | **Crear base de datos completa desde cero** | Instalar por primera vez o reconstruir toda la BD (crea 27 tablas, 4 funciones, 19 triggers, 14 vistas, 26 procedimientos almacenados, parámetros, usuario admin, 14 facultades y 54 departamentos). |
 | **`02_limpiar_datos_electorales.sql`** | **Limpiar / reiniciar datos de elecciones** | Vaciar votos, actas, padrón, mesas, listas y procesos electorales para iniciar una nueva elección limpia **sin borrar** facultades, departamentos, docentes registrados ni usuarios. |
 | **`03_demo_flujo_completo.sql`** | **Demostración de punta a punta** | Prueba automatizada del ciclo electoral (crea 60 docentes de prueba, convoca elección de Rector, sortea mesas, emite votos y computa resultados). |
+| **`04_credenciales_qr.sql`** | **Agregar la tabla de credenciales QR (CUS07)** | Solo si tu base se creó antes de CUS07: crea `credencial_qr` sin tocar los demás datos. Si importas `01_crear_base_de_datos.sql` de nuevo, ya la incluye. |
 | **`100 Docentes.xlsx`** | **Plantilla Excel de docentes** | Archivo Excel para subir el padrón docente desde la interfaz web del sistema (módulo CUS02). |
 | **`antiguos/`** | **Archivos históricos y respaldos** | Contiene versiones anteriores (v1, v2 modular, diagramas `.dbml`, `.mdl` y copias de seguridad). |
 

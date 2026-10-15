@@ -1,0 +1,37 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CUS05 · Acreditar personeros (PantallaPersoneros)
+   Reutiliza .cv-*, .pd-* e .in-* (convocatoria, padrón, inscripción).
+   ═══════════════════════════════════════════════════════════════════ */
+
+.ps-listas { padding: 14px; }
+.ps-listas h3 { margin: 0 0 10px; font-size: .95rem; }
+.ps-listas ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.in-lista.off { opacity: .6; }
+
+.ps-cupos { display: flex; gap: 4px; margin-top: 3px; }
+.ps-cupos i { font-style: normal; font-size: .66rem; font-weight: 750; padding: 1px 6px; border-radius: 999px; color: var(--text-muted); background: var(--gray-100); }
+.ps-cupos i.on { color: var(--cv-green); background: var(--cv-green-soft); }
+
+.ps-tipo { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .68rem; font-weight: 750; letter-spacing: .04em; }
+.ps-tipo.general { color: #1e40af; background: var(--cv-blue-soft); }
+.ps-tipo.alterno { color: #5b21b6; background: #ede9fe; }
+.ps-tipo.mesa { color: #0f766e; background: #ccfbf1; }
+.ps-revocado td { opacity: .55; }
+
+.ps-tipos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ps-tipo-card { display: grid; gap: 4px; padding: 12px; text-align: left; border-radius: var(--r-md); border: 1.5px solid var(--border); background: var(--surface); }
+.ps-tipo-card strong { font-size: .86rem; color: var(--text-main); }
+.ps-tipo-card span { font-size: .76rem; color: var(--text-muted); line-height: 1.4; }
+.ps-tipo-card em { font-style: normal; font-size: .72rem; font-weight: 700; color: var(--cv-green); }
+.ps-tipo-card:disabled { cursor: not-allowed; opacity: .55; }
+.ps-tipo-card:disabled em { color: var(--text-muted); }
+.ps-tipo-card.on { border-color: var(--cv-blue); background: #eff6ff; box-shadow: 0 0 0 3px rgb(37 99 235 / .1); }
+
+.ps-revocar { display: grid; gap: 10px; padding: 12px; border: 1px solid #fecdd3; border-radius: var(--r-md); background: #fff7f8; }
+.ps-danger { color: #fff; background: var(--cv-red); }
+.ps-danger:hover:not(:disabled) { background: #be123c; }
+.ps-aviso { display: flex; gap: 6px; align-items: center; margin: 0; padding: 8px 12px; border-radius: var(--r-md); font-size: .8rem; background: var(--gray-100); }
+
+@media (max-width: 760px) {
+  .ps-tipos { grid-template-columns: 1fr; }
+}

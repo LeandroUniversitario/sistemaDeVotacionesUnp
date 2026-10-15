@@ -1,0 +1,63 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CUS04 · Gestionar tachas (PantallaTachas)
+   Reutiliza .cv-*, .pd-* e .in-* (convocatoria, padrón, inscripción).
+   ═══════════════════════════════════════════════════════════════════ */
+
+.tc-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.tc-layout.ceunp { grid-template-columns: 340px minmax(0, 1fr); }
+.tc-head > .cv-btn { margin-left: auto; }
+
+.tc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.tc-bandeja { display: grid; gap: 12px; padding: 14px; }
+.tc-item {
+  width: 100%; display: grid; gap: 3px; padding: 10px 12px; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+}
+.tc-item:hover { border-color: var(--border-strong); background: var(--gray-50); }
+.tc-item.active { border-color: var(--cv-blue); background: #eff6ff; box-shadow: 0 0 0 3px rgb(37 99 235 / .1); }
+.tc-item-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.tc-item-top strong { font-size: .85rem; color: var(--text-main); }
+.tc-item-meta { font-size: .75rem; color: var(--text-muted); }
+
+.tc-search { width: 100%; }
+.tc-candidatos { display: grid; gap: 10px; max-height: 300px; overflow-y: auto; padding: 2px; }
+.tc-grupo { display: grid; gap: 6px; }
+.tc-grupo-title { font-size: .7rem; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.tc-cand {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+}
+.tc-cand:hover { border-color: var(--border-strong); }
+.tc-cand.on { border-color: var(--cv-blue); background: #eff6ff; box-shadow: 0 0 0 3px rgb(37 99 235 / .1); }
+.tc-cand .in-avatar { width: 32px; height: 32px; font-size: .85rem; }
+
+.cv-hint.ok { color: var(--cv-green); }
+.tc-aviso { display: flex; gap: 6px; align-items: center; margin: 0; padding: 8px 12px; border-radius: var(--r-md); font-size: .8rem; color: var(--text-body); background: var(--gray-100); }
+
+.tc-texto { margin: 0; white-space: pre-wrap; line-height: 1.55; font-weight: 500; }
+.tc-texto.small { font-size: .8rem; color: var(--text-body); }
+
+.tc-fallo { display: grid; gap: 12px; }
+.tc-opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tc-opcion { display: grid; gap: 4px; padding: 12px 14px; text-align: left; border-radius: var(--r-md); border: 1.5px solid var(--border); background: var(--surface); }
+.tc-opcion strong { font-size: .9rem; color: var(--text-main); }
+.tc-opcion span { font-size: .78rem; color: var(--text-muted); line-height: 1.4; }
+.tc-opcion.infundada.on { border-color: var(--cv-green); background: var(--cv-green-soft); }
+.tc-opcion.fundada.on { border-color: var(--cv-red); background: var(--cv-red-soft); }
+
+.tc-resuelta { display: grid; gap: 6px; padding: 12px 14px; border-radius: var(--r-md); }
+.tc-resuelta strong { font-size: .84rem; }
+.tc-resuelta.fundada { background: var(--cv-red-soft); color: #9f1239; }
+.tc-resuelta.infundada { background: var(--cv-green-soft); color: #065f46; }
+
+.tc-mia { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--border); border-radius: var(--r-md); }
+
+.tc-btn-danger { color: #fff; background: var(--cv-red); }
+.tc-btn-danger:hover:not(:disabled) { background: #be123c; box-shadow: var(--shadow-md); }
+
+@media (max-width: 1100px) {
+  .tc-layout, .tc-layout.ceunp { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .tc-opciones { grid-template-columns: 1fr; }
+}

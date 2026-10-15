@@ -27,6 +27,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- 1. Vaciar votos, constancias, actas y firmas
 TRUNCATE TABLE voto;
 TRUNCATE TABLE constancia_voto;
+TRUNCATE TABLE credencial_qr;          -- CUS07 (credenciales QR)
 TRUNCATE TABLE firma_acta;
 TRUNCATE TABLE acta_electoral;
 

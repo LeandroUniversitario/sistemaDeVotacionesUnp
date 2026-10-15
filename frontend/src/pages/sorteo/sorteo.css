@@ -1,0 +1,54 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CUS06 · Realizar sorteos (PantallaSorteoMesa)
+   Reutiliza .cv-*, .pd-* e .in-* (convocatoria, padrón, inscripción).
+   ═══════════════════════════════════════════════════════════════════ */
+
+.so-tabs { justify-self: start; }
+.so-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.so-aviso { display: flex; gap: 6px; align-items: center; margin: 0; padding: 8px 12px; border-radius: var(--r-md); font-size: .8rem; background: var(--gray-100); }
+.so-aviso.bad { color: #9f1239; background: var(--cv-red-soft); }
+
+.so-mesas-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.so-chip { padding: 4px 10px; border-radius: 999px; font-size: .76rem; color: var(--text-body); background: var(--gray-100); border: 1px solid var(--border); }
+.so-chip.done { color: #065f46; background: var(--cv-green-soft); border-color: #a7f3d0; }
+.so-chip.bad { color: #9f1239; background: var(--cv-red-soft); border-color: #fecdd3; }
+.so-impedidos { margin-top: 8px; max-height: 280px; overflow-y: auto; }
+.so-motivo { color: var(--cv-red); font-size: .8rem; }
+
+.so-semilla { display: flex; gap: 8px; flex-wrap: wrap; }
+.so-semilla input { flex: 1 1 260px; width: auto; font-size: .82rem; }
+.mono, .so-semilla input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.so-algoritmo summary { cursor: pointer; font-size: .8rem; font-weight: 650; color: var(--cv-blue); }
+.so-algoritmo ol { margin: 8px 0 0; padding-left: 20px; font-size: .8rem; color: var(--text-body); line-height: 1.6; }
+.so-pend { margin-right: auto; }
+
+.so-preview { display: grid; gap: 10px; padding-top: 6px; border-top: 1px dashed var(--border-strong); }
+.so-preview-head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 0; font-size: .8rem; color: var(--text-muted); }
+.so-preview-head code, .cv-confirm code { padding: 1px 6px; border-radius: 4px; background: var(--gray-100); font-size: .76rem; }
+.so-seed { word-break: break-all; }
+
+.so-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.so-mesa { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.so-mesa.previa { border-style: dashed; background: var(--gray-50); }
+.so-mesa header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.so-mesa header strong { font-size: .92rem; }
+.so-mesa header span { font-size: .72rem; color: var(--text-muted); }
+.so-mesa ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.so-mesa li { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--gray-100); }
+.so-mesa li:last-child { border-bottom: 0; }
+.so-rol { font-size: .68rem; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
+.so-mesa li.titular .so-rol { color: var(--cv-blue); }
+.so-docente { font-size: .82rem; font-weight: 600; color: var(--text-main); }
+.so-docente small { display: block; font-size: .7rem; font-weight: 500; color: var(--text-muted); }
+.so-mesa footer { font-size: .7rem; color: var(--text-muted); font-family: ui-monospace, monospace; }
+
+.so-cedula { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; align-items: start; }
+.so-orden { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.so-orden li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--r-md); }
+.so-orden strong { font-size: .86rem; }
+.so-num { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-weight: 800; font-size: .85rem; color: #fff; background: var(--text-main); }
+
+@media (max-width: 900px) {
+  .so-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
