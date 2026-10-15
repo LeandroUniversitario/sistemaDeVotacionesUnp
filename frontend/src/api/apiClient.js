@@ -22,12 +22,26 @@ export async function apiRequest(path, options = {}) {
   if (!response.ok) {
     let message = 'No se pudo completar la operación.';
     try {
-      const data = await response.json();
-      message = data.detail || data.message || message;
+      const text = await response.text();
+      if (text && text.trim()) {
+        try {
+          const data = JSON.parse(text);
+          message = data.detail || data.message || message;
+        } catch {
+          message = text;
+        }
+      }
     } catch {
-      // La respuesta puede no tener cuerpo JSON.
+      // La respuesta puede no tener cuerpo legible.
     }
     throw new Error(message);
   }
-  return response.status === 204 ? null : response.json();
+  if (response.status === 204) return null;
+  const text = await response.text();
+  if (!text || !text.trim()) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }

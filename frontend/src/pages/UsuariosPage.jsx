@@ -29,11 +29,10 @@ export default function UsuariosPage({ teachers, onSessionExpired }) {
   const [showTeacherDrop, setShowTeacherDrop] = useState(false);
   const teacherDropRef = useRef(null);
 
-  // ── Editar rol / Restablecer contraseña ──────────────────────────────────
+  // ── Editar rol ───────────────────────────────────────────────────────────
   const [editUser, setEditUser] = useState(null);   // usuario en edición de rol
   const [newRol, setNewRol]     = useState('');
-  const [resetUser, setResetUser] = useState(null); // usuario para reset pwd
-  const [newPassword, setNewPassword] = useState('');
+  const [showModalPassword, setShowModalPassword] = useState(false);
 
   // ── Cargar usuarios ──────────────────────────────────────────────────────
   const loadUsers = useCallback(async () => {
@@ -143,26 +142,6 @@ export default function UsuariosPage({ teachers, onSessionExpired }) {
     }
   }
 
-  // ── Restablecer contraseña ───────────────────────────────────────────────
-  async function restablecerPassword() {
-    if (!resetUser || newPassword.length < 8) return;
-    setSaving(true);
-    try {
-      await apiRequest(`/api/auth/users/${resetUser.id}/password`, {
-        method: 'PATCH',
-        body: JSON.stringify({ password: newPassword }),
-      });
-      setResetUser(null);
-      setNewPassword('');
-      setFeedback({ type: 'success', text: 'Contraseña restablecida correctamente.' });
-    } catch (error) {
-      if (error.message === 'SESSION_EXPIRED') onSessionExpired();
-      else setFeedback({ type: 'error', text: error.message });
-    } finally {
-      setSaving(false);
-    }
-  }
-
   function rolBadge(rol) {
     const map = { ADMIN: 'badge-red', CEUNP: 'badge-blue', DOCENTE: 'badge-green',
                   PERSONERO: 'badge-orange', MIEMBRO_MESA: 'badge-purple' };
@@ -241,18 +220,13 @@ export default function UsuariosPage({ teachers, onSessionExpired }) {
                       className="icon-btn" title="Editar rol"
                       onClick={() => { setEditUser(user); setNewRol(user.rol); }}
                     ><MenuIcon name="edit" size={14} /></button>
-                    {/* Restablecer contraseña */}
-                    <button
-                      className="icon-btn" title="Restablecer contraseña"
-                      onClick={() => { setResetUser(user); setNewPassword(''); }}
-                    ><MenuIcon name="key" size={14} /></button>
-                    {/* Activar / Inactivar */}
+                    {/* Activar / Desactivar */}
                     <button
                       className={`icon-btn ${user.activo ? 'danger' : 'success'}`}
-                      title={user.activo ? 'Desactivar' : 'Activar'}
+                      title={user.activo ? 'Desactivar usuario' : 'Activar usuario'}
                       disabled={saving}
                       onClick={() => toggleUser(user)}
-                    >{user.activo ? <MenuIcon name="close" size={14} /> : <MenuIcon name="check" size={14} />}</button>
+                    >{user.activo ? <MenuIcon name="close" size={15} /> : <MenuIcon name="check" size={15} />}</button>
                   </td>
                 </tr>
               ))}
@@ -285,13 +259,28 @@ export default function UsuariosPage({ teachers, onSessionExpired }) {
               </div>
               <div className="form-group">
                 <label>Contraseña</label>
-                <input
-                  type="password" minLength={8} autoComplete="new-password"
-                  value={form.password}
-                  data-lpignore="true"
-                  onChange={e => setForm({ ...form, password: e.target.value })}
-                  required
-                />
+                <div className="input-with-icon">
+                  <MenuIcon name="lock" />
+                  <input
+                    type={showModalPassword ? 'text' : 'password'}
+                    minLength={8}
+                    autoComplete="new-password"
+                    value={form.password}
+                    data-lpignore="true"
+                    onChange={e => setForm({ ...form, password: e.target.value })}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="toggle-password-btn"
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => setShowModalPassword(s => !s)}
+                    title={showModalPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                    aria-label={showModalPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                  >
+                    <MenuIcon name={showModalPassword ? 'eye' : 'eye_off'} size={18} />
+                  </button>
+                </div>
               </div>
               <div className="form-group">
                 <label>Rol</label>
@@ -397,37 +386,6 @@ export default function UsuariosPage({ teachers, onSessionExpired }) {
         </div>
       )}
 
-      {/* ══ MODAL: Restablecer contraseña ══ */}
-      {resetUser && (
-        <div className="modal-overlay" onClick={() => setResetUser(null)}>
-          <div className="modal-card small" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Restablecer contraseña — {resetUser.username}</h2>
-              <button className="modal-close" onClick={() => setResetUser(null)}>✕</button>
-            </div>
-            <div className="modal-form">
-              <label>Nueva contraseña
-                <input
-                  type="password" minLength={8}
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  autoFocus
-                />
-              </label>
-              <div className="modal-actions">
-                <button className="btn-ghost" onClick={() => setResetUser(null)}>Cancelar</button>
-                <button
-                  className="btn-primary"
-                  onClick={restablecerPassword}
-                  disabled={saving || newPassword.length < 8}
-                >
-                  Restablecer
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

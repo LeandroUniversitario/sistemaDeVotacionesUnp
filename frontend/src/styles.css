@@ -563,6 +563,12 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--indigo);
   box-shadow: 0 0 0 3px rgb(99 102 241 / .12);
 }
+/* Los inputs dentro de .input-with-icon no tienen borde propio — el contenedor lo gestiona */
+.input-with-icon input:focus {
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
 
 .error       { color: var(--rose-text); font-weight: 600; font-size: .84rem; }
 .error-input { border-color: var(--rose) !important; background: var(--rose-soft); }
@@ -588,8 +594,47 @@ input:focus, select:focus, textarea:focus {
   transition: border-color var(--t-fast), box-shadow var(--t-fast);
 }
 .input-with-icon:focus-within { border-color: var(--indigo); box-shadow: 0 0 0 3px rgb(99 102 241 / .12); }
-.input-with-icon .menu-icon { width: 18px; height: 18px; color: var(--gray-400); }
-.input-with-icon input { padding: 10px 0; border: 0; box-shadow: none; background: transparent; }
+.input-with-icon .menu-icon { width: 18px; height: 18px; color: var(--gray-400); flex-shrink: 0; }
+.input-with-icon input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  outline: none;          /* el contenedor maneja el foco via :focus-within */
+}
+.input-with-icon input:focus {
+  outline: none;
+  box-shadow: none;
+  border: none;
+}
+
+.toggle-password-btn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-400, #94a3b8);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm, 6px);
+  transition: color var(--t-fast);
+  box-shadow: none;
+  flex-shrink: 0;
+  outline: none;        /* sin borde al hacer clic */
+}
+.toggle-password-btn:hover {
+  color: var(--gray-600, #475569);
+  background: transparent;
+  box-shadow: none;
+}
+.toggle-password-btn:focus { outline: none; }
+.toggle-password-btn:focus-visible { outline: none; }
 
 .candidaturas-layout { display: grid; gap: 16px; }
 .candidaturas-layout .panel-heading { margin-bottom: 12px; }
@@ -943,6 +988,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .auth-icon-circle .menu-icon { width: 28px; height: 28px; }
+.auth-icon-circle .auth-icon-logo { width: 34px; height: 34px; object-fit: contain; display: block; }
 
 .auth-system-code  { margin: 0; color: #0f172a; font-size: 1.6rem; font-weight: 800; letter-spacing: -.03em; }
 .auth-title        { margin: 5px 0 0; color: #334155; font-size: .875rem; font-weight: 500; }
@@ -957,13 +1003,15 @@ p  { line-height: 1.55; }
 .auth-card label              { color: #334155; }
 .auth-card input              { color: #0f172a; background: #f8fafc; border-color: #cbd5e1; }
 .auth-card input:focus        { border-color: #2563eb; box-shadow: 0 0 0 3px rgb(37 99 235 / .12); }
+/* Para inputs dentro de .input-with-icon en auth-card, anular el foco individual */
+.auth-card .input-with-icon input:focus { border: 0; box-shadow: none; outline: none; }
 .auth-card .input-with-icon   { background: #f8fafc; border-color: #cbd5e1; }
 .auth-card .input-with-icon:focus-within { border-color: #2563eb; box-shadow: 0 0 0 3px rgb(37 99 235 / .12); }
 .auth-card .input-with-icon .menu-icon { color: #94a3b8; }
 
 .login-form { margin-top: 28px; text-align: left; }
 
-.login-form button,
+.login-form button[type='submit'],
 .form-actions button[type='submit'] {
   display: flex;
   align-items: center;
@@ -980,13 +1028,94 @@ p  { line-height: 1.55; }
   transition: background var(--t-fast), box-shadow var(--t-fast), transform var(--t-fast);
 }
 
-.login-form button:hover {
+.login-form button[type='submit']:hover {
   background: #163060;
   transform: translateY(-1px);
   box-shadow: 0 8px 20px rgb(30 58 110 / .35);
 }
 
-.login-form button .menu-icon { width: 17px; height: 17px; }
+.login-form button[type='submit'] .menu-icon { width: 17px; height: 17px; }
+
+/* El botón del ojo nunca debe heredar el estilo del submit */
+.login-form .toggle-password-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: #94a3b8;
+  flex-shrink: 0;
+  transform: none;
+}
+.login-form .toggle-password-btn:hover {
+  color: #475569;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Contenedor de cada campo en el login (reemplaza el label-wrapper) */
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  text-align: left;
+}
+.login-field label {
+  font-size: .84rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+/* Contenedor de campos en el formulario de contraseña (CuentaPage) */
+.password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 420px;
+}
+.password-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: .84rem;
+  font-weight: 600;
+  color: var(--text-body);
+}
+.password-form > button[type='submit'] {
+  margin-top: 10px;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 20px;
+  font-size: .875rem;
+  font-weight: 700;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: var(--r-md);
+  box-shadow: none;
+  cursor: pointer;
+  transition: background var(--t-fast), box-shadow var(--t-fast), transform var(--t-fast);
+}
+.password-form > button[type='submit']:hover {
+  background: #1d4ed8;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.password-form > button[type='submit']:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+.password-form > button[type='submit']:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    RESPONSIVE

@@ -10,6 +10,7 @@ import MenuIcon from '../components/MenuIcon';
 export default function LoginPage({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -51,36 +52,54 @@ export default function LoginPage({ onLogin }) {
     <main className="auth-shell">
       <section className="auth-card">
         <div className="auth-icon-circle">
-          <MenuIcon name="account_balance" />
+          <img
+            src="/escudo-unp.png"
+            alt="Escudo Universidad Nacional de Piura"
+            className="auth-icon-logo"
+          />
         </div>
         <h1 className="auth-system-code">SICEUNP</h1>
         <p className="auth-title">Sistema de Control de Elecciones Docentes</p>
         <p className="auth-university">Universidad Nacional de Piura</p>
         <form className="login-form" onSubmit={handleSubmit}>
-          <label>Usuario
+          <div className="login-field">
+            <label htmlFor="login-username">Usuario</label>
             <span className="input-with-icon">
               <MenuIcon name="person" />
               <input
+                id="login-username"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 autoComplete="username"
                 required
               />
             </span>
-          </label>
-          <label>Contraseña
+          </div>
+          <div className="login-field">
+            <label htmlFor="login-password">Contraseña</label>
             <span className="input-with-icon">
               <MenuIcon name="lock" />
               <input
-                type="password"
+                id="login-password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="current-password"
                 required
                 className={error && error.includes('Credenciales') ? 'error-input' : ''}
               />
+              <button
+                type="button"
+                className="toggle-password-btn"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => setShowPassword(s => !s)}
+                title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+              >
+                <MenuIcon name={showPassword ? 'eye' : 'eye_off'} size={18} />
+              </button>
             </span>
-          </label>
+          </div>
           {error && <p className="error" role="alert">{error}</p>}
           <button type="submit" disabled={loading}>
             <MenuIcon name="login" />
