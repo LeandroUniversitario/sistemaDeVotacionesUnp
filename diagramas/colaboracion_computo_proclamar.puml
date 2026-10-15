@@ -1,0 +1,101 @@
+@startuml
+' ============================================================================
+' Diagrama de Colaboracion - CUS14 Computar y proclamar (RF89 - RF99)
+' Sistema de Elecciones Docentes UNP
+'
+' Requerimiento: el sistema debe consolidar las actas entregadas, validar el
+' quorum de participacion (>60%), realizar el computo oficial, determinar al
+' ganador o convocar segunda vuelta, proclamar y publicar los resultados.
+'
+' Estilo: controlador unico. Actor -> Boundary -> Control -> Entities.
+' Cada mensaje corresponde a una operacion de la clase que lo RECIBE:
+'
+'  Boundary  ComputoResultadosView : solicitarComputo, proclamarResultados,
+'                                    mostrarResultados
+'  Control   ComputoController     : iniciarComputo, proclamar
+'  Entity    MesaElectoral         : verificarActasEntregadas
+'  Entity    ActaElectoral         : validarIntegridad, emitirActaGeneral
+'  Entity    Voto                  : consolidarVotos
+'  Entity    PadronElectoral       : calcularParticipacion
+'  Entity    ProcesoElectoral      : validarQuorum, anularProceso,
+'                                    convocarSegundaVuelta
+'  Entity    ResultadoElectoral    : registrarComputo, publicarEnPortal
+'  Entity    CargoElectoral        : determinarGanador
+'  Entity    ListaElectoral        : acreditarGanadora
+'
+' Trazabilidad:
+'  RF89  3  verificarActasEntregadas   (3 actas por mesa instalada)
+'  RF90  4  validarIntegridad          (hash SHA-256 del acta)
+'  RF92  5  consolidarVotos / 12 emitirActaGeneral
+'  RF93  6  calcularParticipacion / 7 validarQuorum (> 60 %) / 8 anularProceso
+'  RF96  10 determinarGanador / 11 convocarSegundaVuelta (2 listas mas votadas)
+'  RF97  10 determinarGanador (en 2da vuelta gana 50 % + 1 de validos)
+'  RF98  14 proclamarResultados / 16 acreditarGanadora
+'  RF99  17 publicarEnPortal
+' ============================================================================
+
+skinparam style strictuml
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam ArrowColor #990033
+skinparam ArrowFontColor #000000
+skinparam ArrowFontSize 11
+skinparam actor {
+    BackgroundColor #FFFFCC
+    BorderColor #990033
+}
+skinparam boundary {
+    BackgroundColor #FFFFCC
+    BorderColor #990033
+}
+skinparam control {
+    BackgroundColor #FFFFCC
+    BorderColor #990033
+}
+skinparam entity {
+    BackgroundColor #FFFFCC
+    BorderColor #990033
+}
+
+' --- Objetos ---------------------------------------------------------------
+actor    ": Presidente CEUNP"       as ceunp
+boundary ": ComputoResultadosView"  as interfaz
+control  ": ComputoController"      as control
+
+entity ": MesaElectoral"      as eMesa
+entity ": ActaElectoral"      as eActa
+entity ": Voto"               as eVoto
+entity ": PadronElectoral"    as ePadron
+entity ": ProcesoElectoral"   as eProceso
+entity ": ResultadoElectoral" as eResultado
+entity ": CargoElectoral"     as eCargo
+entity ": ListaElectoral"     as eLista
+
+' --- Enlaces con sus mensajes ----------------------------------------------
+' Un solo enlace por par de objetos; la flecha junto al mensaje indica el
+' sentido (como en Rational Rose). La numeracion sigue el flujo del CUN11.
+
+' Actor <-> Interfaz
+ceunp -right- interfaz : "1: solicitarComputo(idProceso) ▶\n14: proclamarResultados() ▶"
+
+' Interfaz <-> Control
+interfaz -right- control : "2: iniciarComputo(idProceso) ▶\n13: mostrarResultados(resultados) ◀\n15: proclamar(idProceso) ▶"
+
+' Verificacion de actas (RF89, RF90, RF92)
+control -up- eMesa : "3: verificarActasEntregadas(idProceso) ▲"
+control -up- eActa : "4: validarIntegridad(hash) ▲\n12: emitirActaGeneral(totales) ▲"
+
+' Consolidacion y participacion (RF92, RF93)
+control -right- eVoto   : "5: consolidarVotos(idCargo) ▶"
+control -right- ePadron : "6: calcularParticipacion(idCargo) ▶"
+
+' Quorum, nulidad y segunda vuelta (RF93, RF96)
+control -down- eProceso : "7: validarQuorum(participacion) ▼\n8: [participacion <= 60%] anularProceso(motivo) ▼\n11: [sin minimo legal] convocarSegundaVuelta(lista1, lista2) ▼"
+
+' Computo oficial, ganador y publicacion (RF96 - RF99)
+control -down- eResultado : "9: registrarComputo(idCargo, votos) ▼\n17: publicarEnPortal(idProceso) ▼"
+control -down- eCargo     : "10: determinarGanador(resultados) ▼"
+control -down- eLista     : "16: acreditarGanadora(idLista) ▼"
+
+@enduml

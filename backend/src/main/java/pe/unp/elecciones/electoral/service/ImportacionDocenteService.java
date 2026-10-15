@@ -14,6 +14,17 @@ import java.text.Normalizer;
 import java.util.*;
 import java.util.regex.Pattern;
 
+/**
+ * Servicio de importación masiva de docentes.
+ *
+ * Según el diagrama de colaboraciones, ImportarDocentes solo ejecuta:
+ *   2: leerDatos()           → lee el archivo Excel/CSV
+ *   3: registrarMasivo(datos) → inserta/actualiza docentes
+ *
+ * Las facultades y departamentos NO se crean durante la importación;
+ * deben existir previamente en la base de datos. Si una fila del archivo
+ * referencia una facultad o departamento inexistente, se reporta como error.
+ */
 @Service
 public class ImportacionDocenteService {
 
@@ -29,23 +40,28 @@ public class ImportacionDocenteService {
         this.departamentoRepository = departamentoRepository;
     }
 
+    /* ── leerDatos() ─────────────────────────────────────────────── */
+
     @Transactional
     public Map<String, Object> importarExcel(MultipartFile file) throws Exception {
         List<Map<String, Object>> filas = leerExcel(file);
-        return procesarFilas(filas);
+        return registrarMasivo(filas);
     }
 
     @Transactional
     public Map<String, Object> importarCsv(MultipartFile file) throws Exception {
         List<Map<String, Object>> filas = leerCsv(file);
-        return procesarFilas(filas);
+        return registrarMasivo(filas);
     }
 
+    /* ── registrarMasivo(datos) ──────────────────────────────────── */
+
     @Transactional
-    private Map<String, Object> procesarFilas(List<Map<String, Object>> filas) {
+    private Map<String, Object> registrarMasivo(List<Map<String, Object>> filas) {
         int insertados = 0, actualizados = 0;
         List<String> errores = new ArrayList<>();
 
+        // Cargar catálogos existentes (solo lectura, nunca se modifican)
         List<Facultad> todasFacultades = facultadRepository.findAll();
         List<Departamento> todosDepartamentos = departamentoRepository.findAll();
 
@@ -75,12 +91,23 @@ public class ImportacionDocenteService {
                 CategoriaDocente categoria = parsarCategoria(categoriaStr);
                 DocenteEstado estado = parsarEstado(estadoStr);
 
-                // Resolver Facultad
-                Facultad facultadObj = buscarOCrearFacultad(facultadNombre, todasFacultades);
+                // Buscar Facultad existente (NUNCA crear una nueva)
+                Facultad facultadObj = buscarFacultad(facultadNombre, todasFacultades);
+                if (facultadObj == null) {
+                    errores.add("Fila " + (i + 2) + ": La facultad '" + facultadNombre
+                            + "' no existe en el sistema. Registre la facultad antes de importar.");
+                    continue;
+                }
                 Integer idFacultad = facultadObj.getId();
 
-                // Resolver Departamento
-                Departamento dptoObj = buscarOCrearDepartamento(departamentoNombre, facultadObj, todosDepartamentos);
+                // Buscar Departamento existente (NUNCA crear uno nuevo)
+                Departamento dptoObj = buscarDepartamento(departamentoNombre, facultadObj, todosDepartamentos);
+                if (dptoObj == null) {
+                    errores.add("Fila " + (i + 2) + ": El departamento '" + departamentoNombre
+                            + "' no existe en la facultad '" + facultadNombre
+                            + "'. Registre el departamento antes de importar.");
+                    continue;
+                }
                 Integer idDepartamento = dptoObj.getId();
 
                 // Búsqueda inteligente de docente existente por DNI (buscando "03681071" Y "3681071")
@@ -88,7 +115,6 @@ public class ImportacionDocenteService {
 
                 if (existing.isPresent()) {
                     Docente d = existing.get();
-                    // Actualizar con DNI normalizado a 8 dígitos por si antes estaba guardado sin cero
                     d.setNombres(nombres);
                     d.setApellidos(apellidos);
                     d.setCategoria(categoria);
@@ -135,8 +161,12 @@ public class ImportacionDocenteService {
         return Optional.empty();
     }
 
-
-    private Facultad buscarOCrearFacultad(String nombreOriginal, List<Facultad> facultades) {
+    /**
+     * Busca una facultad existente por nombre (comparación flexible sin tildes).
+     * Retorna null si no se encuentra — NUNCA crea una nueva.
+     */
+    private Facultad buscarFacultad(String nombreOriginal, List<Facultad> facultades) {
+        if (nombreOriginal == null || nombreOriginal.isBlank()) return null;
         String normBusqueda = normalizar(nombreOriginal);
         for (Facultad f : facultades) {
             if (normalizar(f.getNombre()).equals(normBusqueda) ||
@@ -145,12 +175,15 @@ public class ImportacionDocenteService {
                 return f;
             }
         }
-        Facultad nueva = facultadRepository.save(new Facultad(nombreOriginal));
-        facultades.add(nueva);
-        return nueva;
+        return null;
     }
 
-    private Departamento buscarOCrearDepartamento(String nombreOriginal, Facultad facultad, List<Departamento> departamentos) {
+    /**
+     * Busca un departamento existente por nombre dentro de una facultad (comparación flexible sin tildes).
+     * Retorna null si no se encuentra — NUNCA crea uno nuevo.
+     */
+    private Departamento buscarDepartamento(String nombreOriginal, Facultad facultad, List<Departamento> departamentos) {
+        if (nombreOriginal == null || nombreOriginal.isBlank()) return null;
         String normBusqueda = normalizar(nombreOriginal);
         for (Departamento d : departamentos) {
             if (d.getFacultad().getId().equals(facultad.getId())) {
@@ -161,9 +194,7 @@ public class ImportacionDocenteService {
                 }
             }
         }
-        Departamento nuevo = departamentoRepository.save(new Departamento(facultad, nombreOriginal));
-        departamentos.add(nuevo);
-        return nuevo;
+        return null;
     }
 
     private String normalizar(String input) {
@@ -172,6 +203,8 @@ public class ImportacionDocenteService {
         Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
         return pattern.matcher(temp).replaceAll("").toLowerCase().trim();
     }
+
+    /* ── Lectores de archivos ────────────────────────────────────── */
 
     private List<Map<String, Object>> leerExcel(MultipartFile file) throws Exception {
         List<Map<String, Object>> rows = new ArrayList<>();
@@ -217,6 +250,8 @@ public class ImportacionDocenteService {
         return rows;
     }
 
+    /* ── Utilitarios ─────────────────────────────────────────────── */
+
     private String cellValue(Cell cell) {
         if (cell == null) return "";
         return switch (cell.getCellType()) {
@@ -253,3 +288,4 @@ public class ImportacionDocenteService {
         };
     }
 }
+

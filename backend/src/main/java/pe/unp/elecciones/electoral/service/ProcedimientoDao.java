@@ -104,6 +104,11 @@ public class ProcedimientoDao {
         return jdbc.query(sql, extractor, argumentos);
     }
 
+    /** INSERT / UPDATE / DELETE sencillo. Devuelve el número de filas afectadas. */
+    public int ejecutar(String sql, Object... argumentos) {
+        return jdbc.update(sql, argumentos);
+    }
+
     /** SELECT COUNT(*) u otro entero. Devuelve 0 si el resultado es NULL. */
     public int entero(String sql, Object... argumentos) {
         Integer valor = jdbc.queryForObject(sql, Integer.class, argumentos);

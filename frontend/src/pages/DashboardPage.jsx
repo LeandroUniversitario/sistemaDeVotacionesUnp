@@ -14,16 +14,8 @@ import ImportarDocentesPage from './ImportarDocentesPage';
 import ParametrosPage from './ParametrosPage';
 import BitacoraPage from './BitacoraPage';
 import CargosExcluidosPage from './CargosExcluidosPage';
-import CrearProcesoPage from './CrearProcesoPage';
-
-const EMPTY_PROCESS = {
-  nombre: '',
-  fechaConvocatoria: '',
-  fechaInicio: '',
-  fechaFin: '',
-  tipo: 'PRIMERA_VUELTA',
-  quorumMinimo: '60',
-};
+import ConvocatoriaPage from './convocatoria/ConvocatoriaPage';
+import PadronPage from './padron/PadronPage';
 
 // ─── Mapas de iconos por sección ─────────────────────────────────────────
 const MENU_ICONS = {
@@ -47,9 +39,9 @@ const MENU_POR_ROL = {
   CEUNP: [
     { group: 'WORKSPACE' },
     { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6' },
-    { key: 'procesos', label: 'Procesos electorales', icon: 'calendar', color: '#10b981' },
-    { key: 'docentes', label: 'Padrón y docentes', icon: 'users', color: '#8b5cf6' },
-    { key: 'nuevo', label: 'Crear proceso', icon: 'plus', color: '#f59e0b' },
+    { key: 'convocatoria', label: 'Convocatoria y cronograma', icon: 'calendar', color: '#10b981' },
+    { key: 'padron', label: 'Padrón electoral', icon: 'list', color: '#0ea5e9' },
+    { key: 'docentes', label: 'Docentes', icon: 'users', color: '#8b5cf6' },
     { group: 'OPERACIONES' },
     { key: 'candidaturas', label: 'Candidaturas', icon: 'ballot', color: '#06b6d4' },
     { key: 'tachas', label: 'Tachas', icon: 'scale', color: '#f97316' },
@@ -83,8 +75,9 @@ const MENU_POR_ROL = {
 
 const SECTION_TITLES = {
   resumen: 'Resumen general',
-  procesos: 'Procesos electorales',
-  docentes: 'Padrón y docentes',
+  convocatoria: 'Convocatoria y cronograma',
+  padron: 'Padrón electoral',
+  docentes: 'Docentes',
   candidaturas: 'Candidaturas',
   tachas: 'Tachas electorales',
   personeros: 'Personeros y Acreditaciones',
@@ -93,7 +86,6 @@ const SECTION_TITLES = {
   impugnaciones: 'Resolución de Impugnaciones y Nulidades',
   usuarios: 'Usuarios del sistema',
   cuenta: 'Configuración de mi cuenta',
-  nuevo: 'Crear proceso electoral',
   mesa: 'Mi Mesa de Sufragio',
   terminal: 'Terminal de Votación',
   sorteos: 'Sorteo de Miembros',
@@ -124,9 +116,7 @@ export default function DashboardPage({ session, onLogout }) {
   const [processes, setProcesses] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [selectedProcess, setSelectedProcess] = useState(null);
-  const [processForm, setProcessForm] = useState(EMPTY_PROCESS);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
   // Estado de métricas reales para el resumen del Admin
@@ -182,37 +172,6 @@ export default function DashboardPage({ session, onLogout }) {
   }
 
   useEffect(() => { loadAdminStats(); }, []);
-
-  async function createProcess(event) {
-    event.preventDefault();
-    setFeedback(null);
-    setSaving(true);
-    try {
-      await apiRequest('/api/procesos', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...processForm,
-          fechaConvocatoria: processForm.fechaConvocatoria || null,
-          fechaInicio: `${processForm.fechaInicio}:00`,
-          fechaFin: `${processForm.fechaFin}:00`,
-          quorumMinimo: Number(processForm.quorumMinimo),
-        }),
-      });
-      setProcessForm(EMPTY_PROCESS);
-      setFeedback({ type: 'success', text: 'Proceso electoral creado correctamente.' });
-      await loadData();
-      setSection('procesos');
-    } catch (error) {
-      if (error.message === 'SESSION_EXPIRED') onLogout();
-      else setFeedback({ type: 'error', text: error.message });
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function updateProcessField(field, value) {
-    setProcessForm((current) => ({ ...current, [field]: value }));
-  }
 
   return (
     <div className="app-shell">
@@ -297,7 +256,7 @@ export default function DashboardPage({ session, onLogout }) {
       {/* ── Contenido principal ───────────────────────────────────── */}
       <main className="content">
         <header className="topbar">
-          <h1>{SECTION_TITLES[section] ?? 'Nuevo proceso electoral'}</h1>
+          <h1>{SECTION_TITLES[section] ?? 'SICEUNP'}</h1>
         </header>
 
         {feedback && <div className={`alert ${feedback.type}`}>{feedback.text}</div>}
@@ -411,25 +370,21 @@ export default function DashboardPage({ session, onLogout }) {
                   <h2>Actividad electoral</h2>
                   <p className="muted">Estado actual de los procesos registrados.</p>
                 </div>
-                <button className="text-button" onClick={() => setSection('procesos')}>Ver todos</button>
+                <button className="text-button" onClick={() => setSection('convocatoria')}>Ver convocatorias</button>
               </div>
               <ProcessTable processes={processes.slice(0, 5)} loading={loading} />
             </section>
           </>
         )}
 
-        {/* Procesos (solo CEUNP) */}
-        {section === 'procesos' && canManage && (
-          <section className="panel">
-            <div className="panel-heading">
-              <div>
-                <h2>Procesos electorales</h2>
-                <p className="muted">Consulta los procesos y sus fechas principales.</p>
-              </div>
-              <button className="primary-small" onClick={() => setSection('nuevo')}>+ Nuevo proceso</button>
-            </div>
-            <ProcessTable processes={processes} loading={loading} />
-          </section>
+        {/* CUS01 · Gestionar convocatoria y cronograma (CEUNP) */}
+        {section === 'convocatoria' && canManage && (
+          <ConvocatoriaPage onChange={loadData} onSessionExpired={onLogout} />
+        )}
+
+        {/* CUS02 · Gestionar padrón electoral (CEUNP) */}
+        {section === 'padron' && canManage && (
+          <PadronPage onChange={loadData} onSessionExpired={onLogout} />
         )}
 
         {/* Docentes — CRUD completo (solo CEUNP) */}
@@ -440,6 +395,7 @@ export default function DashboardPage({ session, onLogout }) {
             onRefresh={loadData}
             canManage={canManage}
             onImport={() => setSection('importar-docentes')}
+            onGestionarPadron={() => setSection('padron')}
             onSessionExpired={onLogout}
           />
         )}
@@ -573,14 +529,6 @@ export default function DashboardPage({ session, onLogout }) {
           <section className="panel"><div className="panel-heading"><h2>Pase de Votación QR (RF62)</h2></div><p style={{ padding: '1rem' }}>Muestre este código al Secretario para habilitar su cabina secreta. Válido para un solo uso.</p><div style={{ textAlign: 'center', padding: '2rem' }}><img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=VOTO-${session.username}`} alt="QR Pase" /></div></section>
         )}
 
-        {/* Nuevo proceso — flujo multi-paso */}
-        {section === 'nuevo' && canManage && (
-          <CrearProcesoPage
-            onSuccess={() => { loadData(); setSection('procesos'); }}
-            onCancel={() => setSection('resumen')}
-            onSessionExpired={onLogout}
-          />
-        )}
       </main>
     </div>
   );

@@ -22,7 +22,7 @@ const EDIT_INIT = {
  * Página CRUD completa del Padrón de Docentes.
  * Registro manual, edición y eliminación con validaciones.
  */
-export default function DocentesPage({ teachers, loading, onRefresh, canManage, onImport, onSessionExpired }) {
+export default function DocentesPage({ teachers, loading, onRefresh, canManage, onImport, onGestionarPadron, onSessionExpired }) {
   const [search, setSearch]             = useState('');
   const [catFilter, setCatFilter]       = useState('TODAS');
   const [estFilter, setEstFilter]       = useState('TODOS');
@@ -155,33 +155,6 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
     }
   }
 
-  // ── Padrón Definitivo (RF12 / Art. 18 & 27b) ─────────────────────────────
-  const [padronAprobado, setPadronAprobado] = useState(() => localStorage.getItem('siceunp_padron_aprobado') === 'true');
-  const [showApproveModal, setShowApproveModal] = useState(false);
-
-  // Desglose de habilitados vs excluidos por Art. 27b
-  const habilitados = useMemo(() => teachers.filter(t => t.estado === 'ACTIVO'), [teachers]);
-  const excluidos   = useMemo(() => teachers.filter(t => t.estado !== 'ACTIVO'), [teachers]);
-
-  function handleConfirmarAprobacion() {
-    setPadronAprobado(true);
-    localStorage.setItem('siceunp_padron_aprobado', 'true');
-    setShowApproveModal(false);
-    setFeedback({
-      type: 'success',
-      text: 'Padrón Definitivo Aprobado y Publicado Oficialmente. Las modificaciones y altas de docentes han sido congeladas (RF12 / Art. 18).',
-    });
-  }
-
-  function handleReabrirPadron() {
-    setPadronAprobado(false);
-    localStorage.removeItem('siceunp_padron_aprobado');
-    setFeedback({
-      type: 'success',
-      text: 'Padrón reabierto para ajustes por el CEUNP.',
-    });
-  }
-
   const badgeEst = { ACTIVO: 'activo', LICENCIA: 'creado', SUSPENDIDO: 'cerrado', INACTIVO: 'anulado' };
 
   return (
@@ -192,45 +165,6 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
         </div>
       )}
 
-      {/* ── Banner Padrón Aprobado RF12 ── */}
-      {padronAprobado && (
-        <div style={{
-          background: 'linear-gradient(135deg, #065f46 0%, #047857 100%)',
-          color: '#ffffff',
-          padding: '12px 20px',
-          borderRadius: '10px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '15px',
-          boxShadow: '0 4px 12px rgba(4, 120, 87, 0.25)',
-        }}>
-          <div>
-            <strong><MenuIcon name="lock" size={14} style={{marginRight:6, verticalAlign:'middle'}} /> Padrón Definitivo Aprobado y Congelado (RF12)</strong>
-            <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.9 }}>
-              {habilitados.length} Docentes Habilitados con derecho a voto · {excluidos.length} Excluidos por Art. 27b (Licencias / Inactivos)
-            </p>
-          </div>
-          {canManage && (
-            <button
-              onClick={handleReabrirPadron}
-              style={{
-                background: 'rgba(255,255,255,0.2)',
-                border: '1px solid rgba(255,255,255,0.4)',
-                color: '#fff',
-                padding: '6px 14px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: 600,
-                fontSize: '0.8rem',
-              }}
-            >
-            <MenuIcon name="lock" size={13} style={{marginRight:5, verticalAlign:'middle'}} /> Reabrir Padrón
-            </button>
-          )}
-        </div>
-      )}
-
       {/* ── Cabecera con acciones ── */}
       <div className="page-header">
         <p className="page-subtitle">
@@ -238,41 +172,19 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
         </p>
         {canManage && (
           <div style={{ display: 'flex', gap: '10px' }}>
-            {!padronAprobado ? (
-              <>
-                <button className="btn-ghost" onClick={onImport}>
-                  ⬆ Importar Excel/CSV
-                </button>
-                <button className="btn-primary" onClick={() => { setShowCreate(true); setFeedback(null); }}>
-                  ＋ Nuevo docente
-                </button>
-                <button
-                  style={{
-                    background: '#10b981',
-                    color: '#fff',
-                    border: 'none',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                  onClick={() => setShowApproveModal(true)}
-                >
-                  ✔ Aprobar Padrón Definitivo
-                </button>
-              </>
-            ) : (
-              <span style={{
-                background: '#ecfdf5',
-                color: '#047857',
-                border: '1px solid #a7f3d0',
-                padding: '6px 14px',
-                borderRadius: '8px',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-              }}>
-                ✓ Padrón Definitivo Vigente
-              </span>
+            <button className="btn-ghost" onClick={onImport}>
+              ⬆ Importar Excel/CSV
+            </button>
+            <button className="btn-primary" onClick={() => { setShowCreate(true); setFeedback(null); }}>
+              ＋ Nuevo docente
+            </button>
+            {onGestionarPadron && (
+              <button
+                style={{ background: '#10b981', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
+                onClick={onGestionarPadron}
+              >
+                Gestionar padrón electoral →
+              </button>
             )}
           </div>
         )}
@@ -335,17 +247,6 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
                     <td><span className="badge">{t.dedicacion}</span></td>
                     <td>
                       <span className={`badge ${badgeEst[t.estado] || ''}`}>{t.estado}</span>
-                      {padronAprobado && (
-                        t.estado === 'ACTIVO' ? (
-                          <span style={{ background: '#dcfce7', color: '#15803d', fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: 4, marginLeft: 6 }}>
-                            ✓ HABILITADO
-                          </span>
-                        ) : (
-                          <span style={{ background: '#fee2e2', color: '#b91c1c', fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: 4, marginLeft: 6 }}>
-                            ⚠ EXCLUIDO (Art. 27b)
-                          </span>
-                        )
-                      )}
                     </td>
                     <td onClick={e => e.stopPropagation()}>
                       <div className="action-cell">
@@ -354,7 +255,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
                           title="Ver detalles"
                           onClick={() => setViewDocente(t)}
                         ><MenuIcon name="eye" size={14} /></button>
-                        {canManage && !padronAprobado && (
+                        {canManage && (
                           <>
                             <button
                               className="icon-btn"
@@ -367,11 +268,6 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
                               onClick={() => setDeleteDocente(t)}
                             ><MenuIcon name="trash" size={14} /></button>
                           </>
-                        )}
-                        {canManage && padronAprobado && (
-                          <span title="Bloqueado por Padrón Definitivo (RF12)" style={{ opacity: 0.6, fontSize: '0.8rem', fontStyle: 'italic', color: '#64748b' }}>
-                            <MenuIcon name="lock" size={12} style={{marginRight:4}} /> Edición bloqueada (RF12)
-                          </span>
                         )}
                       </div>
                     </td>
@@ -595,7 +491,7 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
               </div>
 
               <div className="modal-actions" style={{ marginTop: 20 }}>
-                {canManage && !padronAprobado && (
+                {canManage && (
                   <button className="btn-ghost" onClick={() => { setViewDocente(null); openEdit(viewDocente); }}>
                     <MenuIcon name="edit" size={14} style={{marginRight:5}} /> Editar
                   </button>
@@ -607,74 +503,6 @@ export default function DocentesPage({ teachers, loading, onRefresh, canManage, 
         </div>
       )}
 
-      {/* ═══════════ MODAL APROBAR PADRÓN DEFINITIVO (RF12 / Art. 18 & 27b) ═══════════ */}
-      {showApproveModal && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowApproveModal(false)}>
-          <div className="modal-card" style={{ maxWidth: 560 }}>
-            <div className="modal-header">
-              <h2>Aprobar Padrón Definitivo (Art. 18 / RF12)</h2>
-              <button className="modal-close" onClick={() => setShowApproveModal(false)}>✕</button>
-            </div>
-            <div className="modal-form">
-              <p style={{ color: '#475569', fontSize: '0.92rem', marginBottom: 16 }}>
-                Se procederá a la publicación formal del padrón electoral definitivo para el proceso activo. Por normativa, este acto realiza la depuración de la lista de votantes:
-              </p>
-
-              {/* Resumen Habilitados vs Excluidos */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 14 }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>
-                    ✓ Habilitados (Art. 12d)
-                  </div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#15803d', marginTop: 4 }}>
-                    {habilitados.length}
-                  </div>
-                  <span style={{ fontSize: '0.78rem', color: '#166534' }}>Docentes Activos con derecho a voto</span>
-                </div>
-
-                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: 14 }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#991b1b', textTransform: 'uppercase' }}>
-                    Excluidos (Art. 27b)
-                  </div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#b91c1c', marginTop: 4 }}>
-                    {excluidos.length}
-                  </div>
-                  <span style={{ fontSize: '0.78rem', color: '#991b1b' }}>Docentes con Licencia / Inactivos</span>
-                </div>
-              </div>
-
-              {/* Advertencia RF12 */}
-              <div style={{ background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: 10, padding: 12, fontSize: '0.85rem', color: '#92400e', marginBottom: 20 }}>
-                <strong><MenuIcon name="alert" size={14} style={{marginRight:5, verticalAlign:'middle'}} /> Regla RF12 (Congelamiento de Padrón):</strong>
-                <p style={{ margin: '4px 0 0', lineHeight: 1.4 }}>
-                  Una vez confirmado, el padrón definitivo quedará oficialmente cerrado. <strong>No se permitirán más ediciones, altas ni bajas de docentes</strong> para garantizar la seguridad y transparencia del sufragio.
-                </p>
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="btn-ghost" onClick={() => setShowApproveModal(false)}>
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    background: '#10b981',
-                    color: '#fff',
-                    border: 'none',
-                    padding: '10px 20px',
-                    borderRadius: '8px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                  onClick={handleConfirmarAprobacion}
-                >
-                  <MenuIcon name="lock" size={14} style={{marginRight:6, verticalAlign:'middle'}} /> Confirmar y Aprobar Padrón
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

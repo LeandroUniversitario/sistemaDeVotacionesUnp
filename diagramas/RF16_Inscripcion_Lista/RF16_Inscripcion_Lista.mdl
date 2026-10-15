@@ -1,0 +1,3256 @@
+
+(object Petal
+    version    	50
+    _written   	"Rose 8.3.0407.2800"
+    charSet    	0)
+
+(object Design "Logical View"
+    is_unit    	TRUE
+    is_loaded  	TRUE
+    quid       	"67032736CCE1"
+    enforceClosureAutoLoad 	FALSE
+    defaults   	(object defaults
+	rightMargin 	0.250000
+	leftMargin 	0.250000
+	topMargin  	0.250000
+	bottomMargin 	0.500000
+	pageOverlap 	0.250000
+	clipIconLabels 	TRUE
+	autoResize 	TRUE
+	snapToGrid 	TRUE
+	gridX      	16
+	gridY      	16
+	defaultFont 	(object Font
+		size       	10
+		face       	"Arial"
+		bold       	FALSE
+		italics    	FALSE
+		underline  	FALSE
+		strike     	FALSE
+		color      	0
+		default_color 	TRUE)
+	showMessageNum 	1
+	showClassOfObject 	TRUE
+	notation   	"Unified")
+    root_usecase_package 	(object Class_Category "Use Case View"
+	quid       	"6703E655AB21"
+	exportControl 	"Public"
+	global     	TRUE
+	logical_models 	(list unit_reference_list
+	(object Class "Personero Legal"
+	    quid       	"67035C8CC1AB"
+	    documentation 	"Representante de la lista ante el CEUNP; presenta la solicitud de inscripcion."
+	    stereotype 	"Actor")
+	(object UseCase "Registrar solicitud de inscripcion de lista (RF16)"
+	    quid       	"6703781EF86F"
+	    documentation 	"CUN03 / RF16: registrar la solicitud de una lista con un candidato a Rector y dos a Vicerrectores.")
+	(object Association "$UNNAMED$32"
+	    quid       	"67033D59619A"
+	    roles      	(list role_list
+		(object Role "$UNNAMED$33"
+		    quid       	"67032D9B06DF"
+		    supplier   	"Use Case View::Registrar solicitud de inscripcion de lista (RF16)"
+		    quidu      	"6703781EF86F"
+		    is_navigable 	TRUE)
+		(object Role "$UNNAMED$34"
+		    quid       	"670395054119"
+		    supplier   	"Use Case View::Personero Legal"
+		    quidu      	"67035C8CC1AB"))))
+	logical_presentations 	(list unit_reference_list
+	(object UseCaseDiagram "Main"
+	    quid       	"670302DA11FE"
+	    title      	"Main"
+	    zoom       	100
+	    max_height 	28350
+	    max_width  	21600
+	    origin_x   	0
+	    origin_y   	0
+	    items      	(list diagram_item_list
+		(object ClassView "Class" "Use Case View::Personero Legal" @1
+		    ShowCompartmentStereotypes 	TRUE
+		    IncludeAttribute 	TRUE
+		    IncludeOperation 	TRUE
+		    location   	(400, 500)
+		    label      	(object ItemLabel
+			Parent_View 	@1
+			location   	(400, 640)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	350
+			justify    	0
+			label      	"Personero Legal")
+		    icon       	"Actor"
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    quidu      	"67035C8CC1AB"
+		    annotation 	8
+		    autoResize 	TRUE)
+		(object UseCaseView "Use Case View::Registrar solicitud de inscripcion de lista (RF16)" @2
+		    location   	(1400, 500)
+		    label      	(object ItemLabel
+			Parent_View 	@2
+			location   	(1400, 640)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	700
+			justify    	0
+			label      	"Registrar solicitud de inscripcion de lista (RF16)")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"6703781EF86F"
+		    autoResize 	TRUE)
+		(object AssociationViewNew "$UNNAMED$32" @3
+		    location   	(900, 500)
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"67033D59619A"
+		    roleview_list 	(list RoleViews
+			(object RoleView "$UNNAMED$33" @4
+			    Parent_View 	@3
+			    location   	(900, 500)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"67032D9B06DF"
+			    client     	@3
+			    supplier   	@2
+			    vertices   	(list Points
+				(900, 500)
+				(1180, 500))
+			    line_style 	0)
+			(object RoleView "$UNNAMED$34" @5
+			    Parent_View 	@3
+			    location   	(900, 500)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"670395054119"
+			    client     	@3
+			    supplier   	@1
+			    vertices   	(list Points
+				(900, 500)
+				(450, 500))
+			    line_style 	0)))))))
+    root_category 	(object Class_Category "Logical View"
+	quid       	"6703A36B094E"
+	exportControl 	"Public"
+	global     	TRUE
+	subsystem  	"Component View"
+	quidu      	"6703B184D009"
+	logical_models 	(list unit_reference_list
+	(object Class "IU_InscripcionLista"
+	    quid       	"67037B00C7F4"
+	    documentation 	"Formulario web donde el personero legal registra la solicitud de inscripcion de la lista (RF16)."
+	    stereotype 	"boundary"
+	    operations 	(list Operations
+		(object Operation "abrirFormulario"
+		    quid       	"67033CE44E27"
+		    result     	"void"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "seleccionarProceso"
+		    quid       	"670338F12D92"
+		    parameters 	(list Parameters
+			(object Parameter "idProceso"
+			    quid       	"6703A28F17D8"
+			    type       	"int"))
+		    result     	"void"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "ingresarDatosLista"
+		    quid       	"6703D09E0492"
+		    parameters 	(list Parameters
+			(object Parameter "nombre"
+			    quid       	"67030297C5E5"
+			    type       	"String")
+			(object Parameter "simbolo"
+			    quid       	"67034BEDCE03"
+			    type       	"File")
+			(object Parameter "planGobierno"
+			    quid       	"67034D52BC61"
+			    type       	"File"))
+		    result     	"void"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "agregarCandidato"
+		    quid       	"67032456DE76"
+		    parameters 	(list Parameters
+			(object Parameter "dni"
+			    quid       	"670355C6B62B"
+			    type       	"String")
+			(object Parameter "rol"
+			    quid       	"6703AAADD6B8"
+			    type       	"String"))
+		    result     	"void"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "mostrarCandidato"
+		    quid       	"6703BE506564"
+		    parameters 	(list Parameters
+			(object Parameter "docente"
+			    quid       	"6703F3A16071"
+			    type       	"Docente"))
+		    result     	"void"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "registrarSolicitud"
+		    quid       	"67039A23BEF7"
+		    result     	"void"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "mostrarConstancia"
+		    quid       	"6703CA0BC36C"
+		    parameters 	(list Parameters
+			(object Parameter "idLista"
+			    quid       	"67034F634127"
+			    type       	"int")
+			(object Parameter "estado"
+			    quid       	"670305ADB3FC"
+			    type       	"String"))
+		    result     	"void"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "mostrarError"
+		    quid       	"6703F4C9DA65"
+		    parameters 	(list Parameters
+			(object Parameter "mensaje"
+			    quid       	"67033868E6D9"
+			    type       	"String"))
+		    result     	"void"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0))
+	    class_attributes 	(list class_attribute_list
+		(object ClassAttribute "cboProceso"
+		    quid       	"670348F165D5"
+		    type       	"ComboBox"
+		    exportControl 	"Private")
+		(object ClassAttribute "cboCargo"
+		    quid       	"67036ABD685A"
+		    type       	"ComboBox"
+		    exportControl 	"Private")
+		(object ClassAttribute "txtNombreLista"
+		    quid       	"67033A0562D5"
+		    type       	"TextField"
+		    exportControl 	"Private")
+		(object ClassAttribute "fileSimbolo"
+		    quid       	"6703725ED09D"
+		    type       	"FileUpload"
+		    exportControl 	"Private")
+		(object ClassAttribute "filePlanGobierno"
+		    quid       	"6703017F9EE6"
+		    type       	"FileUpload"
+		    exportControl 	"Private")
+		(object ClassAttribute "txtDniCandidato"
+		    quid       	"670368D605D4"
+		    type       	"TextField"
+		    exportControl 	"Private")
+		(object ClassAttribute "cboRolCandidato"
+		    quid       	"6703DAA8B2A6"
+		    type       	"ComboBox"
+		    exportControl 	"Private")
+		(object ClassAttribute "tblCandidatos"
+		    quid       	"6703A85F68B6"
+		    type       	"Table"
+		    exportControl 	"Private")
+		(object ClassAttribute "btnAgregarCandidato"
+		    quid       	"6703B6043106"
+		    type       	"Button"
+		    exportControl 	"Private")
+		(object ClassAttribute "btnRegistrar"
+		    quid       	"6703424458B6"
+		    type       	"Button"
+		    exportControl 	"Private")))
+	(object Class "CtrlInscripcionLista"
+	    quid       	"67039A508BB1"
+	    documentation 	"Coordina la inscripcion: valida plazo (RF15), requisitos (RF19), unicidad y composicion de la formula (RF20)."
+	    stereotype 	"control"
+	    operations 	(list Operations
+		(object Operation "iniciarInscripcion"
+		    quid       	"670305372EF4"
+		    parameters 	(list Parameters
+			(object Parameter "idProceso"
+			    quid       	"670340E5C51E"
+			    type       	"int"))
+		    result     	"List<CargoElectoral>"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "validarCandidato"
+		    quid       	"67039B25F81F"
+		    parameters 	(list Parameters
+			(object Parameter "dni"
+			    quid       	"6703E4BF1564"
+			    type       	"String")
+			(object Parameter "rol"
+			    quid       	"67032769E927"
+			    type       	"String")
+			(object Parameter "idCargo"
+			    quid       	"6703CEC1496E"
+			    type       	"int"))
+		    result     	"Docente"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "registrarLista"
+		    quid       	"67030701AD82"
+		    parameters 	(list Parameters
+			(object Parameter "datos"
+			    quid       	"6703AADBF831"
+			    type       	"ListaDTO")
+			(object Parameter "candidatos"
+			    quid       	"6703A1865506"
+			    type       	"List<CandidatoDTO>"))
+		    result     	"ListaElectoral"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)))
+	(object Class "ProcesoElectoral"
+	    quid       	"670376F87A64"
+	    documentation 	"Convocatoria electoral (tabla proceso_electoral)."
+	    stereotype 	"entity"
+	    operations 	(list Operations
+		(object Operation "buscarPorId"
+		    quid       	"6703396E0D55"
+		    parameters 	(list Parameters
+			(object Parameter "idProceso"
+			    quid       	"6703FC45228F"
+			    type       	"int"))
+		    result     	"ProcesoElectoral"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "estaEnPlazoInscripcion"
+		    quid       	"6703C85BD78D"
+		    result     	"boolean"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0))
+	    class_attributes 	(list class_attribute_list
+		(object ClassAttribute "idProceso"
+		    quid       	"670374F0147F"
+		    type       	"int"
+		    exportControl 	"Private")
+		(object ClassAttribute "nombre"
+		    quid       	"6703994395A7"
+		    type       	"String"
+		    exportControl 	"Private")
+		(object ClassAttribute "estado"
+		    quid       	"6703A0729B23"
+		    type       	"String"
+		    exportControl 	"Private")
+		(object ClassAttribute "fechaLimiteInscripcion"
+		    quid       	"6703B41B5669"
+		    type       	"DateTime"
+		    exportControl 	"Private")
+		(object ClassAttribute "fechaInicio"
+		    quid       	"67034BD571B0"
+		    type       	"DateTime"
+		    exportControl 	"Private")))
+	(object Class "CargoElectoral"
+	    quid       	"67034F4E68E5"
+	    documentation 	"Cargo en disputa: Rector y Vicerrectores (tabla cargo_electoral)."
+	    stereotype 	"entity"
+	    operations 	(list Operations
+		(object Operation "listarPorProceso"
+		    quid       	"67031600314A"
+		    parameters 	(list Parameters
+			(object Parameter "idProceso"
+			    quid       	"6703C9AEE9CF"
+			    type       	"int"))
+		    result     	"List<CargoElectoral>"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "permitePostular"
+		    quid       	"67037E89F918"
+		    parameters 	(list Parameters
+			(object Parameter "categoria"
+			    quid       	"670359082551"
+			    type       	"String"))
+		    result     	"boolean"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0))
+	    class_attributes 	(list class_attribute_list
+		(object ClassAttribute "idCargo"
+		    quid       	"67035C9DC8B6"
+		    type       	"int"
+		    exportControl 	"Private")
+		(object ClassAttribute "nombre"
+		    quid       	"6703421BB123"
+		    type       	"String"
+		    exportControl 	"Private")
+		(object ClassAttribute "nivelJurisdiccion"
+		    quid       	"67036B978D7D"
+		    type       	"String"
+		    exportControl 	"Private")))
+	(object Class "Docente"
+	    quid       	"67036C51CE92"
+	    documentation 	"Docente ordinario del padron (tabla docente)."
+	    stereotype 	"entity"
+	    operations 	(list Operations
+		(object Operation "buscarPorDni"
+		    quid       	"6703F9507C87"
+		    parameters 	(list Parameters
+			(object Parameter "dni"
+			    quid       	"670348658079"
+			    type       	"String"))
+		    result     	"Docente"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "cumpleRequisitos"
+		    quid       	"6703D523583B"
+		    parameters 	(list Parameters
+			(object Parameter "idCargo"
+			    quid       	"6703156724D0"
+			    type       	"int"))
+		    result     	"boolean"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0))
+	    class_attributes 	(list class_attribute_list
+		(object ClassAttribute "idDocente"
+		    quid       	"6703844948A8"
+		    type       	"int"
+		    exportControl 	"Private")
+		(object ClassAttribute "dni"
+		    quid       	"6703A49D1CE2"
+		    type       	"String"
+		    exportControl 	"Private")
+		(object ClassAttribute "nombres"
+		    quid       	"67032C199BD3"
+		    type       	"String"
+		    exportControl 	"Private")
+		(object ClassAttribute "apellidos"
+		    quid       	"6703F2C94386"
+		    type       	"String"
+		    exportControl 	"Private")
+		(object ClassAttribute "categoria"
+		    quid       	"6703900977A9"
+		    type       	"String"
+		    exportControl 	"Private")
+		(object ClassAttribute "gradoAcademico"
+		    quid       	"67034B037D52"
+		    type       	"String"
+		    exportControl 	"Private")
+		(object ClassAttribute "fechaCategoria"
+		    quid       	"67039429523C"
+		    type       	"Date"
+		    exportControl 	"Private")
+		(object ClassAttribute "estado"
+		    quid       	"67030B44045F"
+		    type       	"String"
+		    exportControl 	"Private")))
+	(object Class "Candidato"
+	    quid       	"6703FFFC3436"
+	    documentation 	"Integrante de la formula (tabla candidato)."
+	    stereotype 	"entity"
+	    operations 	(list Operations
+		(object Operation "perteneceAOtraLista"
+		    quid       	"67034F126160"
+		    parameters 	(list Parameters
+			(object Parameter "idDocente"
+			    quid       	"67037D6933B9"
+			    type       	"int")
+			(object Parameter "idProceso"
+			    quid       	"6703278DEDA9"
+			    type       	"int"))
+		    result     	"boolean"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "crear"
+		    quid       	"6703741EF821"
+		    parameters 	(list Parameters
+			(object Parameter "idLista"
+			    quid       	"67034DE28C1A"
+			    type       	"int")
+			(object Parameter "idDocente"
+			    quid       	"670351001BC3"
+			    type       	"int")
+			(object Parameter "rol"
+			    quid       	"670375FC6231"
+			    type       	"String"))
+		    result     	"Candidato"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0))
+	    class_attributes 	(list class_attribute_list
+		(object ClassAttribute "idCandidato"
+		    quid       	"6703CA532551"
+		    type       	"int"
+		    exportControl 	"Private")
+		(object ClassAttribute "rolEnLista"
+		    quid       	"670301952061"
+		    type       	"String"
+		    exportControl 	"Private")
+		(object ClassAttribute "estadoValidacion"
+		    quid       	"670385FBC058"
+		    type       	"String"
+		    exportControl 	"Private")
+		(object ClassAttribute "fechaInscripcion"
+		    quid       	"67035F81639E"
+		    type       	"DateTime"
+		    exportControl 	"Private")
+		(object ClassAttribute "urlHojaVida"
+		    quid       	"67033C1BE0D0"
+		    type       	"String"
+		    exportControl 	"Private")))
+	(object Class "ListaElectoral"
+	    quid       	"670310D3CF3F"
+	    documentation 	"Lista o formula que postula (tabla lista_electoral)."
+	    stereotype 	"entity"
+	    operations 	(list Operations
+		(object Operation "crear"
+		    quid       	"67037DD5094C"
+		    parameters 	(list Parameters
+			(object Parameter "nombre"
+			    quid       	"670371F4360E"
+			    type       	"String")
+			(object Parameter "simbolo"
+			    quid       	"6703D7A962C6"
+			    type       	"String")
+			(object Parameter "idCargo"
+			    quid       	"6703DD4240C6"
+			    type       	"int"))
+		    result     	"ListaElectoral"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "validarComposicion"
+		    quid       	"67030394B668"
+		    result     	"boolean"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0)
+		(object Operation "guardar"
+		    quid       	"6703EB343585"
+		    result     	"void"
+		    concurrency 	"Sequential"
+		    opExportControl 	"Public"
+		    uid        	0))
+	    class_attributes 	(list class_attribute_list
+		(object ClassAttribute "idLista"
+		    quid       	"67032A0CAF8C"
+		    type       	"int"
+		    exportControl 	"Private")
+		(object ClassAttribute "nombre"
+		    quid       	"6703B3045B38"
+		    type       	"String"
+		    exportControl 	"Private")
+		(object ClassAttribute "simbolo"
+		    quid       	"67037B74FCFA"
+		    type       	"String"
+		    exportControl 	"Private")
+		(object ClassAttribute "estado"
+		    quid       	"6703BA568134"
+		    type       	"String"
+		    exportControl 	"Private")
+		(object ClassAttribute "fechaInscripcion"
+		    quid       	"6703D98C2B45"
+		    type       	"DateTime"
+		    exportControl 	"Private")
+		(object ClassAttribute "urlPlanGobierno"
+		    quid       	"6703035868E5"
+		    type       	"String"
+		    exportControl 	"Private")))
+	(object Association "$UNNAMED$0"
+	    quid       	"6703D702C255"
+	    roles      	(list role_list
+		(object Role "$UNNAMED$2"
+		    quid       	"6703B2F1A709"
+		    supplier   	"Logical View::CtrlInscripcionLista"
+		    quidu      	"67039A508BB1"
+		    client_cardinality 	(value cardinality "1")
+		    is_navigable 	TRUE)
+		(object Role "$UNNAMED$1"
+		    quid       	"6703799EB9F8"
+		    supplier   	"Logical View::IU_InscripcionLista"
+		    quidu      	"67037B00C7F4"
+		    client_cardinality 	(value cardinality "1"))))
+	(object Association "$UNNAMED$3"
+	    quid       	"6703CBB5811F"
+	    roles      	(list role_list
+		(object Role "$UNNAMED$5"
+		    quid       	"6703744ACDA7"
+		    supplier   	"Logical View::ProcesoElectoral"
+		    quidu      	"670376F87A64"
+		    client_cardinality 	(value cardinality "1")
+		    is_navigable 	TRUE)
+		(object Role "$UNNAMED$4"
+		    quid       	"67031F78FF04"
+		    supplier   	"Logical View::CtrlInscripcionLista"
+		    quidu      	"67039A508BB1"
+		    client_cardinality 	(value cardinality "1"))))
+	(object Association "$UNNAMED$6"
+	    quid       	"6703D53CEA17"
+	    roles      	(list role_list
+		(object Role "$UNNAMED$8"
+		    quid       	"67031401E13D"
+		    supplier   	"Logical View::Docente"
+		    quidu      	"67036C51CE92"
+		    client_cardinality 	(value cardinality "0..n")
+		    is_navigable 	TRUE)
+		(object Role "$UNNAMED$7"
+		    quid       	"67039CEF5BB5"
+		    supplier   	"Logical View::CtrlInscripcionLista"
+		    quidu      	"67039A508BB1"
+		    client_cardinality 	(value cardinality "1"))))
+	(object Association "$UNNAMED$9"
+	    quid       	"67037FCDB1C2"
+	    roles      	(list role_list
+		(object Role "$UNNAMED$11"
+		    quid       	"670305D33952"
+		    supplier   	"Logical View::ListaElectoral"
+		    quidu      	"670310D3CF3F"
+		    client_cardinality 	(value cardinality "0..1")
+		    is_navigable 	TRUE)
+		(object Role "$UNNAMED$10"
+		    quid       	"6703A782CF76"
+		    supplier   	"Logical View::CtrlInscripcionLista"
+		    quidu      	"67039A508BB1"
+		    client_cardinality 	(value cardinality "1"))))
+	(object Association "$UNNAMED$12"
+	    quid       	"6703F7D457C8"
+	    roles      	(list role_list
+		(object Role "$UNNAMED$14"
+		    quid       	"6703B50336BD"
+		    supplier   	"Logical View::CargoElectoral"
+		    quidu      	"67034F4E68E5"
+		    client_cardinality 	(value cardinality "1..n")
+		    is_navigable 	TRUE)
+		(object Role "$UNNAMED$13"
+		    quid       	"670324D9D8FB"
+		    supplier   	"Logical View::ProcesoElectoral"
+		    quidu      	"670376F87A64"
+		    client_cardinality 	(value cardinality "1")
+		    is_aggregate 	TRUE)))
+	(object Association "$UNNAMED$15"
+	    quid       	"67033B757E78"
+	    roles      	(list role_list
+		(object Role "$UNNAMED$17"
+		    quid       	"670367FDCF97"
+		    supplier   	"Logical View::ListaElectoral"
+		    quidu      	"670310D3CF3F"
+		    client_cardinality 	(value cardinality "0..n")
+		    is_navigable 	TRUE)
+		(object Role "$UNNAMED$16"
+		    quid       	"6703EB6617CA"
+		    supplier   	"Logical View::CargoElectoral"
+		    quidu      	"67034F4E68E5"
+		    client_cardinality 	(value cardinality "1"))))
+	(object Association "$UNNAMED$18"
+	    quid       	"6703E59279E1"
+	    roles      	(list role_list
+		(object Role "$UNNAMED$20"
+		    quid       	"670308747035"
+		    supplier   	"Logical View::Candidato"
+		    quidu      	"6703FFFC3436"
+		    client_cardinality 	(value cardinality "3")
+		    is_navigable 	TRUE)
+		(object Role "$UNNAMED$19"
+		    quid       	"67035E8718E3"
+		    supplier   	"Logical View::ListaElectoral"
+		    quidu      	"670310D3CF3F"
+		    client_cardinality 	(value cardinality "1")
+		    is_aggregate 	TRUE)))
+	(object Association "$UNNAMED$21"
+	    quid       	"67038A0A4ABB"
+	    roles      	(list role_list
+		(object Role "$UNNAMED$23"
+		    quid       	"6703A8CC3A89"
+		    supplier   	"Logical View::Docente"
+		    quidu      	"67036C51CE92"
+		    client_cardinality 	(value cardinality "1")
+		    is_navigable 	TRUE)
+		(object Role "$UNNAMED$22"
+		    quid       	"67030B01F9A4"
+		    supplier   	"Logical View::Candidato"
+		    quidu      	"6703FFFC3436"
+		    client_cardinality 	(value cardinality "0..n"))))
+	(object Mechanism @6
+	    logical_models 	(list unit_reference_list
+		(object Object "$UNNAMED$24"
+		    quid       	"6703A67152B9"
+		    collaborators 	(list link_list
+			(object Link
+			    quid       	"6703D057A682"
+			    supplier   	"$UNNAMED$25"
+			    quidu      	"670366671DD1"
+			    messages   	(list Messages
+				(object Message "abrirFormulario"
+				    quid       	"6703C86713C7"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"1"
+				    ordinal    	0
+				    quidu      	"67033CE44E27"
+				    creation   	FALSE)
+				(object Message "seleccionarProceso"
+				    quid       	"6703AE402521"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"2"
+				    ordinal    	1
+				    quidu      	"670338F12D92"
+				    creation   	FALSE)
+				(object Message "ingresarDatosLista"
+				    quid       	"6703B523AA1D"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"7"
+				    ordinal    	6
+				    quidu      	"6703D09E0492"
+				    creation   	FALSE)
+				(object Message "agregarCandidato"
+				    quid       	"670317D73A17"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"8"
+				    ordinal    	7
+				    quidu      	"67032456DE76"
+				    creation   	FALSE)
+				(object Message "mostrarCandidatoValidado"
+				    quid       	"6703EB3370A3"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"ToClientFromSupplier"
+				    sequence   	"14"
+				    ordinal    	13
+				    creation   	FALSE)
+				(object Message "registrarSolicitud"
+				    quid       	"6703D7DCE2F3"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"15"
+				    ordinal    	14
+				    quidu      	"67039A23BEF7"
+				    creation   	FALSE)
+				(object Message "mostrarSolicitudRegistrada"
+				    quid       	"67036486F459"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"ToClientFromSupplier"
+				    sequence   	"22"
+				    ordinal    	21
+				    creation   	FALSE))))
+		    class      	"Use Case View::Personero Legal"
+		    quidu      	"67035C8CC1AB"
+		    persistence 	"Transient"
+		    creationObj 	FALSE
+		    multi      	FALSE)
+		(object Object "$UNNAMED$25"
+		    quid       	"670366671DD1"
+		    collaborators 	(list link_list
+			(object Link
+			    quid       	"6703A7C880DD"
+			    supplier   	"$UNNAMED$26"
+			    quidu      	"67039A9390DE"
+			    messages   	(list Messages
+				(object Message "iniciarInscripcion"
+				    quid       	"6703D4799CAB"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"3"
+				    ordinal    	2
+				    quidu      	"670305372EF4"
+				    creation   	FALSE)
+				(object Message "validarCandidato"
+				    quid       	"67038AAFA682"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"9"
+				    ordinal    	8
+				    quidu      	"67039B25F81F"
+				    creation   	FALSE)
+				(object Message "registrarLista"
+				    quid       	"67031D14EA6D"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"16"
+				    ordinal    	15
+				    quidu      	"67030701AD82"
+				    creation   	FALSE)
+				(object Message "mostrarConstancia"
+				    quid       	"6703C3F01EE5"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"ToClientFromSupplier"
+				    sequence   	"21"
+				    ordinal    	20
+				    quidu      	"6703CA0BC36C"
+				    creation   	FALSE))))
+		    class      	"Logical View::IU_InscripcionLista"
+		    quidu      	"67037B00C7F4"
+		    persistence 	"Transient"
+		    creationObj 	FALSE
+		    multi      	FALSE)
+		(object Object "$UNNAMED$26"
+		    quid       	"67039A9390DE"
+		    collaborators 	(list link_list
+			(object Link
+			    quid       	"6703D1262610"
+			    supplier   	"$UNNAMED$27"
+			    quidu      	"670351C287FD"
+			    messages   	(list Messages
+				(object Message "buscarPorId"
+				    quid       	"670312260288"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"4"
+				    ordinal    	3
+				    quidu      	"6703396E0D55"
+				    creation   	FALSE)
+				(object Message "estaEnPlazoInscripcion"
+				    quid       	"67033A51D302"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"5"
+				    ordinal    	4
+				    quidu      	"6703C85BD78D"
+				    creation   	FALSE)))
+			(object Link
+			    quid       	"670351EA0EDC"
+			    supplier   	"$UNNAMED$28"
+			    quidu      	"67037A3BEAE6"
+			    messages   	(list Messages
+				(object Message "listarPorProceso"
+				    quid       	"670319D4DD9C"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"6"
+				    ordinal    	5
+				    quidu      	"67031600314A"
+				    creation   	FALSE)
+				(object Message "permitePostular"
+				    quid       	"670364F1C8AD"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"12"
+				    ordinal    	11
+				    quidu      	"67037E89F918"
+				    creation   	FALSE)))
+			(object Link
+			    quid       	"67031F1B98CF"
+			    supplier   	"$UNNAMED$29"
+			    quidu      	"670382D8EB36"
+			    messages   	(list Messages
+				(object Message "buscarPorDni"
+				    quid       	"67033E3DF858"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"10"
+				    ordinal    	9
+				    quidu      	"6703F9507C87"
+				    creation   	FALSE)
+				(object Message "cumpleRequisitos"
+				    quid       	"67030256EDF7"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"11"
+				    ordinal    	10
+				    quidu      	"6703D523583B"
+				    creation   	FALSE)))
+			(object Link
+			    quid       	"6703A0261403"
+			    supplier   	"$UNNAMED$30"
+			    quidu      	"6703AB2359E1"
+			    messages   	(list Messages
+				(object Message "perteneceAOtraLista"
+				    quid       	"67030BEDB95C"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"13"
+				    ordinal    	12
+				    quidu      	"67034F126160"
+				    creation   	FALSE)
+				(object Message "crear"
+				    quid       	"6703F0C9A819"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"19"
+				    ordinal    	18
+				    quidu      	"6703741EF821"
+				    creation   	FALSE)))
+			(object Link
+			    quid       	"6703BCE61747"
+			    supplier   	"$UNNAMED$31"
+			    quidu      	"6703F3E8793B"
+			    messages   	(list Messages
+				(object Message "crear"
+				    quid       	"6703AFD224F1"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"17"
+				    ordinal    	16
+				    quidu      	"67037DD5094C"
+				    creation   	FALSE)
+				(object Message "validarComposicion"
+				    quid       	"67030C583931"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"18"
+				    ordinal    	17
+				    quidu      	"67030394B668"
+				    creation   	FALSE)
+				(object Message "guardar"
+				    quid       	"6703D8C56B56"
+				    frequency  	"Aperiodic"
+				    synchronization 	"Simple"
+				    dir        	"FromClientToSupplier"
+				    sequence   	"20"
+				    ordinal    	19
+				    quidu      	"6703EB343585"
+				    creation   	FALSE))))
+		    class      	"Logical View::CtrlInscripcionLista"
+		    quidu      	"67039A508BB1"
+		    persistence 	"Transient"
+		    creationObj 	FALSE
+		    multi      	FALSE)
+		(object Object "$UNNAMED$27"
+		    quid       	"670351C287FD"
+		    class      	"Logical View::ProcesoElectoral"
+		    quidu      	"670376F87A64"
+		    persistence 	"Transient"
+		    creationObj 	FALSE
+		    multi      	FALSE)
+		(object Object "$UNNAMED$28"
+		    quid       	"67037A3BEAE6"
+		    class      	"Logical View::CargoElectoral"
+		    quidu      	"67034F4E68E5"
+		    persistence 	"Transient"
+		    creationObj 	FALSE
+		    multi      	FALSE)
+		(object Object "$UNNAMED$29"
+		    quid       	"670382D8EB36"
+		    class      	"Logical View::Docente"
+		    quidu      	"67036C51CE92"
+		    persistence 	"Transient"
+		    creationObj 	FALSE
+		    multi      	FALSE)
+		(object Object "$UNNAMED$30"
+		    quid       	"6703AB2359E1"
+		    class      	"Logical View::Candidato"
+		    quidu      	"6703FFFC3436"
+		    persistence 	"Transient"
+		    creationObj 	FALSE
+		    multi      	FALSE)
+		(object Object "$UNNAMED$31"
+		    quid       	"6703F3E8793B"
+		    class      	"Logical View::ListaElectoral"
+		    quidu      	"670310D3CF3F"
+		    persistence 	"Transient"
+		    creationObj 	FALSE
+		    multi      	FALSE))))
+	logical_presentations 	(list unit_reference_list
+	(object ClassDiagram "RF16 - Diagrama de Clases"
+	    quid       	"67033D29C780"
+	    title      	"RF16 - Diagrama de Clases"
+	    zoom       	100
+	    max_height 	28350
+	    max_width  	21600
+	    origin_x   	0
+	    origin_y   	0
+	    items      	(list diagram_item_list
+		(object ClassView "Class" "Logical View::IU_InscripcionLista" @7
+		    ShowCompartmentStereotypes 	TRUE
+		    IncludeAttribute 	TRUE
+		    IncludeOperation 	TRUE
+		    location   	(350, 420)
+		    label      	(object ItemLabel
+			Parent_View 	@7
+			location   	(350, 82)
+			fill_color 	13434879
+			nlines     	1
+			max_width  	600
+			justify    	0
+			label      	"IU_InscripcionLista")
+		    icon_style 	"Decoration"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"67037B00C7F4"
+		    compartment 	(object Compartment
+			Parent_View 	@7
+			location   	(60, 122)
+			icon_style 	"Decoration"
+			fill_color 	13434879
+			anchor     	2
+			nlines     	19
+			max_width  	600)
+		    width      	620
+		    height     	756
+		    annotation 	8
+		    autoResize 	TRUE)
+		(object ClassView "Class" "Logical View::CtrlInscripcionLista" @8
+		    ShowCompartmentStereotypes 	TRUE
+		    IncludeAttribute 	TRUE
+		    IncludeOperation 	TRUE
+		    location   	(1250, 420)
+		    label      	(object ItemLabel
+			Parent_View 	@8
+			location   	(1250, 337)
+			fill_color 	13434879
+			nlines     	1
+			max_width  	600
+			justify    	0
+			label      	"CtrlInscripcionLista")
+		    icon_style 	"Decoration"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"67039A508BB1"
+		    compartment 	(object Compartment
+			Parent_View 	@8
+			location   	(960, 377)
+			icon_style 	"Decoration"
+			fill_color 	13434879
+			anchor     	2
+			nlines     	4
+			max_width  	600)
+		    width      	620
+		    height     	246
+		    annotation 	8
+		    autoResize 	TRUE)
+		(object ClassView "Class" "Logical View::ProcesoElectoral" @9
+		    ShowCompartmentStereotypes 	TRUE
+		    IncludeAttribute 	TRUE
+		    IncludeOperation 	TRUE
+		    location   	(2150, 420)
+		    label      	(object ItemLabel
+			Parent_View 	@9
+			location   	(2150, 269)
+			fill_color 	13434879
+			nlines     	1
+			max_width  	600
+			justify    	0
+			label      	"ProcesoElectoral")
+		    icon_style 	"Decoration"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"670376F87A64"
+		    compartment 	(object Compartment
+			Parent_View 	@9
+			location   	(1860, 309)
+			icon_style 	"Decoration"
+			fill_color 	13434879
+			anchor     	2
+			nlines     	8
+			max_width  	600)
+		    width      	620
+		    height     	382
+		    annotation 	8
+		    autoResize 	TRUE)
+		(object ClassView "Class" "Logical View::Docente" @10
+		    ShowCompartmentStereotypes 	TRUE
+		    IncludeAttribute 	TRUE
+		    IncludeOperation 	TRUE
+		    location   	(350, 1400)
+		    label      	(object ItemLabel
+			Parent_View 	@10
+			location   	(350, 1198)
+			fill_color 	13434879
+			nlines     	1
+			max_width  	600
+			justify    	0
+			label      	"Docente")
+		    icon_style 	"Decoration"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"67036C51CE92"
+		    compartment 	(object Compartment
+			Parent_View 	@10
+			location   	(60, 1238)
+			icon_style 	"Decoration"
+			fill_color 	13434879
+			anchor     	2
+			nlines     	11
+			max_width  	600)
+		    width      	620
+		    height     	484
+		    annotation 	8
+		    autoResize 	TRUE)
+		(object ClassView "Class" "Logical View::Candidato" @11
+		    ShowCompartmentStereotypes 	TRUE
+		    IncludeAttribute 	TRUE
+		    IncludeOperation 	TRUE
+		    location   	(1250, 1400)
+		    label      	(object ItemLabel
+			Parent_View 	@11
+			location   	(1250, 1249)
+			fill_color 	13434879
+			nlines     	1
+			max_width  	600
+			justify    	0
+			label      	"Candidato")
+		    icon_style 	"Decoration"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"6703FFFC3436"
+		    compartment 	(object Compartment
+			Parent_View 	@11
+			location   	(960, 1289)
+			icon_style 	"Decoration"
+			fill_color 	13434879
+			anchor     	2
+			nlines     	8
+			max_width  	600)
+		    width      	620
+		    height     	382
+		    annotation 	8
+		    autoResize 	TRUE)
+		(object ClassView "Class" "Logical View::ListaElectoral" @12
+		    ShowCompartmentStereotypes 	TRUE
+		    IncludeAttribute 	TRUE
+		    IncludeOperation 	TRUE
+		    location   	(2150, 1400)
+		    label      	(object ItemLabel
+			Parent_View 	@12
+			location   	(2150, 1215)
+			fill_color 	13434879
+			nlines     	1
+			max_width  	600
+			justify    	0
+			label      	"ListaElectoral")
+		    icon_style 	"Decoration"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"670310D3CF3F"
+		    compartment 	(object Compartment
+			Parent_View 	@12
+			location   	(1860, 1255)
+			icon_style 	"Decoration"
+			fill_color 	13434879
+			anchor     	2
+			nlines     	10
+			max_width  	600)
+		    width      	620
+		    height     	450
+		    annotation 	8
+		    autoResize 	TRUE)
+		(object ClassView "Class" "Logical View::CargoElectoral" @13
+		    ShowCompartmentStereotypes 	TRUE
+		    IncludeAttribute 	TRUE
+		    IncludeOperation 	TRUE
+		    location   	(3000, 1400)
+		    label      	(object ItemLabel
+			Parent_View 	@13
+			location   	(3000, 1283)
+			fill_color 	13434879
+			nlines     	1
+			max_width  	600
+			justify    	0
+			label      	"CargoElectoral")
+		    icon_style 	"Decoration"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"67034F4E68E5"
+		    compartment 	(object Compartment
+			Parent_View 	@13
+			location   	(2710, 1323)
+			icon_style 	"Decoration"
+			fill_color 	13434879
+			anchor     	2
+			nlines     	6
+			max_width  	600)
+		    width      	620
+		    height     	314
+		    annotation 	8
+		    autoResize 	TRUE)
+		(object AssociationViewNew "$UNNAMED$0" @14
+		    location   	(800, 420)
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"6703D702C255"
+		    roleview_list 	(list RoleViews
+			(object RoleView "$UNNAMED$2" @15
+			    Parent_View 	@14
+			    location   	(800, 420)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"6703B2F1A709"
+			    client_cardinality 	(object SegLabel @16
+			Parent_View 	@15
+			location   	(919, 390)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"1"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@14
+			    supplier   	@8
+			    vertices   	(list Points
+				(800, 420)
+				(940, 420))
+			    line_style 	0)
+			(object RoleView "$UNNAMED$1" @17
+			    Parent_View 	@14
+			    location   	(800, 420)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"6703799EB9F8"
+			    client_cardinality 	(object SegLabel @18
+			Parent_View 	@17
+			location   	(681, 390)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"1"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@14
+			    supplier   	@7
+			    vertices   	(list Points
+				(800, 420)
+				(660, 420))
+			    line_style 	0)))
+		(object AssociationViewNew "$UNNAMED$3" @19
+		    location   	(1700, 420)
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"6703CBB5811F"
+		    roleview_list 	(list RoleViews
+			(object RoleView "$UNNAMED$5" @20
+			    Parent_View 	@19
+			    location   	(1700, 420)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"6703744ACDA7"
+			    client_cardinality 	(object SegLabel @21
+			Parent_View 	@20
+			location   	(1819, 390)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"1"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@19
+			    supplier   	@9
+			    vertices   	(list Points
+				(1700, 420)
+				(1840, 420))
+			    line_style 	0)
+			(object RoleView "$UNNAMED$4" @22
+			    Parent_View 	@19
+			    location   	(1700, 420)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"67031F78FF04"
+			    client_cardinality 	(object SegLabel @23
+			Parent_View 	@22
+			location   	(1581, 390)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"1"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@19
+			    supplier   	@8
+			    vertices   	(list Points
+				(1700, 420)
+				(1560, 420))
+			    line_style 	0)))
+		(object AssociationViewNew "$UNNAMED$6" @24
+		    location   	(800, 910)
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"6703D53CEA17"
+		    roleview_list 	(list RoleViews
+			(object RoleView "$UNNAMED$8" @25
+			    Parent_View 	@24
+			    location   	(800, 910)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"67031401E13D"
+			    client_cardinality 	(object SegLabel @26
+			Parent_View 	@25
+			location   	(606, 1090)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"0..n"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@24
+			    supplier   	@10
+			    vertices   	(list Points
+				(800, 910)
+				(572, 1158))
+			    line_style 	0)
+			(object RoleView "$UNNAMED$7" @27
+			    Parent_View 	@24
+			    location   	(800, 910)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"67039CEF5BB5"
+			    client_cardinality 	(object SegLabel @28
+			Parent_View 	@27
+			location   	(1086, 568)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"1"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@24
+			    supplier   	@8
+			    vertices   	(list Points
+				(800, 910)
+				(1137, 543))
+			    line_style 	0)))
+		(object AssociationViewNew "$UNNAMED$9" @29
+		    location   	(1700, 910)
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"67037FCDB1C2"
+		    roleview_list 	(list RoleViews
+			(object RoleView "$UNNAMED$11" @30
+			    Parent_View 	@29
+			    location   	(1700, 910)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"670305D33952"
+			    client_cardinality 	(object SegLabel @31
+			Parent_View 	@30
+			location   	(1906, 1105)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"0..1"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@29
+			    supplier   	@12
+			    vertices   	(list Points
+				(1700, 910)
+				(1943, 1175))
+			    line_style 	0)
+			(object RoleView "$UNNAMED$10" @32
+			    Parent_View 	@29
+			    location   	(1700, 910)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"6703A782CF76"
+			    client_cardinality 	(object SegLabel @33
+			Parent_View 	@32
+			location   	(1412, 568)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"1"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@29
+			    supplier   	@8
+			    vertices   	(list Points
+				(1700, 910)
+				(1362, 543))
+			    line_style 	0)))
+		(object AssociationViewNew "$UNNAMED$12" @34
+		    location   	(2575, 910)
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"6703F7D457C8"
+		    roleview_list 	(list RoleViews
+			(object RoleView "$UNNAMED$14" @35
+			    Parent_View 	@34
+			    location   	(2575, 910)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"6703B50336BD"
+			    client_cardinality 	(object SegLabel @36
+			Parent_View 	@35
+			location   	(2819, 1163)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"1..n"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@34
+			    supplier   	@13
+			    vertices   	(list Points
+				(2575, 910)
+				(2863, 1243))
+			    line_style 	0)
+			(object RoleView "$UNNAMED$13" @37
+			    Parent_View 	@34
+			    location   	(2575, 910)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"670324D9D8FB"
+			    client_cardinality 	(object SegLabel @38
+			Parent_View 	@37
+			location   	(2354, 625)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"1"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@34
+			    supplier   	@9
+			    vertices   	(list Points
+				(2575, 910)
+				(2315, 611))
+			    line_style 	0)))
+		(object AssociationViewNew "$UNNAMED$15" @39
+		    location   	(2575, 1400)
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"67033B757E78"
+		    roleview_list 	(list RoleViews
+			(object RoleView "$UNNAMED$17" @40
+			    Parent_View 	@39
+			    location   	(2575, 1400)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"670367FDCF97"
+			    client_cardinality 	(object SegLabel @41
+			Parent_View 	@40
+			location   	(2477, 1370)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"0..n"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@39
+			    supplier   	@12
+			    vertices   	(list Points
+				(2575, 1400)
+				(2460, 1400))
+			    line_style 	0)
+			(object RoleView "$UNNAMED$16" @42
+			    Parent_View 	@39
+			    location   	(2575, 1400)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"6703EB6617CA"
+			    client_cardinality 	(object SegLabel @43
+			Parent_View 	@42
+			location   	(2672, 1370)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"1"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@39
+			    supplier   	@13
+			    vertices   	(list Points
+				(2575, 1400)
+				(2690, 1400))
+			    line_style 	0)))
+		(object AssociationViewNew "$UNNAMED$18" @44
+		    location   	(1700, 1400)
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"6703E59279E1"
+		    roleview_list 	(list RoleViews
+			(object RoleView "$UNNAMED$20" @45
+			    Parent_View 	@44
+			    location   	(1700, 1400)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"670308747035"
+			    client_cardinality 	(object SegLabel @46
+			Parent_View 	@45
+			location   	(1581, 1370)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"3"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@44
+			    supplier   	@11
+			    vertices   	(list Points
+				(1700, 1400)
+				(1560, 1400))
+			    line_style 	0)
+			(object RoleView "$UNNAMED$19" @47
+			    Parent_View 	@44
+			    location   	(1700, 1400)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"67035E8718E3"
+			    client_cardinality 	(object SegLabel @48
+			Parent_View 	@47
+			location   	(1819, 1370)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"1"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@44
+			    supplier   	@12
+			    vertices   	(list Points
+				(1700, 1400)
+				(1840, 1400))
+			    line_style 	0)))
+		(object AssociationViewNew "$UNNAMED$21" @49
+		    location   	(800, 1400)
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"67038A0A4ABB"
+		    roleview_list 	(list RoleViews
+			(object RoleView "$UNNAMED$23" @50
+			    Parent_View 	@49
+			    location   	(800, 1400)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"6703A8CC3A89"
+			    client_cardinality 	(object SegLabel @51
+			Parent_View 	@50
+			location   	(681, 1370)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"1"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@49
+			    supplier   	@10
+			    vertices   	(list Points
+				(800, 1400)
+				(660, 1400))
+			    line_style 	0)
+			(object RoleView "$UNNAMED$22" @52
+			    Parent_View 	@49
+			    location   	(800, 1400)
+			    stereotype 	TRUE
+			    line_color 	3342489
+			    quidu      	"67030B01F9A4"
+			    client_cardinality 	(object SegLabel @53
+			Parent_View 	@52
+			location   	(919, 1370)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	60
+			justify    	0
+			label      	"0..n"
+			pctDist    	0.900000
+			height     	30
+			orientation 	0)
+			    client     	@49
+			    supplier   	@11
+			    vertices   	(list Points
+				(800, 1400)
+				(940, 1400))
+			    line_style 	0)))))
+	(object InteractionDiagram "RF16 - Diagrama de Secuencia"
+	    mechanism  	@6
+	    quid       	"67038680D4D2"
+	    title      	"RF16 - Diagrama de Secuencia"
+	    zoom       	100
+	    max_height 	28350
+	    max_width  	21600
+	    origin_x   	0
+	    origin_y   	0
+	    items      	(list diagram_item_list
+		(object InterObjView "$UNNAMED$24" @54
+		    location   	(200, 200)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@54
+			location   	(200, 200)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"6703A67152B9"
+		    width      	400
+		    height     	2325
+		    icon_height 	0
+		    icon_width 	0
+		    icon_y_offset 	0
+		    annotation 	1
+		    Focus_Of_Control 	(object Focus_Of_Control "" @55
+			location   	(200, 360)
+			line_color 	3342489
+			InterObjView 	@54
+			height     	2055
+			y_coord    	2015
+			Nested     	FALSE))
+		(object InterObjView "$UNNAMED$25" @56
+		    location   	(630, 200)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@56
+			location   	(630, 200)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"670366671DD1"
+		    width      	400
+		    height     	2325
+		    icon_height 	0
+		    icon_width 	0
+		    icon_y_offset 	0
+		    annotation 	1
+		    Focus_Of_Control 	(object Focus_Of_Control "" @57
+			location   	(630, 360)
+			line_color 	3342489
+			InterObjView 	@56
+			height     	2055
+			y_coord    	2015
+			Nested     	FALSE))
+		(object InterObjView "$UNNAMED$26" @58
+		    location   	(1060, 200)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@58
+			location   	(1060, 200)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"67039A9390DE"
+		    width      	400
+		    height     	2325
+		    icon_height 	0
+		    icon_width 	0
+		    icon_y_offset 	0
+		    annotation 	1
+		    Focus_Of_Control 	(object Focus_Of_Control "" @59
+			location   	(1060, 550)
+			line_color 	3342489
+			InterObjView 	@58
+			height     	1770
+			y_coord    	1730
+			Nested     	FALSE))
+		(object InterObjView "$UNNAMED$27" @60
+		    location   	(1490, 200)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@60
+			location   	(1490, 200)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"670351C287FD"
+		    width      	400
+		    height     	2325
+		    icon_height 	0
+		    icon_width 	0
+		    icon_y_offset 	0
+		    annotation 	1
+		    Focus_Of_Control 	(object Focus_Of_Control "" @61
+			location   	(1490, 645)
+			line_color 	3342489
+			InterObjView 	@60
+			height     	155
+			y_coord    	115
+			Nested     	FALSE))
+		(object InterObjView "$UNNAMED$28" @62
+		    location   	(1920, 200)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@62
+			location   	(1920, 200)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"67037A3BEAE6"
+		    width      	400
+		    height     	2325
+		    icon_height 	0
+		    icon_width 	0
+		    icon_y_offset 	0
+		    annotation 	1
+		    Focus_Of_Control 	(object Focus_Of_Control "" @63
+			location   	(1920, 835)
+			line_color 	3342489
+			InterObjView 	@62
+			height     	630
+			y_coord    	590
+			Nested     	FALSE))
+		(object InterObjView "$UNNAMED$29" @64
+		    location   	(2350, 200)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@64
+			location   	(2350, 200)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"670382D8EB36"
+		    width      	400
+		    height     	2325
+		    icon_height 	0
+		    icon_width 	0
+		    icon_y_offset 	0
+		    annotation 	1
+		    Focus_Of_Control 	(object Focus_Of_Control "" @65
+			location   	(2350, 1215)
+			line_color 	3342489
+			InterObjView 	@64
+			height     	155
+			y_coord    	115
+			Nested     	FALSE))
+		(object InterObjView "$UNNAMED$30" @66
+		    location   	(2780, 200)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@66
+			location   	(2780, 200)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"6703AB2359E1"
+		    width      	400
+		    height     	2325
+		    icon_height 	0
+		    icon_width 	0
+		    icon_y_offset 	0
+		    annotation 	1
+		    Focus_Of_Control 	(object Focus_Of_Control "" @67
+			location   	(2780, 1500)
+			line_color 	3342489
+			InterObjView 	@66
+			height     	630
+			y_coord    	590
+			Nested     	FALSE))
+		(object InterObjView "$UNNAMED$31" @68
+		    location   	(3210, 200)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@68
+			location   	(3210, 200)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"6703F3E8793B"
+		    width      	400
+		    height     	2325
+		    icon_height 	0
+		    icon_width 	0
+		    icon_y_offset 	0
+		    annotation 	1
+		    Focus_Of_Control 	(object Focus_Of_Control "" @69
+			location   	(3210, 1880)
+			line_color 	3342489
+			InterObjView 	@68
+			height     	345
+			y_coord    	305
+			Nested     	FALSE))
+		(object InterMessView "" @70
+		    location   	(415, 380)
+		    label      	(object SegLabel @71
+			Parent_View 	@70
+			location   	(415, 350)
+			quidu      	"67033CE44E27"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"abrirFormulario"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@54
+		    supplier   	@56
+		    Focus_Src  	@55
+		    Focus_Entry 	@57
+		    origin     	(215, 380)
+		    terminal   	(615, 380)
+		    ordinal    	0)
+		(object InterMessView "" @72
+		    location   	(415, 475)
+		    label      	(object SegLabel @73
+			Parent_View 	@72
+			location   	(415, 445)
+			quidu      	"670338F12D92"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"seleccionarProceso"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@54
+		    supplier   	@56
+		    Focus_Src  	@55
+		    Focus_Entry 	@57
+		    origin     	(215, 475)
+		    terminal   	(615, 475)
+		    ordinal    	1)
+		(object InterMessView "" @74
+		    location   	(845, 570)
+		    label      	(object SegLabel @75
+			Parent_View 	@74
+			location   	(845, 540)
+			quidu      	"670305372EF4"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"iniciarInscripcion"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@56
+		    supplier   	@58
+		    Focus_Src  	@57
+		    Focus_Entry 	@59
+		    origin     	(645, 570)
+		    terminal   	(1045, 570)
+		    ordinal    	2)
+		(object InterMessView "" @76
+		    location   	(1275, 665)
+		    label      	(object SegLabel @77
+			Parent_View 	@76
+			location   	(1275, 635)
+			quidu      	"6703396E0D55"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"buscarPorId"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@58
+		    supplier   	@60
+		    Focus_Src  	@59
+		    Focus_Entry 	@61
+		    origin     	(1075, 665)
+		    terminal   	(1475, 665)
+		    ordinal    	3)
+		(object InterMessView "" @78
+		    location   	(1275, 760)
+		    label      	(object SegLabel @79
+			Parent_View 	@78
+			location   	(1275, 730)
+			quidu      	"6703C85BD78D"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"estaEnPlazoInscripcion"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@58
+		    supplier   	@60
+		    Focus_Src  	@59
+		    Focus_Entry 	@61
+		    origin     	(1075, 760)
+		    terminal   	(1475, 760)
+		    ordinal    	4)
+		(object InterMessView "" @80
+		    location   	(1490, 855)
+		    label      	(object SegLabel @81
+			Parent_View 	@80
+			location   	(1490, 825)
+			quidu      	"67031600314A"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"listarPorProceso"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@58
+		    supplier   	@62
+		    Focus_Src  	@59
+		    Focus_Entry 	@63
+		    origin     	(1075, 855)
+		    terminal   	(1905, 855)
+		    ordinal    	5)
+		(object InterMessView "" @82
+		    location   	(415, 950)
+		    label      	(object SegLabel @83
+			Parent_View 	@82
+			location   	(415, 920)
+			quidu      	"6703D09E0492"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"ingresarDatosLista"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@54
+		    supplier   	@56
+		    Focus_Src  	@55
+		    Focus_Entry 	@57
+		    origin     	(215, 950)
+		    terminal   	(615, 950)
+		    ordinal    	6)
+		(object InterMessView "" @84
+		    location   	(415, 1045)
+		    label      	(object SegLabel @85
+			Parent_View 	@84
+			location   	(415, 1015)
+			quidu      	"67032456DE76"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"agregarCandidato"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@54
+		    supplier   	@56
+		    Focus_Src  	@55
+		    Focus_Entry 	@57
+		    origin     	(215, 1045)
+		    terminal   	(615, 1045)
+		    ordinal    	7)
+		(object InterMessView "" @86
+		    location   	(845, 1140)
+		    label      	(object SegLabel @87
+			Parent_View 	@86
+			location   	(845, 1110)
+			quidu      	"67039B25F81F"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"validarCandidato"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@56
+		    supplier   	@58
+		    Focus_Src  	@57
+		    Focus_Entry 	@59
+		    origin     	(645, 1140)
+		    terminal   	(1045, 1140)
+		    ordinal    	8)
+		(object InterMessView "" @88
+		    location   	(1705, 1235)
+		    label      	(object SegLabel @89
+			Parent_View 	@88
+			location   	(1705, 1205)
+			quidu      	"6703F9507C87"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"buscarPorDni"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@58
+		    supplier   	@64
+		    Focus_Src  	@59
+		    Focus_Entry 	@65
+		    origin     	(1075, 1235)
+		    terminal   	(2335, 1235)
+		    ordinal    	9)
+		(object InterMessView "" @90
+		    location   	(1705, 1330)
+		    label      	(object SegLabel @91
+			Parent_View 	@90
+			location   	(1705, 1300)
+			quidu      	"6703D523583B"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"cumpleRequisitos"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@58
+		    supplier   	@64
+		    Focus_Src  	@59
+		    Focus_Entry 	@65
+		    origin     	(1075, 1330)
+		    terminal   	(2335, 1330)
+		    ordinal    	10)
+		(object InterMessView "" @92
+		    location   	(1490, 1425)
+		    label      	(object SegLabel @93
+			Parent_View 	@92
+			location   	(1490, 1395)
+			quidu      	"67037E89F918"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"permitePostular"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@58
+		    supplier   	@62
+		    Focus_Src  	@59
+		    Focus_Entry 	@63
+		    origin     	(1075, 1425)
+		    terminal   	(1905, 1425)
+		    ordinal    	11)
+		(object InterMessView "" @94
+		    location   	(1920, 1520)
+		    label      	(object SegLabel @95
+			Parent_View 	@94
+			location   	(1920, 1490)
+			quidu      	"67034F126160"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"perteneceAOtraLista"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@58
+		    supplier   	@66
+		    Focus_Src  	@59
+		    Focus_Entry 	@67
+		    origin     	(1075, 1520)
+		    terminal   	(2765, 1520)
+		    ordinal    	12)
+		(object InterMessView "" @96
+		    location   	(415, 1615)
+		    label      	(object SegLabel @97
+			Parent_View 	@96
+			location   	(415, 1585)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"mostrarCandidatoValidado"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@56
+		    supplier   	@54
+		    Focus_Src  	@57
+		    Focus_Entry 	@55
+		    origin     	(615, 1615)
+		    terminal   	(215, 1615)
+		    ordinal    	13)
+		(object InterMessView "" @98
+		    location   	(415, 1710)
+		    label      	(object SegLabel @99
+			Parent_View 	@98
+			location   	(415, 1680)
+			quidu      	"67039A23BEF7"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"registrarSolicitud"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@54
+		    supplier   	@56
+		    Focus_Src  	@55
+		    Focus_Entry 	@57
+		    origin     	(215, 1710)
+		    terminal   	(615, 1710)
+		    ordinal    	14)
+		(object InterMessView "" @100
+		    location   	(845, 1805)
+		    label      	(object SegLabel @101
+			Parent_View 	@100
+			location   	(845, 1775)
+			quidu      	"67030701AD82"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"registrarLista"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@56
+		    supplier   	@58
+		    Focus_Src  	@57
+		    Focus_Entry 	@59
+		    origin     	(645, 1805)
+		    terminal   	(1045, 1805)
+		    ordinal    	15)
+		(object InterMessView "" @102
+		    location   	(2135, 1900)
+		    label      	(object SegLabel @103
+			Parent_View 	@102
+			location   	(2135, 1870)
+			quidu      	"67037DD5094C"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"crear"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@58
+		    supplier   	@68
+		    Focus_Src  	@59
+		    Focus_Entry 	@69
+		    origin     	(1075, 1900)
+		    terminal   	(3195, 1900)
+		    ordinal    	16)
+		(object InterMessView "" @104
+		    location   	(2135, 1995)
+		    label      	(object SegLabel @105
+			Parent_View 	@104
+			location   	(2135, 1965)
+			quidu      	"67030394B668"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"validarComposicion"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@58
+		    supplier   	@68
+		    Focus_Src  	@59
+		    Focus_Entry 	@69
+		    origin     	(1075, 1995)
+		    terminal   	(3195, 1995)
+		    ordinal    	17)
+		(object InterMessView "" @106
+		    location   	(1920, 2090)
+		    label      	(object SegLabel @107
+			Parent_View 	@106
+			location   	(1920, 2060)
+			quidu      	"6703741EF821"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"crear"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@58
+		    supplier   	@66
+		    Focus_Src  	@59
+		    Focus_Entry 	@67
+		    origin     	(1075, 2090)
+		    terminal   	(2765, 2090)
+		    ordinal    	18)
+		(object InterMessView "" @108
+		    location   	(2135, 2185)
+		    label      	(object SegLabel @109
+			Parent_View 	@108
+			location   	(2135, 2155)
+			quidu      	"6703EB343585"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"guardar"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@58
+		    supplier   	@68
+		    Focus_Src  	@59
+		    Focus_Entry 	@69
+		    origin     	(1075, 2185)
+		    terminal   	(3195, 2185)
+		    ordinal    	19)
+		(object InterMessView "" @110
+		    location   	(845, 2280)
+		    label      	(object SegLabel @111
+			Parent_View 	@110
+			location   	(845, 2250)
+			quidu      	"6703CA0BC36C"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"mostrarConstancia"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@58
+		    supplier   	@56
+		    Focus_Src  	@59
+		    Focus_Entry 	@57
+		    origin     	(1045, 2280)
+		    terminal   	(645, 2280)
+		    ordinal    	20)
+		(object InterMessView "" @112
+		    location   	(415, 2375)
+		    label      	(object SegLabel @113
+			Parent_View 	@112
+			location   	(415, 2345)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	420
+			justify    	0
+			label      	"mostrarSolicitudRegistrada"
+			pctDist    	0.500000
+			height     	30
+			orientation 	0)
+		    line_color 	3342489
+		    client     	@56
+		    supplier   	@54
+		    Focus_Src  	@57
+		    Focus_Entry 	@55
+		    origin     	(615, 2375)
+		    terminal   	(215, 2375)
+		    ordinal    	21)))
+	(object ObjectDiagram "RF16 - Diagrama de Colaboracion"
+	    mechanism  	@6
+	    quid       	"67033E93C80B"
+	    title      	"RF16 - Diagrama de Colaboracion"
+	    zoom       	100
+	    max_height 	28350
+	    max_width  	21600
+	    origin_x   	0
+	    origin_y   	0
+	    items      	(list diagram_item_list
+		(object ObjectView "$UNNAMED$24" @114
+		    location   	(250, 500)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@114
+			location   	(250, 590)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"6703A67152B9"
+		    width      	380
+		    height     	150
+		    annotation 	4
+		    subobjects 	0
+		    x_offset   	0.000000
+		    y_offset   	0.000000)
+		(object ObjectView "$UNNAMED$25" @115
+		    location   	(1050, 500)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@115
+			location   	(1050, 590)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"670366671DD1"
+		    width      	380
+		    height     	150
+		    annotation 	4
+		    subobjects 	0
+		    x_offset   	0.000000
+		    y_offset   	0.000000)
+		(object ObjectView "$UNNAMED$26" @116
+		    location   	(1850, 500)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@116
+			location   	(1850, 590)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"67039A9390DE"
+		    width      	380
+		    height     	150
+		    annotation 	4
+		    subobjects 	0
+		    x_offset   	0.000000
+		    y_offset   	0.000000)
+		(object ObjectView "$UNNAMED$27" @117
+		    location   	(2750, 250)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@117
+			location   	(2750, 340)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"670351C287FD"
+		    width      	380
+		    height     	150
+		    annotation 	4
+		    subobjects 	0
+		    x_offset   	0.000000
+		    y_offset   	0.000000)
+		(object ObjectView "$UNNAMED$28" @118
+		    location   	(2750, 750)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@118
+			location   	(2750, 840)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"67037A3BEAE6"
+		    width      	380
+		    height     	150
+		    annotation 	4
+		    subobjects 	0
+		    x_offset   	0.000000
+		    y_offset   	0.000000)
+		(object ObjectView "$UNNAMED$29" @119
+		    location   	(1050, 1300)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@119
+			location   	(1050, 1390)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"670382D8EB36"
+		    width      	380
+		    height     	150
+		    annotation 	4
+		    subobjects 	0
+		    x_offset   	0.000000
+		    y_offset   	0.000000)
+		(object ObjectView "$UNNAMED$30" @120
+		    location   	(1850, 1300)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@120
+			location   	(1850, 1390)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"6703AB2359E1"
+		    width      	380
+		    height     	150
+		    annotation 	4
+		    subobjects 	0
+		    x_offset   	0.000000
+		    y_offset   	0.000000)
+		(object ObjectView "$UNNAMED$31" @121
+		    location   	(2750, 1300)
+		    font       	(object Font
+		    	size       	10
+		    	face       	"Arial"
+		    	bold       	FALSE
+		    	italics    	FALSE
+		    	underline  	FALSE
+		    	strike     	FALSE
+		    	color      	0
+		    	default_color 	TRUE)
+		    label      	(object ItemLabel
+			Parent_View 	@121
+			location   	(2750, 1390)
+			fill_color 	13434879
+			anchor_loc 	1
+			nlines     	2
+			max_width  	380
+			justify    	0
+			label      	"")
+		    icon_style 	"Icon"
+		    line_color 	3342489
+		    fill_color 	13434879
+		    quidu      	"6703F3E8793B"
+		    width      	380
+		    height     	150
+		    annotation 	4
+		    subobjects 	0
+		    x_offset   	0.000000
+		    y_offset   	0.000000)
+		(object LinkView "" @122
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"6703D057A682"
+		    client     	@114
+		    supplier   	@115
+		    vertices   	(list Points
+			(250, 500)
+			(1050, 500))
+		    line_style 	0)
+		(object MessView "" @123
+		    location   	(650, 475)
+		    label      	(object SegLabel @124
+			Parent_View 	@123
+			location   	(650, 455)
+			quidu      	"67033CE44E27"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"abrirFormulario"
+			pctDist    	0.500000
+			height     	45
+			orientation 	0)
+		    object_arc 	@122
+		    pctDist    	0.500000
+		    height     	25
+		    orientation 	0
+		    dir        	1
+		    origin     	(590, 475)
+		    terminal   	(710, 475))
+		(object MessView "" @125
+		    location   	(650, 430)
+		    label      	(object SegLabel @126
+			Parent_View 	@125
+			location   	(650, 410)
+			quidu      	"670338F12D92"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"seleccionarProceso"
+			pctDist    	0.500000
+			height     	90
+			orientation 	0)
+		    object_arc 	@122
+		    pctDist    	0.500000
+		    height     	70
+		    orientation 	0
+		    dir        	1
+		    origin     	(590, 430)
+		    terminal   	(710, 430))
+		(object MessView "" @127
+		    location   	(650, 385)
+		    label      	(object SegLabel @128
+			Parent_View 	@127
+			location   	(650, 365)
+			quidu      	"6703D09E0492"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"ingresarDatosLista"
+			pctDist    	0.500000
+			height     	135
+			orientation 	0)
+		    object_arc 	@122
+		    pctDist    	0.500000
+		    height     	115
+		    orientation 	0
+		    dir        	1
+		    origin     	(590, 385)
+		    terminal   	(710, 385))
+		(object MessView "" @129
+		    location   	(650, 340)
+		    label      	(object SegLabel @130
+			Parent_View 	@129
+			location   	(650, 320)
+			quidu      	"67032456DE76"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"agregarCandidato"
+			pctDist    	0.500000
+			height     	180
+			orientation 	0)
+		    object_arc 	@122
+		    pctDist    	0.500000
+		    height     	160
+		    orientation 	0
+		    dir        	1
+		    origin     	(590, 340)
+		    terminal   	(710, 340))
+		(object MessView "" @131
+		    location   	(650, 295)
+		    label      	(object SegLabel @132
+			Parent_View 	@131
+			location   	(650, 275)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"mostrarCandidatoValidado"
+			pctDist    	0.500000
+			height     	225
+			orientation 	0)
+		    object_arc 	@122
+		    pctDist    	0.500000
+		    height     	205
+		    orientation 	0
+		    dir        	0
+		    origin     	(710, 295)
+		    terminal   	(590, 295))
+		(object MessView "" @133
+		    location   	(650, 250)
+		    label      	(object SegLabel @134
+			Parent_View 	@133
+			location   	(650, 230)
+			quidu      	"67039A23BEF7"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"registrarSolicitud"
+			pctDist    	0.500000
+			height     	270
+			orientation 	0)
+		    object_arc 	@122
+		    pctDist    	0.500000
+		    height     	250
+		    orientation 	0
+		    dir        	1
+		    origin     	(590, 250)
+		    terminal   	(710, 250))
+		(object MessView "" @135
+		    location   	(650, 205)
+		    label      	(object SegLabel @136
+			Parent_View 	@135
+			location   	(650, 185)
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"mostrarSolicitudRegistrada"
+			pctDist    	0.500000
+			height     	315
+			orientation 	0)
+		    object_arc 	@122
+		    pctDist    	0.500000
+		    height     	295
+		    orientation 	0
+		    dir        	0
+		    origin     	(710, 205)
+		    terminal   	(590, 205))
+		(object LinkView "" @137
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"6703A7C880DD"
+		    client     	@115
+		    supplier   	@116
+		    vertices   	(list Points
+			(1050, 500)
+			(1850, 500))
+		    line_style 	0)
+		(object MessView "" @138
+		    location   	(1450, 475)
+		    label      	(object SegLabel @139
+			Parent_View 	@138
+			location   	(1450, 455)
+			quidu      	"670305372EF4"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"iniciarInscripcion"
+			pctDist    	0.500000
+			height     	45
+			orientation 	0)
+		    object_arc 	@137
+		    pctDist    	0.500000
+		    height     	25
+		    orientation 	0
+		    dir        	1
+		    origin     	(1390, 475)
+		    terminal   	(1510, 475))
+		(object MessView "" @140
+		    location   	(1450, 430)
+		    label      	(object SegLabel @141
+			Parent_View 	@140
+			location   	(1450, 410)
+			quidu      	"67039B25F81F"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"validarCandidato"
+			pctDist    	0.500000
+			height     	90
+			orientation 	0)
+		    object_arc 	@137
+		    pctDist    	0.500000
+		    height     	70
+		    orientation 	0
+		    dir        	1
+		    origin     	(1390, 430)
+		    terminal   	(1510, 430))
+		(object MessView "" @142
+		    location   	(1450, 385)
+		    label      	(object SegLabel @143
+			Parent_View 	@142
+			location   	(1450, 365)
+			quidu      	"67030701AD82"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"registrarLista"
+			pctDist    	0.500000
+			height     	135
+			orientation 	0)
+		    object_arc 	@137
+		    pctDist    	0.500000
+		    height     	115
+		    orientation 	0
+		    dir        	1
+		    origin     	(1390, 385)
+		    terminal   	(1510, 385))
+		(object MessView "" @144
+		    location   	(1450, 340)
+		    label      	(object SegLabel @145
+			Parent_View 	@144
+			location   	(1450, 320)
+			quidu      	"6703CA0BC36C"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"mostrarConstancia"
+			pctDist    	0.500000
+			height     	180
+			orientation 	0)
+		    object_arc 	@137
+		    pctDist    	0.500000
+		    height     	160
+		    orientation 	0
+		    dir        	0
+		    origin     	(1510, 340)
+		    terminal   	(1390, 340))
+		(object LinkView "" @146
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"6703D1262610"
+		    client     	@116
+		    supplier   	@117
+		    vertices   	(list Points
+			(1850, 500)
+			(2750, 250))
+		    line_style 	0)
+		(object MessView "" @147
+		    location   	(2300, 350)
+		    label      	(object SegLabel @148
+			Parent_View 	@147
+			location   	(2300, 330)
+			quidu      	"6703396E0D55"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"buscarPorId"
+			pctDist    	0.500000
+			height     	45
+			orientation 	0)
+		    object_arc 	@146
+		    pctDist    	0.500000
+		    height     	25
+		    orientation 	0
+		    dir        	1
+		    origin     	(2242, 366)
+		    terminal   	(2357, 333))
+		(object MessView "" @149
+		    location   	(2300, 305)
+		    label      	(object SegLabel @150
+			Parent_View 	@149
+			location   	(2300, 285)
+			quidu      	"6703C85BD78D"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"estaEnPlazoInscripcion"
+			pctDist    	0.500000
+			height     	90
+			orientation 	0)
+		    object_arc 	@146
+		    pctDist    	0.500000
+		    height     	70
+		    orientation 	0
+		    dir        	1
+		    origin     	(2242, 321)
+		    terminal   	(2357, 288))
+		(object LinkView "" @151
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"670351EA0EDC"
+		    client     	@116
+		    supplier   	@118
+		    vertices   	(list Points
+			(1850, 500)
+			(2750, 750))
+		    line_style 	0)
+		(object MessView "" @152
+		    location   	(2300, 600)
+		    label      	(object SegLabel @153
+			Parent_View 	@152
+			location   	(2300, 580)
+			quidu      	"67031600314A"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"listarPorProceso"
+			pctDist    	0.500000
+			height     	45
+			orientation 	0)
+		    object_arc 	@151
+		    pctDist    	0.500000
+		    height     	25
+		    orientation 	0
+		    dir        	1
+		    origin     	(2242, 583)
+		    terminal   	(2357, 616))
+		(object MessView "" @154
+		    location   	(2300, 555)
+		    label      	(object SegLabel @155
+			Parent_View 	@154
+			location   	(2300, 535)
+			quidu      	"67037E89F918"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"permitePostular"
+			pctDist    	0.500000
+			height     	90
+			orientation 	0)
+		    object_arc 	@151
+		    pctDist    	0.500000
+		    height     	70
+		    orientation 	0
+		    dir        	1
+		    origin     	(2242, 538)
+		    terminal   	(2357, 571))
+		(object LinkView "" @156
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"67031F1B98CF"
+		    client     	@116
+		    supplier   	@119
+		    vertices   	(list Points
+			(1850, 500)
+			(1050, 1300))
+		    line_style 	0)
+		(object MessView "" @157
+		    location   	(1450, 875)
+		    label      	(object SegLabel @158
+			Parent_View 	@157
+			location   	(1450, 855)
+			quidu      	"6703F9507C87"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"buscarPorDni"
+			pctDist    	0.500000
+			height     	45
+			orientation 	0)
+		    object_arc 	@156
+		    pctDist    	0.500000
+		    height     	25
+		    orientation 	0
+		    dir        	1
+		    origin     	(1492, 832)
+		    terminal   	(1407, 917))
+		(object MessView "" @159
+		    location   	(1450, 830)
+		    label      	(object SegLabel @160
+			Parent_View 	@159
+			location   	(1450, 810)
+			quidu      	"6703D523583B"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"cumpleRequisitos"
+			pctDist    	0.500000
+			height     	90
+			orientation 	0)
+		    object_arc 	@156
+		    pctDist    	0.500000
+		    height     	70
+		    orientation 	0
+		    dir        	1
+		    origin     	(1492, 787)
+		    terminal   	(1407, 872))
+		(object LinkView "" @161
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"6703A0261403"
+		    client     	@116
+		    supplier   	@120
+		    vertices   	(list Points
+			(1850, 500)
+			(1850, 1300))
+		    line_style 	0)
+		(object MessView "" @162
+		    location   	(1850, 875)
+		    label      	(object SegLabel @163
+			Parent_View 	@162
+			location   	(1850, 855)
+			quidu      	"67034F126160"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"perteneceAOtraLista"
+			pctDist    	0.500000
+			height     	45
+			orientation 	0)
+		    object_arc 	@161
+		    pctDist    	0.500000
+		    height     	25
+		    orientation 	0
+		    dir        	1
+		    origin     	(1850, 815)
+		    terminal   	(1850, 935))
+		(object MessView "" @164
+		    location   	(1850, 830)
+		    label      	(object SegLabel @165
+			Parent_View 	@164
+			location   	(1850, 810)
+			quidu      	"6703741EF821"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"crear"
+			pctDist    	0.500000
+			height     	90
+			orientation 	0)
+		    object_arc 	@161
+		    pctDist    	0.500000
+		    height     	70
+		    orientation 	0
+		    dir        	1
+		    origin     	(1850, 770)
+		    terminal   	(1850, 890))
+		(object LinkView "" @166
+		    stereotype 	TRUE
+		    line_color 	3342489
+		    quidu      	"6703BCE61747"
+		    client     	@116
+		    supplier   	@121
+		    vertices   	(list Points
+			(1850, 500)
+			(2750, 1300))
+		    line_style 	0)
+		(object MessView "" @167
+		    location   	(2300, 875)
+		    label      	(object SegLabel @168
+			Parent_View 	@167
+			location   	(2300, 855)
+			quidu      	"67037DD5094C"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"crear"
+			pctDist    	0.500000
+			height     	45
+			orientation 	0)
+		    object_arc 	@166
+		    pctDist    	0.500000
+		    height     	25
+		    orientation 	0
+		    dir        	1
+		    origin     	(2255, 835)
+		    terminal   	(2344, 914))
+		(object MessView "" @169
+		    location   	(2300, 830)
+		    label      	(object SegLabel @170
+			Parent_View 	@169
+			location   	(2300, 810)
+			quidu      	"67030394B668"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"validarComposicion"
+			pctDist    	0.500000
+			height     	90
+			orientation 	0)
+		    object_arc 	@166
+		    pctDist    	0.500000
+		    height     	70
+		    orientation 	0
+		    dir        	1
+		    origin     	(2255, 790)
+		    terminal   	(2344, 869))
+		(object MessView "" @171
+		    location   	(2300, 785)
+		    label      	(object SegLabel @172
+			Parent_View 	@171
+			location   	(2300, 765)
+			quidu      	"6703EB343585"
+			anchor     	2
+			anchor_loc 	1
+			nlines     	1
+			max_width  	450
+			justify    	0
+			label      	"guardar"
+			pctDist    	0.500000
+			height     	135
+			orientation 	0)
+		    object_arc 	@166
+		    pctDist    	0.500000
+		    height     	115
+		    orientation 	0
+		    dir        	1
+		    origin     	(2255, 745)
+		    terminal   	(2344, 824))))))
+    root_subsystem 	(object SubSystem "Component View"
+	quid       	"6703B184D009"
+	physical_models 	(list unit_reference_list)
+	physical_presentations 	(list unit_reference_list
+	    (object Module_Diagram "Main"
+		quid       	"6703EB428658"
+		title      	"Main"
+		zoom       	100
+		max_height 	28350
+		max_width  	21600
+		origin_x   	0
+		origin_y   	0
+		items      	(list diagram_item_list))))
+    process_structure 	(object Processes
+	quid       	"67034166D668"
+	ProcsNDevs 	(list
+	    (object Process_Diagram "Deployment View"
+		quid       	"67031DB83D5E"
+		title      	"Deployment View"
+		zoom       	100
+		max_height 	28350
+		max_width  	21600
+		origin_x   	0
+		origin_y   	0
+		items      	(list diagram_item_list))))
+    properties 	(object Properties
+	quid       	"67031AA1E9E7"))

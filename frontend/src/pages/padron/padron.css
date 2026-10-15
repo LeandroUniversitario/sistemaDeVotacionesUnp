@@ -1,0 +1,79 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CUS02 · Gestionar padrón electoral (PantallaPadron)
+   Reutiliza .cv-btn, .cv-steps, .cv-checklist… de convocatoria.css.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.pd-shell { display: grid; gap: 16px; min-width: 0; }
+.pd-shell > .alert { margin: 0; cursor: pointer; }
+
+/* ── Indicadores ─────────────────────────────────────────────────── */
+.pd-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.pd-mini-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.pd-stat { display: grid; gap: 2px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); min-width: 0; }
+.pd-stat-label { font-size: .74rem; font-weight: 650; color: var(--text-muted); }
+.pd-stat strong { font-size: 1.6rem; font-weight: 750; letter-spacing: -.02em; color: var(--text-main); font-variant-numeric: tabular-nums; }
+.pd-stat strong.small { font-size: 1rem; padding-top: 6px; }
+.pd-stat-sub { font-size: .74rem; font-weight: 600; color: var(--text-muted); }
+.pd-stat.green strong, .pd-stat.green .pd-stat-sub { color: var(--cv-green); }
+.pd-stat.red strong { color: var(--cv-red); }
+.pd-stat.amber .pd-stat-sub { color: var(--cv-amber); }
+.pd-mini-stats .pd-stat { background: var(--gray-50); }
+
+/* ── Paso 1 ──────────────────────────────────────────────────────── */
+.pd-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.pd-drop {
+  display: grid; justify-items: center; gap: 6px; padding: 34px 20px; text-align: center; cursor: pointer;
+  border: 2px dashed var(--border-strong); border-radius: var(--r-lg); background: var(--gray-50);
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.pd-drop:hover, .pd-drop:focus-visible, .pd-drop.over { border-color: var(--cv-blue); background: #eff6ff; outline: none; }
+.pd-drop.has-file { border-style: solid; border-color: #93c5fd; background: #eff6ff; }
+.pd-drop strong { font-size: .9rem; color: var(--text-main); }
+.pd-drop span:not(.pd-drop-icon) { font-size: .78rem; color: var(--text-muted); }
+.pd-drop-icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 14px; color: var(--cv-blue); background: var(--cv-blue-soft); margin-bottom: 4px; }
+.pd-columns { display: grid; gap: 8px; }
+.pd-columns > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.pd-columns code { padding: 3px 8px; border-radius: var(--r-sm); background: var(--gray-100); border: 1px solid var(--border); font-size: .75rem; color: var(--text-body); }
+
+.pd-errors { border: 1px solid #fecdd3; background: #fff7f8; border-radius: var(--r-md); padding: 10px 14px; }
+.pd-errors summary { cursor: pointer; font-size: .82rem; font-weight: 650; color: var(--cv-red); }
+.pd-errors ul { margin: 8px 0 0; padding-left: 18px; max-height: 200px; overflow-y: auto; font-size: .78rem; color: var(--text-body); line-height: 1.5; }
+
+/* ── Paso 2 ──────────────────────────────────────────────────────── */
+.pd-changes { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; padding: 10px 14px; border-radius: var(--r-md); background: var(--cv-blue-soft); color: #1e40af; font-size: .84rem; }
+.pd-changes b { font-size: 1rem; }
+.pd-motivos { display: flex; flex-wrap: wrap; gap: 6px; }
+.pd-motivo { padding: 4px 10px; border-radius: 999px; font-size: .76rem; color: var(--cv-red); background: var(--cv-red-soft); }
+.pd-motivo b { margin-right: 4px; }
+
+.pd-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.pd-tabs { display: inline-flex; gap: 4px; padding: 4px; background: var(--gray-100); border-radius: var(--r-md); }
+.pd-tab { padding: 7px 12px; border-radius: var(--r-sm); background: transparent; font-size: .82rem; font-weight: 650; color: var(--text-muted); }
+.pd-tab span { margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: var(--gray-200); font-size: .72rem; }
+.pd-tab.on { background: var(--surface); color: var(--text-main); box-shadow: var(--shadow-xs); }
+.pd-search { width: min(100%, 320px); }
+.pd-select { width: auto; min-width: 200px; }
+
+.pd-sub { display: block; font-size: .74rem; color: var(--text-muted); font-weight: 500; }
+.pd-inhab { display: grid; gap: 3px; justify-items: start; }
+.pd-inhab small { font-size: .74rem; color: var(--cv-red); }
+.pd-shell td.num, .pd-shell th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.pd-pager { display: flex; justify-content: flex-end; align-items: center; gap: 10px; font-size: .82rem; color: var(--text-muted); }
+.pd-pager .cv-btn { padding: 6px 12px; }
+
+/* ── Paso 3 ──────────────────────────────────────────────────────── */
+.pd-approve { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
+.pd-procesos { padding: 16px; }
+.pd-procesos h3 { margin: 0 0 10px; font-size: .95rem; }
+.pd-procesos ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pd-approve-main { display: grid; gap: 16px; min-width: 0; }
+.pd-cargos td, .pd-cargos th { padding: 9px 10px; }
+
+@media (max-width: 1100px) {
+  .pd-grid, .pd-approve { grid-template-columns: 1fr; }
+  .pd-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .pd-stats, .pd-mini-stats { grid-template-columns: 1fr 1fr; }
+  .pd-search, .pd-select { width: 100%; }
+}
