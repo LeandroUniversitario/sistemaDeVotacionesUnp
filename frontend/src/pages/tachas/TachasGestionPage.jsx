@@ -80,8 +80,8 @@ export default function TachasGestionPage({ session, onSessionExpired }) {
         apiRequest(`/api/gestion-tachas/procesos/${id}/candidatos`),
         esCeunp ? apiRequest(`/api/gestion-tachas/procesos/${id}/tachas`) : apiRequest('/api/gestion-tachas/mias'),
       ]);
-      setCandidatos(cands);
-      setTachas(esCeunp ? lista : lista.filter((t) => t.idProceso === id));
+      setCandidatos(cands || []);
+      setTachas(esCeunp ? (lista || []) : (lista || []).filter((t) => (t.idProceso ?? t.id_proceso) === id));
     } catch (error) {
       manejarError(error);
     }
@@ -93,13 +93,13 @@ export default function TachasGestionPage({ session, onSessionExpired }) {
       esCeunp ? apiRequest(`/api/gestion-tachas/procesos/${idProceso}/tachas`) : apiRequest('/api/gestion-tachas/mias'),
       apiRequest('/api/gestion-tachas/procesos'),
     ]);
-    setCandidatos(cands);
-    setTachas(esCeunp ? lista : lista.filter((t) => t.idProceso === idProceso));
-    setProcesos(procs);
+    setCandidatos(cands || []);
+    setTachas(esCeunp ? (lista || []) : (lista || []).filter((t) => (t.idProceso ?? t.id_proceso) === idProceso));
+    setProcesos(procs || []);
   }
 
   const proceso = procesos.find((p) => p.id === idProceso);
-  const admite = Boolean(Number(proceso?.admiteTachas ?? 0));
+  const admite = proceso ? (proceso.estado === 'INSCRIPCION' || Boolean(Number(proceso.admiteTachas ?? proceso.admite_tachas ?? 0))) : false;
 
   // ─── 1 ingresarTacha(id_candidato, motivo) → 2 enviarTacha(datos) ────────
   async function ingresarTacha(datos) {
@@ -345,11 +345,13 @@ function FormularioTacha({ candidatos, admite, saving, onEnviar, conDni = false,
   const [idCandidato, setIdCandidato] = useState(null);
   const [motivo, setMotivo] = useState('');
   const [dni, setDni] = useState('');
+  const [localError, setLocalError] = useState(null);
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    return candidatos.filter((c) => !q || c.candidato.toLowerCase().includes(q) || c.lista.toLowerCase().includes(q));
+    return candidatos.filter((c) => !q || (c.candidato && c.candidato.toLowerCase().includes(q)) || (c.lista && c.lista.toLowerCase().includes(q)));
   }, [candidatos, busqueda]);
+
   const grupos = useMemo(() => {
     const m = new Map();
     filtrados.forEach((c) => {
@@ -359,13 +361,33 @@ function FormularioTacha({ candidatos, admite, saving, onEnviar, conDni = false,
     });
     return [...m.entries()];
   }, [filtrados]);
+
   const elegido = candidatos.find((c) => c.id === idCandidato);
-  const valido = idCandidato && motivo.trim().length >= MIN && (!conDni || dni.length > 0);
 
   async function enviar(event) {
     event.preventDefault();
+    setLocalError(null);
+
+    if (!idCandidato) {
+      setLocalError('Por favor seleccione al candidato que desea tachar haciendo clic sobre su tarjeta.');
+      return;
+    }
+    if (motivo.trim().length < MIN) {
+      setLocalError(`El fundamento de la tacha debe tener al menos ${MIN} caracteres (actual: ${motivo.trim().length}).`);
+      return;
+    }
+    if (conDni && (!dni || dni.trim().length === 0)) {
+      setLocalError('Por favor ingrese el DNI del docente denunciante.');
+      return;
+    }
+
     const ok = await onEnviar({ idCandidato, motivo: motivo.trim(), dniDenunciante: conDni ? dni : null });
-    if (ok) { setIdCandidato(null); setMotivo(''); setDni(''); }
+    if (ok) {
+      setIdCandidato(null);
+      setMotivo('');
+      setDni('');
+      setLocalError(null);
+    }
   }
 
   return (
@@ -383,6 +405,12 @@ function FormularioTacha({ candidatos, admite, saving, onEnviar, conDni = false,
 
       {!admite && <p className="tc-aviso"><MenuIcon name="lock" size={14} /> Este proceso ya no recibe tachas.</p>}
 
+      {localError && (
+        <div className="alert error" role="alert" style={{ marginBottom: 12 }}>
+          {localError}
+        </div>
+      )}
+
       {conDni && (
         <label className="cv-field">
           <span className="cv-label">DNI del docente denunciante</span>
@@ -391,16 +419,40 @@ function FormularioTacha({ candidatos, admite, saving, onEnviar, conDni = false,
       )}
 
       <div className="cv-field">
-        <span className="cv-label">Candidato</span>
+        <span className="cv-label">Candidato a tachar <span className="required-mark">*</span></span>
+        {elegido ? (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 14px', borderRadius: 8, background: '#eff6ff',
+            border: '1.5px solid #3b82f6', marginBottom: 8,
+          }}>
+            <div>
+              <div style={{ fontWeight: 700, color: '#1e40af', fontSize: 14 }}>
+                ✓ {elegido.candidato}
+              </div>
+              <div style={{ fontSize: 12, color: '#3b82f6' }}>
+                {rolLegible(elegido.rolEnLista)} · {elegido.categoria} · Lista «{elegido.lista}»
+              </div>
+            </div>
+            <button type="button" className="text-button" style={{ fontSize: 12 }} onClick={() => setIdCandidato(null)}>
+              Cambiar
+            </button>
+          </div>
+        ) : (
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 8px' }}>
+            Seleccione al candidato haciendo clic en una de las tarjetas:
+          </p>
+        )}
+
         <input className="pd-search tc-search" placeholder="Buscar por nombre o lista…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
         <div className="tc-candidatos" role="radiogroup" aria-label="Candidatos">
-          {grupos.length === 0 && <p className="in-empty">No hay candidatos que coincidan.</p>}
+          {grupos.length === 0 && <p className="in-empty">No hay candidatos que coincidan con la búsqueda.</p>}
           {grupos.map(([grupo, cs]) => (
             <div key={grupo} className="tc-grupo">
               <span className="tc-grupo-title">{grupo}</span>
               {cs.map((c) => (
                 <button key={c.id} type="button" role="radio" aria-checked={idCandidato === c.id}
-                  className={`tc-cand${idCandidato === c.id ? ' on' : ''}`} onClick={() => setIdCandidato(c.id)}>
+                  className={`tc-cand${idCandidato === c.id ? ' on' : ''}`} onClick={() => { setIdCandidato(c.id); setLocalError(null); }}>
                   <span className="in-avatar">{c.candidato.charAt(0)}</span>
                   <span className="in-cand-body">
                     <strong>{c.candidato}</strong>
@@ -415,15 +467,15 @@ function FormularioTacha({ candidatos, admite, saving, onEnviar, conDni = false,
       </div>
 
       <label className="cv-field">
-        <span className="cv-label">Fundamento de la tacha{elegido ? ` contra ${elegido.candidato}` : ''}</span>
+        <span className="cv-label">Fundamento de la tacha{elegido ? ` contra ${elegido.candidato}` : ''} <span className="required-mark">*</span></span>
         <textarea rows={5} maxLength={4000} value={motivo} placeholder="Describa el requisito que incumple el candidato y las pruebas que lo sustentan…"
-          onChange={(e) => setMotivo(e.target.value)} />
+          onChange={(e) => { setMotivo(e.target.value); setLocalError(null); }} />
         <small className={motivo.trim().length < MIN ? 'cv-hint' : 'cv-hint ok'}>{motivo.trim().length}/{MIN} caracteres mínimos</small>
       </label>
 
       <div className="cv-actions">
         {onCancelar && <button type="button" className="cv-btn cv-btn-ghost" onClick={onCancelar}>Cancelar</button>}
-        <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || !admite || !valido}>
+        <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || !admite}>
           <MenuIcon name="file" size={15} /> {saving ? 'Enviando…' : 'Enviar tacha'}
         </button>
       </div>

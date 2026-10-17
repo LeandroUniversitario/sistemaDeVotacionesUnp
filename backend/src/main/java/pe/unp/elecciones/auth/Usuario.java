@@ -8,10 +8,12 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "usuario")
 public class Usuario {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_usuario")
@@ -37,21 +39,29 @@ public class Usuario {
     private int intentosFallidos;
 
     @Column(name = "bloqueado_hasta")
-    private java.time.LocalDateTime bloqueadoHasta;
+    private LocalDateTime bloqueadoHasta;
 
     @Column(name = "ultimo_acceso")
-    private java.time.LocalDateTime ultimoAcceso;
+    private LocalDateTime ultimoAcceso;
+
+    /**
+     * TRUE cuando la cuenta fue creada masivamente (importacion) y el docente
+     * debe elegir su propia contrasena al primer inicio de sesion.
+     */
+    @Column(name = "debe_cambiar_password", nullable = false)
+    private boolean debeCambiarPassword = false;
 
     protected Usuario() {
     }
 
-    Usuario(String username, String passwordHash, Rol rol, Integer idDocente) {
+    public Usuario(String username, String passwordHash, Rol rol, Integer idDocente) {
         this.username = username;
         this.passwordHash = passwordHash;
         this.rol = rol;
         this.idDocente = idDocente;
         this.activo = true;
         this.intentosFallidos = 0;
+        this.debeCambiarPassword = false;
     }
 
     void cambiarEstado(boolean activo) {
@@ -60,6 +70,7 @@ public class Usuario {
 
     void cambiarPassword(String passwordHash) {
         this.passwordHash = passwordHash;
+        this.debeCambiarPassword = false; // limpia el flag al cambiar la clave
     }
 
     void cambiarRol(Rol nuevoRol) {
@@ -69,49 +80,28 @@ public class Usuario {
     public void registrarIntentoFallido() {
         this.intentosFallidos++;
         if (this.intentosFallidos >= 5) {
-            this.bloqueadoHasta = java.time.LocalDateTime.now().plusMinutes(15);
+            this.bloqueadoHasta = LocalDateTime.now().plusMinutes(15);
         }
     }
 
     public void registrarAccesoExitoso() {
         this.intentosFallidos = 0;
         this.bloqueadoHasta = null;
-        this.ultimoAcceso = java.time.LocalDateTime.now();
+        this.ultimoAcceso = LocalDateTime.now();
     }
 
-    public Integer getId() {
-        return id;
-    }
+    public Integer getId()                      { return id; }
+    public String getUsername()                 { return username; }
+    public Integer getIdDocente()               { return idDocente; }
+    public String getPasswordHash()             { return passwordHash; }
+    public Rol getRol()                         { return rol; }
+    public boolean isActivo()                   { return activo; }
+    public int getIntentosFallidos()            { return intentosFallidos; }
+    public LocalDateTime getBloqueadoHasta()    { return bloqueadoHasta; }
+    public LocalDateTime getUltimoAcceso()      { return ultimoAcceso; }
+    public boolean isDebeCambiarPassword()      { return debeCambiarPassword; }
 
-    public String getUsername() {
-        return username;
-    }
-
-    public Integer getIdDocente() {
-        return idDocente;
-    }
-
-    public String getPasswordHash() {
-        return passwordHash;
-    }
-
-    public Rol getRol() {
-        return rol;
-    }
-
-    public boolean isActivo() {
-        return activo;
-    }
-
-    public int getIntentosFallidos() {
-        return intentosFallidos;
-    }
-
-    public java.time.LocalDateTime getBloqueadoHasta() {
-        return bloqueadoHasta;
-    }
-
-    public java.time.LocalDateTime getUltimoAcceso() {
-        return ultimoAcceso;
+    public void setDebeCambiarPassword(boolean debeCambiarPassword) {
+        this.debeCambiarPassword = debeCambiarPassword;
     }
 }

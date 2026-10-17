@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { apiRequest } from '../api/apiClient';
 import MenuIcon from '../components/MenuIcon';
 import ProcessTable from '../components/ProcessTable';
@@ -20,6 +20,7 @@ import SorteoMesaPage from './sorteo/SorteoMesaPage';
 import CredencialesPage from './credenciales/CredencialesPage';
 import MisCredencialesPage from './credenciales/MisCredencialesPage';
 import VerificarCredencialPanel from './credenciales/VerificarCredencialPanel';
+import MiPaseQRPage from './MiPaseQRPage';
 
 // ─── Mapas de iconos por sección ─────────────────────────────────────────
 const MENU_ICONS = {
@@ -500,7 +501,10 @@ export default function DashboardPage({ session, onLogout }) {
         {/* CUS07 · Credenciales propias (QR generado en el navegador, sin servicios externos) */}
         {section === 'fotocheck' && <MisCredencialesPage foco="MIEMBRO_MESA" onSessionExpired={onLogout} />}
         {section === 'credencial' && <MisCredencialesPage foco="PERSONERO" onSessionExpired={onLogout} />}
-        {section === 'pase' && <MisCredencialesPage foco="ELECTOR" onSessionExpired={onLogout} />}
+        {section === 'pase' && session.rol === 'DOCENTE' && (
+          <MiPaseQRPage onSessionExpired={onLogout} />
+        )}
+        {section === 'pase' && session.rol !== 'DOCENTE' && <MisCredencialesPage foco="ELECTOR" onSessionExpired={onLogout} />}
         {section === 'verificar-qr' && <VerificarCredencialPanel onSessionExpired={onLogout} />}
 
       </main>

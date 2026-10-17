@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+﻿import { useState, useRef } from 'react';
 import MenuIcon from '../components/MenuIcon';
 
 /**
@@ -159,7 +159,7 @@ export default function ImportarDocentesPage({ onImportSuccess }) {
       {resultado && (
         <div className="panel">
           <h3 style={{ marginBottom: '20px', color: '#237b55' }}>Importación completada</h3>
-          <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
             <article className="stat-card">
               <span className="stat-icon green">N</span>
               <div>

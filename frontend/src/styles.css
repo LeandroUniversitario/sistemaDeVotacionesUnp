@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════════
    SICEUNP — Design System
    Paleta: Neutral light bg · Dark sidebar · Accent Emerald/Indigo
    Tipografía: Inter (Google Fonts)
@@ -1146,3 +1146,28 @@ p  { line-height: 1.55; }
   .nav-item { white-space: nowrap; }
   .sidebar-footer { margin-top: 12px; }
 }
+
+/* === Estilos adicionales: Portal del Docente (MiPaseQRPage) === */
+
+/* Spinner de carga */
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Badge gris neutro */
+.badge-gray { color: var(--text-muted); background: var(--bg-input); border: 1px solid var(--border); }
+
+/* Boton primario (si no existia) */
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 18px; border-radius: var(--r); border: none; cursor: pointer;
+  background: var(--accent); color: #fff; font-size: 14px; font-weight: 600;
+  transition: background 0.18s, box-shadow 0.18s;
+}
+.btn-primary:hover:not(:disabled) { background: #059669; box-shadow: var(--shadow-md); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }

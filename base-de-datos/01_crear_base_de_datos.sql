@@ -150,11 +150,12 @@ CREATE TABLE usuario (
   username          VARCHAR(80)  NOT NULL,
   password_hash     VARCHAR(255) NOT NULL,    -- BCrypt (lo genera el backend)
   rol               ENUM('ADMIN','CEUNP','DOCENTE','PERSONERO','MIEMBRO_MESA') NOT NULL,
-  activo            BOOLEAN NOT NULL DEFAULT TRUE,
-  intentos_fallidos INT NOT NULL DEFAULT 0,
-  bloqueado_hasta   DATETIME NULL,
-  ultimo_acceso     DATETIME NULL,
-  fecha_creacion    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  activo                BOOLEAN NOT NULL DEFAULT TRUE,
+  intentos_fallidos     INT NOT NULL DEFAULT 0,
+  bloqueado_hasta       DATETIME NULL,
+  ultimo_acceso         DATETIME NULL,
+  fecha_creacion        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  debe_cambiar_password BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE: docente importado, debe cambiar clave en 1er login
   UNIQUE KEY uq_usuario_username (username),
   CONSTRAINT fk_usuario_docente FOREIGN KEY (id_docente) REFERENCES docente(id_docente)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -2895,19 +2896,20 @@ INSERT IGNORE INTO facultad (nombre) VALUES
 -- 2. INSERTAR DEPARTAMENTOS VINCULADOS A CADA FACULTAD
 -- =========================================================
 
--- Facultad de Agronomía
+-- Facultad de Agronomía (5 departamentos)
 INSERT IGNORE INTO departamento (id_facultad, nombre) VALUES 
-((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Agronomía'), 'Agronomía y Fitotecnia'),
+((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Agronomía'), 'Agronomía y Fitotécnia'),
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Agronomía'), 'Ingeniería Agrícola'),
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Agronomía'), 'Sanidad Vegetal'),
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Agronomía'), 'Suelos'),
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Agronomía'), 'Morfofisiología Vegetal');
 
--- Facultad de Arquitectura y Urbanismo
+-- Facultad de Arquitectura y Urbanismo (2 departamentos)
 INSERT IGNORE INTO departamento (id_facultad, nombre) VALUES 
-((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Arquitectura y Urbanismo'), 'Arquitectura y Urbanismo');
+((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Arquitectura y Urbanismo'), 'Arquitectura'),
+((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Arquitectura y Urbanismo'), 'Urbanismo');
 
--- Facultad de Ciencias
+-- Facultad de Ciencias (5 departamentos)
 INSERT IGNORE INTO departamento (id_facultad, nombre) VALUES 
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias'), 'Matemática'),
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias'), 'Física'),
@@ -2915,30 +2917,31 @@ INSERT IGNORE INTO departamento (id_facultad, nombre) VALUES
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias'), 'Ciencias Biológicas'),
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias'), 'Ingeniería Electrónica y Telecomunicaciones');
 
--- Facultad de Ciencias Administrativas
+-- Facultad de Ciencias Administrativas (2 departamentos)
 INSERT IGNORE INTO departamento (id_facultad, nombre) VALUES 
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias Administrativas'), 'Administración General'),
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias Administrativas'), 'Administración Aplicada');
 
--- Facultad de Ciencias Contables y Financieras
+-- Facultad de Ciencias Contables y Financieras (3 departamentos)
 INSERT IGNORE INTO departamento (id_facultad, nombre) VALUES 
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias Contables y Financieras'), 'Contabilidad General'),
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias Contables y Financieras'), 'Contabilidad Aplicada'),
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias Contables y Financieras'), 'Finanzas, Tributación y Auditoría');
 
--- Facultad de Ciencias de la Salud
+-- Facultad de Ciencias de la Salud (6 departamentos)
 INSERT IGNORE INTO departamento (id_facultad, nombre) VALUES 
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias de la Salud'), 'Materno Infantil'),
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias de la Salud'), 'Morfofisiología Humana'),
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias de la Salud'), 'Clínico Quirúrgico'),
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias de la Salud'), 'Salud Pública'),
-((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias de la Salud'), 'Enfermería');
+((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias de la Salud'), 'Enfermería Materno Perinatal'),
+((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias de la Salud'), 'Enfermería del Adulto');
 
--- Facultad de Ciencias Sociales y Educación
+-- Facultad de Ciencias Sociales y Educación (3 departamentos)
 INSERT IGNORE INTO departamento (id_facultad, nombre) VALUES 
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias Sociales y Educación'), 'Educación'),
-((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias Sociales y Educación'), 'Ciencias de la Comunicación'),
-((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias Sociales y Educación'), 'Humanidades');
+((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias Sociales y Educación'), 'Ciencias Sociales'),
+((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ciencias Sociales y Educación'), 'Ciencias de la Comunicación');
 
 -- Facultad de Derecho y Ciencias Políticas
 INSERT IGNORE INTO departamento (id_facultad, nombre) VALUES 
@@ -2949,9 +2952,10 @@ INSERT IGNORE INTO departamento (id_facultad, nombre) VALUES
 INSERT IGNORE INTO departamento (id_facultad, nombre) VALUES 
 ((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Economía'), 'Economía');
 
--- Facultad de Ingeniería Civil
+-- Facultad de Ingeniería Civil (2 departamentos)
 INSERT IGNORE INTO departamento (id_facultad, nombre) VALUES 
-((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ingeniería Civil'), 'Ingeniería Civil');
+((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ingeniería Civil'), 'Ingeniería Civil'),
+((SELECT id_facultad FROM facultad WHERE nombre = 'Facultad de Ingeniería Civil'), 'Ingeniería Sanitaria y Medio Ambiente');
 
 -- Facultad de Ingeniería de Minas
 INSERT IGNORE INTO departamento (id_facultad, nombre) VALUES 
