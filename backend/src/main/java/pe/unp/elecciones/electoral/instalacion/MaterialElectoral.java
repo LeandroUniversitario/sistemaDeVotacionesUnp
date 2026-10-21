@@ -1,33 +1,31 @@
 package pe.unp.elecciones.electoral.instalacion;
 
 /**
- * CUS08 · Material electoral que la mesa recibe antes de instalarse (Art. 45).
- * Sin el material obligatorio la mesa no se puede instalar.
+ * CUS08 · Material electoral que recibe la mesa (RF57, CUN07 paso 2; Art. 48 y 49).
+ * Mensaje 5 del diagrama: ingresarMaterial(padron, actas, cedulas, anfora, cabina).
+ * Todo es obligatorio: la mesa no se instala si falta alguno.
  */
 public enum MaterialElectoral {
 
-    PADRON_MESA("Padrón de electores de la mesa", true),
-    TERMINAL_VOTACION("Terminal de votación operativo", true),
-    CABINA_SECRETA("Cámara secreta acondicionada", true),
-    ANFORA("Ánfora para las cédulas impresas", true),
-    FORMATOS_ACTA("Formatos de acta (instalación, sufragio y escrutinio)", true),
-    LECTOR_QR("Lector de códigos QR (pistola o cámara)", false),
-    UTILES("Útiles electorales (lapiceros, tampón, sellos)", false),
-    CARTEL("Cartel de identificación de la mesa", false);
+    PADRON("Padrón de electores (lista de electores de la mesa)"),
+    ACTAS("Actas electorales (instalación, sufragio y escrutinio)"),
+    CEDULAS("Cédulas de sufragio"),
+    CARTEL_CANDIDATOS("Cartel de candidatos"),
+    ANFORA("Ánfora"),
+    CABINA("Cabina o cámara secreta");
 
     private final String descripcion;
-    private final boolean obligatorio;
 
-    MaterialElectoral(String descripcion, boolean obligatorio) {
+    MaterialElectoral(String descripcion) {
         this.descripcion = descripcion;
-        this.obligatorio = obligatorio;
     }
 
     public String descripcion() {
         return descripcion;
     }
 
-    public boolean obligatorio() {
-        return obligatorio;
+    /** RF57: estado en que se recibió cada material. */
+    public enum Estado {
+        CONFORME, OBSERVADO, NO_RECIBIDO
     }
 }

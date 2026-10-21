@@ -131,8 +131,11 @@ BEGIN
      SET mm.asistio = 0, mm.hora_acreditacion = NULL, mm.metodo_acreditacion = NULL
    WHERE m.id_proceso = v_proceso AND mm.rol = 'VOCAL' AND m.numero_mesa = '001';
   -- Material electoral recibido en todas las mesas
-  INSERT INTO instalacion_mesa (id_mesa, material_json, material_completo)
-  SELECT id_mesa, '{"PADRON_MESA":true,"TERMINAL_VOTACION":true,"CABINA_SECRETA":true,"ANFORA":true,"FORMATOS_ACTA":true,"LECTOR_QR":true,"UTILES":true,"CARTEL":true}', TRUE
+  INSERT INTO instalacion_mesa (id_mesa, material_json, material_completo, cedulas_recibidas, cedulas_firmadas)
+  SELECT id_mesa, CONCAT('{"PADRON":{"estado":"CONFORME","observacion":null},"ACTAS":{"estado":"CONFORME","observacion":null},',
+                         '"CEDULAS":{"estado":"CONFORME","observacion":null},"CARTEL_CANDIDATOS":{"estado":"CONFORME","observacion":null},',
+                         '"ANFORA":{"estado":"CONFORME","observacion":null},"CABINA":{"estado":"CONFORME","observacion":null}}'),
+         TRUE, total_electores, TRUE
     FROM mesa_electoral WHERE id_proceso = v_proceso;
 
   -- La demo se ejecuta a cualquier hora: se suspende el control horario (RN07) y se restaura

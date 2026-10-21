@@ -35,7 +35,7 @@
 
 /* ── Material ─────────────────────────────────────────────────────── */
 .im-material { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
-.im-material label { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); font-size: .84rem; cursor: pointer; }
+.im-material label { margin: 0; display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); font-size: .84rem; cursor: pointer; }
 .im-material input { width: 17px; height: 17px; accent-color: var(--cv-green); }
 .im-material b { color: var(--cv-red); }
 .im-shell textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--r-md); font: inherit; resize: vertical; }
@@ -61,6 +61,32 @@
 .im-acta-qr small { font-size: .72rem; font-weight: 650; color: var(--cv-amber); }
 .im-hash { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .74rem; word-break: break-all; }
 
+/* ── Aviso RF60 ───────────────────────────────────────────────────── */
+.im-alertas { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid #fecdd3; border-radius: var(--r-md); background: #fff1f2; }
+.im-alertas-head { display: flex; gap: 8px; align-items: center; color: var(--cv-red); font-size: .88rem; }
+.im-alertas ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.im-alertas li { display: grid; grid-template-columns: minmax(0, 220px) 1fr auto; gap: 10px; align-items: center; font-size: .8rem; }
+.im-alertas li small { color: var(--text-body); }
+
+/* ── Material: estado por ítem ────────────────────────────────────── */
+.im-estados { display: inline-flex; flex-wrap: nowrap; gap: 4px; }
+.im-tabla-material td:nth-child(2) { white-space: nowrap; }
+.im-estados label { margin: 0; display: inline-flex; gap: 4px; align-items: center; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; font-size: .76rem; font-weight: 650; color: var(--text-muted); background: var(--surface); cursor: pointer; }
+.im-estados input { position: absolute; opacity: 0; width: 0; height: 0; }
+.im-estados label.on.conforme { color: #047857; border-color: #6ee7b7; background: #ecfdf5; }
+.im-estados label.on.observado { color: #b45309; border-color: #fcd34d; background: #fffbeb; }
+.im-estados label.on.no_recibido { color: var(--cv-red); border-color: #fda4af; background: #fff1f2; }
+.im-estados label:focus-within { outline: 2px solid var(--cv-blue); outline-offset: 1px; }
+.im-obs-input { width: 100%; min-width: 160px; padding: 6px 9px; border: 1px solid var(--border); border-radius: var(--r-sm, 6px); font: inherit; font-size: .8rem; }
+.im-cedulas { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.im-cedulas input[type="number"] { width: 160px; }
+.im-check { margin: 0; display: inline-flex; gap: 8px; align-items: center; font-size: .86rem; font-weight: 600; cursor: pointer; }
+.im-check input { width: 17px; height: 17px; accent-color: var(--cv-green); }
+.im-cargo.reemplazo { border-color: #c4b5fd; background: #f5f3ff; }
+.im-cargo .im-dni, .im-cargo .cv-btn { justify-self: start; margin-top: 4px; }
+.im-dl-ancho { grid-column: 1 / -1; }
+
 @media (max-width: 720px) {
+  .im-alertas li { grid-template-columns: 1fr; }
   .im-cargos { grid-template-columns: 1fr; }
 }

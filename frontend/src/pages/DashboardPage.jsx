@@ -126,6 +126,8 @@ export default function DashboardPage({ session, onLogout }) {
     return 'resumen';
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // CUS08 · RF60: mesas no instaladas que esperan la evaluación de nulidad del CEUNP
+  const [alertasInstalacion, setAlertasInstalacion] = useState(0);
   const [processes, setProcesses] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -134,6 +136,16 @@ export default function DashboardPage({ session, onLogout }) {
   // Estado de métricas reales para el resumen del Admin
   const [adminStats, setAdminStats] = useState({ usuarios: null, parametros: null, bitacora: null });
   const [adminStatsLoading, setAdminStatsLoading] = useState(false);
+
+  useEffect(() => {
+    if (session.rol !== 'CEUNP') return undefined;
+    const revisar = () => apiRequest('/api/instalacion/alertas')
+      .then((lista) => setAlertasInstalacion(lista.length))
+      .catch(() => {});
+    revisar();
+    const timer = setInterval(revisar, 60000);
+    return () => clearInterval(timer);
+  }, [session.rol, section]);
 
   // CEUNP gestiona el proceso electoral; ADMIN gestiona el sistema
   const canManage = session.rol === 'CEUNP';
@@ -229,6 +241,9 @@ export default function DashboardPage({ session, onLogout }) {
                   <MenuIcon name={item.icon} size={19} />
                 </span>
                 <span className="nav-label">{item.label}</span>
+                {item.key === 'instalacion' && alertasInstalacion > 0 && (
+                  <span className="nav-alerta" title="Mesas no instaladas por evaluar (RF60)">{alertasInstalacion}</span>
+                )}
               </button>
             );
           })}

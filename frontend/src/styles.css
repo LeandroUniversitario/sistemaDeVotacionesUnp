@@ -1171,3 +1171,5 @@ p  { line-height: 1.55; }
 }
 .btn-primary:hover:not(:disabled) { background: #059669; box-shadow: var(--shadow-md); }
 .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+/* CUS08 · aviso RF60 en el menú (mesas no instaladas por evaluar) */
+.nav-alerta { margin-left: auto; min-width: 20px; padding: 1px 6px; border-radius: 999px; font-size: .68rem; font-weight: 800; text-align: center; color: #fff; background: #e11d48; }

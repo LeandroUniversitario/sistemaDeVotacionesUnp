@@ -30,6 +30,7 @@ TRUNCATE TABLE constancia_voto;
 TRUNCATE TABLE credencial_qr;          -- CUS07 (credenciales QR)
 TRUNCATE TABLE asistencia_personero_mesa;  -- CUS08 (instalación de mesa)
 TRUNCATE TABLE instalacion_mesa;           -- CUS08
+TRUNCATE TABLE reemplazo_mesa;             -- CUS08
 TRUNCATE TABLE firma_acta;
 TRUNCATE TABLE acta_electoral;
 

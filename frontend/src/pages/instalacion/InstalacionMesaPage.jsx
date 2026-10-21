@@ -10,23 +10,29 @@ import '../credenciales/credenciales.css';
 import './instalacion.css';
 
 /**
- * CUS08 · Instalar mesa — «PantallaInstalacion» (boundary).
+ * CUS08 · Instalar mesa — «PantallaInstalacion» (boundary). Actor: Presidente de mesa.
  *
- *   1 Acreditar miembros   fotocheck QR (CUS07) o DNI; un suplente presente reemplaza al titular ausente
- *   2 Personeros           presencia de los personeros acreditados (CUS05), opcional
- *   3 Material electoral   recepción del material obligatorio
- *   4 Acta de instalación  sp_instalar_mesa valida RN07/RN19, emite y firma el acta (RN28)
+ * Mensajes del diagrama de colaboración «Colaboracion - Instalar mesa»:
+ *   1 escanearCredencialQR(token)  → 2 registrarLlegada(token) → RegistrarLlegadaMiembro
+ *     3 actualizarAsistencia(id_docente, hora_llegada) → MiembroMesa · 4 mostrarMiembroPresente()
+ *   5 ingresarMaterial(padron, actas, cedulas, anfora, cabina) → 6 verificarMaterial(datos) → VerificarMaterial
+ *     7 registrarMaterial(id_mesa, estado_material) → MesaElectoral · 8 mostrarEstadoMaterial()
+ *   9 confirmarInstalacion() → 10 instalarMesa(id_mesa) → InstalarMesa
+ *     11 [antes de 12:00] actualizarEstado('INSTALADA', hora_instalacion) · 12 insertarActa('INSTALACION', hash)
+ *     13 mostrarActaInstalacion()
  *
- * Vencido el plazo (RN07) el CEUNP declara la mesa NO INSTALADA.
+ * Flujos alternos (CUN07): llegada con DNI, suplente o reemplazante de la comunidad universitaria,
+ * NO INSTALADA pasadas las 12:00 (RF58) y evaluación de nulidad del CEUNP (RF60).
  */
 
 const PASOS = [
-  { codigo: 'MIEMBROS', texto: '1. Miembros de mesa' },
-  { codigo: 'PERSONEROS', texto: '2. Personeros' },
+  { codigo: 'MIEMBROS', texto: '1. Llegada de miembros' },
+  { codigo: 'PERSONEROS', texto: '2. Credenciales de personeros' },
   { codigo: 'MATERIAL', texto: '3. Material electoral' },
   { codigo: 'ACTA', texto: '4. Acta de instalación' },
 ];
 const CARGO = { PRESIDENTE: 'Presidente', SECRETARIO: 'Secretario', VOCAL: 'Vocal', SUPLENTE: 'Suplente' };
+const ORIGEN = { TITULAR: 'Titular', SUPLENTE: 'Suplente', REEMPLAZANTE: 'Reemplazante' };
 const ESTADO_MESA = {
   PENDIENTE: { clase: 'creado', texto: 'Por instalar' },
   INSTALADA: { clase: 'votacion', texto: 'Instalada' },
@@ -34,6 +40,11 @@ const ESTADO_MESA = {
   NO_INSTALADA: { clase: 'anulado', texto: 'No instalada' },
   ANULADA: { clase: 'anulado', texto: 'Anulada' },
 };
+const ESTADOS_MATERIAL = [
+  { codigo: 'CONFORME', texto: 'Conforme' },
+  { codigo: 'OBSERVADO', texto: 'Observado' },
+  { codigo: 'NO_RECIBIDO', texto: 'No recibido' },
+];
 const si = (v) => v === true || v === 1 || v === '1';
 const hora = (v) => (v ? new Date(v).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : '—');
 
@@ -42,24 +53,29 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
   const esCeunp = session.rol === 'CEUNP';
   const puedeOperar = esMiembro || esCeunp;
 
+  const [idDocenteSesion, setIdDocenteSesion] = useState(session.idDocente ?? null);
   const [procesos, setProcesos] = useState([]);
   const [idProceso, setIdProceso] = useState(null);
   const [mesas, setMesas] = useState([]);
   const [idMesa, setIdMesa] = useState(null);
   const [detalle, setDetalle] = useState(null);
+  const [alertas, setAlertas] = useState([]);
   const [paso, setPaso] = useState('MIEMBROS');
   const [cargando, setCargando] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
-  const [lectura, setLectura] = useState(null);          // resultado de la última lectura QR
-  const [dni, setDni] = useState({ clave: null, valor: '' }); // acreditación manual en curso
-  const [material, setMaterial] = useState({});
+  const [lectura, setLectura] = useState(null);              // resultado de la última lectura QR (4)
+  const [dni, setDni] = useState({ clave: null, valor: '' }); // llegada con DNI o reemplazante en curso
+  const [material, setMaterial] = useState({});              // 5 ingresarMaterial(...)
+  const [cedulas, setCedulas] = useState('');
+  const [firmadas, setFirmadas] = useState(false);
   const [observaciones, setObservaciones] = useState('');
   const [materialCambiado, setMaterialCambiado] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
-  const [emitida, setEmitida] = useState(null);           // { tokenQr, idActa } tras instalar
+  const [emitida, setEmitida] = useState(null);               // { tokenQr, idActa } tras instalar
   const [motivo, setMotivo] = useState('');
   const [declarando, setDeclarando] = useState(false);
+  const [evaluacion, setEvaluacion] = useState({ decision: 'PROCEDE', fundamento: '' });
 
   const manejarError = useCallback((error) => {
     if (error.message === 'SESSION_EXPIRED') onSessionExpired?.();
@@ -69,9 +85,11 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
   const aplicarDetalle = useCallback((data) => {
     setDetalle(data);
     const items = {};
-    data.material.forEach((m) => { items[m.codigo] = m.recibido; });
+    data.material.items.forEach((m) => { items[m.codigo] = { estado: m.estado, observacion: m.observacion ?? '' }; });
     setMaterial(items);
-    setObservaciones(data.observaciones ?? '');
+    setCedulas(data.material.cedulasRecibidas ?? '');
+    setFirmadas(!!data.material.cedulasFirmadas);
+    setObservaciones(data.material.observaciones ?? '');
     setMaterialCambiado(false);
     setMesas((prev) => prev.map((m) => (m.id === data.mesa.id ? { ...m, ...data.mesa } : m)));
   }, []);
@@ -82,15 +100,25 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
     return lista;
   }, [esMiembro]);
 
+  const cargarAlertas = useCallback(async () => {
+    if (esMiembro) return;
+    setAlertas(await apiRequest('/api/instalacion/alertas'));
+  }, [esMiembro]);
+
   useEffect(() => {
     (async () => {
       try {
+        if (esMiembro && idDocenteSesion == null) {
+          const yo = await apiRequest('/api/auth/me');
+          setIdDocenteSesion(yo.idDocente ?? null);
+        }
         let proceso = null;
         if (!esMiembro) {
           const lista = await apiRequest('/api/instalacion/procesos');
           setProcesos(lista);
           proceso = lista[0]?.id ?? null;
           setIdProceso(proceso);
+          await cargarAlertas();
         }
         const lista = await cargarMesas(proceso);
         const primera = lista.find((m) => m.estado === 'PENDIENTE') ?? lista[0];
@@ -101,7 +129,8 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
         setCargando(false);
       }
     })();
-  }, [esMiembro, cargarMesas, manejarError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [esMiembro, cargarMesas, cargarAlertas, manejarError]);
 
   useEffect(() => {
     if (!idMesa) { setDetalle(null); return; }
@@ -114,26 +143,32 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
     })();
   }, [idMesa, aplicarDetalle, manejarError]);
 
-  async function cambiarProceso(id) {
+  async function cambiarProceso(id, mesaElegida = null) {
     setIdProceso(id);
     setIdMesa(null);
     setFeedback(null);
     try {
       const lista = await cargarMesas(id);
-      setIdMesa((lista.find((m) => m.estado === 'PENDIENTE') ?? lista[0])?.id ?? null);
+      setIdMesa(mesaElegida ?? (lista.find((m) => m.estado === 'PENDIENTE') ?? lista[0])?.id ?? null);
     } catch (e) {
       manejarError(e);
     }
   }
 
-  function elegirMesa(id) {
+  function elegirMesa(id, pasoInicial = 'MIEMBROS') {
     setIdMesa(id);
-    setPaso('MIEMBROS');
+    setPaso(pasoInicial);
     setFeedback(null);
     setLectura(null);
     setEmitida(null);
     setConfirmando(false);
+    setDeclarando(false);
     setDni({ clave: null, valor: '' });
+  }
+
+  function irAAlerta(a) {
+    if (a.idProceso !== idProceso) cambiarProceso(a.idProceso, a.idMesa);
+    elegirMesa(a.idMesa, 'ACTA');
   }
 
   async function ejecutar(promesa, exito) {
@@ -152,15 +187,16 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
     }
   }
 
-  // ─── Paso 1 y 2: acreditación ──────────────────────────────────────────
+  // ─── 1-4: llegada de miembros y personeros ─────────────────────────────
 
-  const leerCredencial = useCallback(async (codigo) => {
+  /** 1 escanearCredencialQR(token) → 2 registrarLlegada(token). */
+  const escanearCredencialQR = useCallback(async (token) => {
     setSaving(true);
     setFeedback(null);
     try {
-      const data = await apiRequest(`/api/instalacion/mesas/${idMesa}/acreditar`, { method: 'POST', body: JSON.stringify({ codigo }) });
+      const data = await apiRequest(`/api/instalacion/mesas/${idMesa}/llegada`, { method: 'POST', body: JSON.stringify({ codigo: token }) });
       setLectura({ hora: new Date(), ...data });
-      if (data.detalle) aplicarDetalle(data.detalle);
+      if (data.detalle) aplicarDetalle(data.detalle); // 4 mostrarMiembroPresente()
     } catch (e) {
       manejarError(e);
     } finally {
@@ -172,56 +208,74 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
     const ruta = tipo === 'miembro' ? 'miembros' : 'personeros';
     return ejecutar(
       apiRequest(`/api/instalacion/mesas/${idMesa}/${ruta}/${id}/asistencia`, { method: 'POST', body: JSON.stringify({ presente, dni: dniValor ?? null }) }),
-      presente ? 'Acreditación registrada con DNI.' : (tipo === 'miembro' ? 'Se registró la inasistencia.' : 'Se retiró al personero de la instalación.'),
+      presente ? 'Llegada registrada con DNI.' : (tipo === 'miembro' ? 'Se registró la inasistencia.' : 'Se retiró al personero de la instalación.'),
     ).then((ok) => { if (ok) setDni({ clave: null, valor: '' }); });
   }
 
-  /** Botón «Con DNI» o, si está abierto, el formulario para escribir el DNI. */
-  function formDni(tipo, id) {
-    const clave = `${tipo}-${id}`;
+  function registrarReemplazante(cargo, dniValor) {
+    return ejecutar(
+      apiRequest(`/api/instalacion/mesas/${idMesa}/reemplazantes`, { method: 'POST', body: JSON.stringify({ cargo, dni: dniValor }) }),
+      `Reemplazante registrado para el cargo de ${CARGO[cargo].toLowerCase()}.`,
+    ).then((ok) => { if (ok) setDni({ clave: null, valor: '' }); });
+  }
+
+  function quitarReemplazante(cargo) {
+    return ejecutar(apiRequest(`/api/instalacion/mesas/${idMesa}/reemplazantes/${cargo}`, { method: 'DELETE' }), 'Reemplazante retirado.');
+  }
+
+  /** Botón que abre un formulario de DNI; al enviarlo ejecuta «accion(dni)». */
+  function formDni(clave, textoBoton, textoEnviar, accion, icono = 'user') {
     if (dni.clave !== clave) {
       return (
         <button type="button" className="cv-btn cv-btn-soft cq-mini" disabled={saving} onClick={() => setDni({ clave, valor: '' })}>
-          <MenuIcon name="user" size={13} /> Con DNI
+          <MenuIcon name={icono} size={13} /> {textoBoton}
         </button>
       );
     }
     return (
-      <form className="im-dni" onSubmit={(e) => { e.preventDefault(); asistencia(tipo, id, true, dni.valor); }}>
+      <form className="im-dni" onSubmit={(e) => { e.preventDefault(); accion(dni.valor); }}>
         <input autoFocus inputMode="numeric" maxLength={8} placeholder="DNI" value={dni.valor}
           aria-label="DNI que presenta la persona" onChange={(e) => setDni({ clave, valor: e.target.value.replace(/\D/g, '') })} />
-        <button type="submit" className="cv-btn cv-btn-success cq-mini" disabled={saving || dni.valor.length === 0}>Acreditar</button>
+        <button type="submit" className="cv-btn cv-btn-success cq-mini" disabled={saving || dni.valor.length === 0}>{textoEnviar}</button>
         <button type="button" className="cv-btn cv-btn-ghost cq-mini" onClick={() => setDni({ clave: null, valor: '' })}>Cancelar</button>
       </form>
     );
   }
 
-  // ─── Paso 3: material ──────────────────────────────────────────────────
+  // ─── 5-8: material ─────────────────────────────────────────────────────
 
-  function marcarMaterial(codigo, valor) {
-    setMaterial((prev) => ({ ...prev, [codigo]: valor }));
+  function marcarMaterial(codigo, cambio) {
+    setMaterial((prev) => ({ ...prev, [codigo]: { ...prev[codigo], ...cambio } }));
     setMaterialCambiado(true);
   }
 
-  function marcarTodo() {
+  function todoConforme() {
     const todo = {};
-    detalle.material.forEach((m) => { todo[m.codigo] = true; });
+    detalle.material.items.forEach((m) => { todo[m.codigo] = { estado: 'CONFORME', observacion: '' }; });
     setMaterial(todo);
+    if (!cedulas) setCedulas(detalle.mesa.totalElectores ?? '');
     setMaterialCambiado(true);
   }
 
-  function guardarMaterial() {
+  /** 5 ingresarMaterial(padron, actas, cedulas, anfora, cabina) → 6 verificarMaterial(datos). */
+  function ingresarMaterial() {
+    const items = {};
+    Object.entries(material).forEach(([codigo, v]) => { items[codigo] = { estado: v.estado, observacion: v.observacion || null }; });
     return ejecutar(
-      apiRequest(`/api/instalacion/mesas/${idMesa}/material`, { method: 'PUT', body: JSON.stringify({ items: material, observaciones }) }),
-      (data) => (data.requisitos?.find((r) => r.codigo === 'MATERIAL')?.cumplido
-        ? 'Material registrado: todo el material obligatorio fue recibido.'
-        : 'Material registrado. Aún falta material obligatorio.'),
+      apiRequest(`/api/instalacion/mesas/${idMesa}/material`, {
+        method: 'PUT',
+        body: JSON.stringify({ items, cedulasRecibidas: cedulas === '' ? null : Number(cedulas), cedulasFirmadas: firmadas, observaciones }),
+      }),
+      (data) => (data.material.completo && data.requisitos.find((r) => r.codigo === 'CEDULAS')?.cumplido
+        ? 'Material verificado: todo el material fue recibido y las cédulas están firmadas.'
+        : 'Material registrado. Aún falta material o la firma de las cédulas.'),
     );
   }
 
-  // ─── Paso 4: instalación ───────────────────────────────────────────────
+  // ─── 9-13: instalación y flujos alternos ───────────────────────────────
 
-  async function instalar() {
+  /** 9 confirmarInstalacion() → 10 instalarMesa(id_mesa) → 13 mostrarActaInstalacion(). */
+  async function confirmarInstalacion() {
     const data = await ejecutar(apiRequest(`/api/instalacion/mesas/${idMesa}/instalar`, { method: 'POST' }), (d) => d.mensaje);
     setConfirmando(false);
     if (data) {
@@ -235,11 +289,24 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
     if (data) {
       setDeclarando(false);
       setMotivo('');
+      cargarAlertas().catch(manejarError);
+    }
+  }
+
+  async function evaluarNulidad() {
+    const data = await ejecutar(apiRequest(`/api/instalacion/mesas/${idMesa}/evaluacion-nulidad`, { method: 'POST', body: JSON.stringify(evaluacion) }), (d) => d.mensaje);
+    if (data) {
+      setEvaluacion({ decision: 'PROCEDE', fundamento: '' });
+      cargarAlertas().catch(manejarError);
     }
   }
 
   async function refrescar() {
     try {
+      if (!esMiembro) {
+        setProcesos(await apiRequest('/api/instalacion/procesos'));
+        await cargarAlertas();
+      }
       await cargarMesas(idProceso);
       if (idMesa) aplicarDetalle(await apiRequest(`/api/instalacion/mesas/${idMesa}`));
     } catch (e) {
@@ -256,9 +323,12 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
   const ventana = detalle?.ventana;
   const editable = puedeOperar && detalle?.editable;
   const presentes = detalle?.miembros.filter((m) => si(m.asistio)).length ?? 0;
+  const yoPresente = !esMiembro || detalle?.miembros.some((m) => m.idDocente === idDocenteSesion && si(m.asistio));
+  const presidencia = detalle?.conformacion[0];
+  const soyPresidente = !esMiembro || !presidencia?.idDocente || presidencia.origen === 'REEMPLAZANTE' || presidencia.idDocente === idDocenteSesion;
   const personerosPresentes = detalle?.personeros.filter((p) => si(p.presente)).length ?? 0;
   const pendientesRequisito = detalle?.requisitos.filter((r) => !r.cumplido) ?? [];
-  const obligatoriosFaltan = detalle?.material.filter((m) => m.obligatorio && !material[m.codigo]).length ?? 0;
+  const faltaMaterial = Object.values(material).filter((m) => m.estado === 'NO_RECIBIDO').length;
 
   return (
     <div className="pd-shell cq-shell im-shell">
@@ -285,6 +355,27 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
         </button>
       </section>
 
+      {/* RF60: aviso al CEUNP de mesas no instaladas pendientes de evaluación */}
+      {!esMiembro && alertas.length > 0 && (
+        <section className="im-alertas" role="alert">
+          <div className="im-alertas-head">
+            <MenuIcon name="bell" size={18} />
+            <strong>{alertas.length} mesa(s) no instalada(s) esperan la evaluación de nulidad del CEUNP (RF60)</strong>
+          </div>
+          <ul>
+            {alertas.map((a) => (
+              <li key={a.idMesa}>
+                <span>Mesa {a.numero} · {a.proceso}</span>
+                <small>{a.motivoNoInstalacion}</small>
+                <button type="button" className="cv-btn cv-btn-ghost cq-mini" onClick={() => irAAlerta(a)}>
+                  {esCeunp ? 'Evaluar' : 'Ver'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {proceso && (
         <section className="cq-resumen">
           <div className="cq-kpi" style={{ '--cq-color': '#2563eb' }}>
@@ -293,14 +384,14 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
             <small>{proceso.pendientes} por instalar</small>
           </div>
           <div className="cq-kpi" style={{ '--cq-color': '#059669' }}>
-            <span>Instaladas <em>RN07</em></span>
+            <span>Instaladas <em>RF58</em></span>
             <strong>{proceso.instaladas}<small> / {proceso.mesas}</small></strong>
             <i className="cq-barra"><b style={{ width: `${proceso.mesas ? Math.round((proceso.instaladas / proceso.mesas) * 100) : 0}%` }} /></i>
           </div>
           <div className="cq-kpi" style={{ '--cq-color': '#e11d48' }}>
-            <span>No instaladas</span>
+            <span>No instaladas <em>RF60</em></span>
             <strong>{proceso.noInstaladas}</strong>
-            <small>Sus electores no pueden votar</small>
+            <small>{proceso.porEvaluar} sin evaluación de nulidad</small>
           </div>
         </section>
       )}
@@ -319,6 +410,7 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
                 <span className={`cv-estado ${est.clase}`}>{est.texto}</span>
                 <small>{m.ubicacion}</small>
                 <small>{m.presentes}/{m.miembros} miembros · material {si(m.materialCompleto) ? 'completo' : 'pendiente'}</small>
+                {m.estado === 'NO_INSTALADA' && <small>{m.evaluacionNulidad ? `Nulidad: ${m.evaluacionNulidad === 'PROCEDE' ? 'procede' : 'no procede'}` : 'Nulidad sin evaluar'}</small>}
                 {esMiembro && <small>{m.proceso}</small>}
               </button>
             );
@@ -343,13 +435,16 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
             </span>
           </div>
 
-          {!puedeOperar && <div className="alert success" role="note">Vista de consulta: la instalación la realizan los miembros de mesa o el CEUNP.</div>}
+          {!puedeOperar && <div className="alert success" role="note">Vista de consulta: la instalación la realiza el presidente de mesa o el CEUNP.</div>}
+          {esMiembro && editable && !yoPresente && (
+            <div className="alert error" role="note">Registre primero su propia llegada: lea su fotocheck o use «Con DNI» en la tabla de miembros.</div>
+          )}
 
           <div className="pd-tabs cq-tabs" role="tablist">
             {PASOS.map((p) => {
               const hecho = (p.codigo === 'MIEMBROS' && detalle.conformacion.every((c) => !c.vacante))
                 || (p.codigo === 'PERSONEROS' && personerosPresentes > 0)
-                || (p.codigo === 'MATERIAL' && detalle.requisitos.find((r) => r.codigo === 'MATERIAL')?.cumplido)
+                || (p.codigo === 'MATERIAL' && detalle.material.completo && detalle.requisitos.find((r) => r.codigo === 'CEDULAS')?.cumplido)
                 || (p.codigo === 'ACTA' && detalle.acta);
               return (
                 <button key={p.codigo} type="button" role="tab" aria-selected={paso === p.codigo}
@@ -360,24 +455,24 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
             })}
           </div>
 
-          {/* ── Paso 1: miembros ── */}
+          {/* ── 1-4: llegada de miembros ── */}
           {paso === 'MIEMBROS' && (
             <>
               {editable && (
                 <div className="panel cv-form">
                   <div className="cv-section-head">
                     <div>
-                      <h3>Acreditar con credencial QR</h3>
-                      <p className="muted">Lea el fotocheck del miembro de mesa o la credencial del personero (CUS07). Si no tiene su QR, use «Con DNI» en la tabla.</p>
+                      <h3>Escanear credencial QR (RF56)</h3>
+                      <p className="muted">Lea el fotocheck del miembro de mesa o la credencial del personero (CUS07); se registra la hora de llegada. Sin QR, use «Con DNI» en la tabla.</p>
                     </div>
                   </div>
-                  <EscanerQR onCodigo={leerCredencial} deshabilitado={saving} />
+                  <EscanerQR onCodigo={escanearCredencialQR} deshabilitado={saving} />
                   {lectura && (
                     <div className={`cq-resultado ${lectura.aceptada ? 'ok' : 'mal'}`} role="status" aria-live="polite">
                       <div className="cq-resultado-head">
                         <span className="cq-resultado-icono"><MenuIcon name={lectura.aceptada ? 'check' : 'alert'} size={22} /></span>
                         <div>
-                          <strong>{lectura.aceptada ? 'Acreditado' : 'No se acreditó'}</strong>
+                          <strong>{lectura.aceptada ? 'Miembro presente' : 'No se registró la llegada'}</strong>
                           <span>{lectura.mensaje}</span>
                         </div>
                       </div>
@@ -401,7 +496,7 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
                     <h3>Conformación de la mesa</h3>
                     <p className="muted">
                       {mesa.estado === 'PENDIENTE'
-                        ? 'Propuesta según quién está presente: si falta un titular, asume el cargo el primer suplente presente (orden del sorteo).'
+                        ? 'Si falta un titular asume el primer suplente presente (orden del sorteo). Si faltan titulares y suplentes, registre a otro integrante de la comunidad universitaria (CUN07).'
                         : 'Cargos con los que se instaló la mesa.'}
                     </p>
                   </div>
@@ -409,45 +504,55 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
                 </div>
                 <div className="im-cargos">
                   {detalle.conformacion.map((c) => (
-                    <div key={c.cargo} className={`im-cargo${c.vacante ? ' vacante' : ''}`}>
+                    <div key={c.cargo} className={`im-cargo${c.vacante ? ' vacante' : ''}${c.origen === 'REEMPLAZANTE' ? ' reemplazo' : ''}`}>
                       <span>{CARGO[c.cargo]}</span>
                       <strong>{c.vacante ? 'Sin cubrir' : c.nombre}</strong>
-                      {c.reemplazo && <em>Suplente · reemplaza a {c.reemplazaA}</em>}
+                      {!c.vacante && <em>{ORIGEN[c.origen]}{c.origen !== 'TITULAR' && c.titular ? ` · reemplaza a ${c.titular}` : ''}</em>}
                       {c.vacante && <em>Titular: {c.titular ?? '—'}</em>}
+                      {editable && yoPresente && c.vacante && c.admiteReemplazante
+                        && formDni(`reemplazo-${c.cargo}`, 'Registrar reemplazante', 'Registrar', (v) => registrarReemplazante(c.cargo, v), 'plus')}
+                      {editable && yoPresente && c.origen === 'REEMPLAZANTE' && (
+                        <button type="button" className="cv-btn cv-btn-ghost cq-mini" disabled={saving} onClick={() => quitarReemplazante(c.cargo)}>
+                          <MenuIcon name="close" size={13} /> Quitar
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
 
                 <div className="table-wrap">
                   <table>
-                    <thead><tr><th>Orden</th><th>Miembro</th><th>Sorteado como</th><th>Asistencia</th>{editable && <th aria-label="Acciones" />}</tr></thead>
+                    <thead><tr><th>Orden</th><th>Miembro</th><th>Sorteado como</th><th>Llegada</th>{editable && <th aria-label="Acciones" />}</tr></thead>
                     <tbody>
-                      {detalle.miembros.map((m) => (
-                        <tr key={m.idDocente}>
-                          <td>{m.ordenSorteo ?? '—'}</td>
-                          <td><strong>{m.nombre}</strong><small className="pd-sub">DNI {m.dni} · {m.facultad ?? '—'}</small></td>
-                          <td>
-                            {CARGO[m.rol]}{si(m.titular) ? ' (titular)' : ''}
-                            {m.rolInstalacion && m.rolInstalacion !== m.rol && <small className="pd-sub">Ejerce: {CARGO[m.rolInstalacion]}</small>}
-                            {!si(m.credencialVigente) && <small className="pd-sub">Sin fotocheck vigente</small>}
-                          </td>
-                          <td>
-                            {si(m.asistio) && <span className="cv-estado votacion">Presente · {m.metodoAcreditacion} {hora(m.horaAcreditacion)}</span>}
-                            {m.asistio !== null && m.asistio !== undefined && !si(m.asistio) && <span className="cv-estado anulado">No asistió</span>}
-                            {(m.asistio === null || m.asistio === undefined) && <span className="cv-estado creado">Sin registrar</span>}
-                          </td>
-                          {editable && (
-                            <td className="cq-row-actions">
-                              {!si(m.asistio) && formDni('miembro', m.idDocente)}
-                              {(si(m.asistio) || m.asistio === null || m.asistio === undefined) && dni.clave !== `miembro-${m.idDocente}` && (
-                                <button type="button" className="cv-btn cv-btn-ghost cq-mini" disabled={saving} onClick={() => asistencia('miembro', m.idDocente, false)}>
-                                  <MenuIcon name="close" size={13} /> {si(m.asistio) ? 'Quitar' : 'Ausente'}
-                                </button>
-                              )}
+                      {detalle.miembros.map((m) => {
+                        const sinRegistro = m.asistio === null || m.asistio === undefined;
+                        return (
+                          <tr key={m.idDocente}>
+                            <td>{m.ordenSorteo ?? '—'}</td>
+                            <td><strong>{m.nombre}</strong><small className="pd-sub">DNI {m.dni} · {m.facultad ?? '—'}</small></td>
+                            <td>
+                              {CARGO[m.rol]}{si(m.titular) ? ' (titular)' : ''}
+                              {m.rolInstalacion && m.rolInstalacion !== m.rol && <small className="pd-sub">Ejerce: {CARGO[m.rolInstalacion]}</small>}
+                              {!si(m.credencialVigente) && <small className="pd-sub">Sin fotocheck vigente</small>}
                             </td>
-                          )}
-                        </tr>
-                      ))}
+                            <td>
+                              {si(m.asistio) && <span className="cv-estado votacion">Presente · {m.metodo} {hora(m.horaLlegada)}</span>}
+                              {!sinRegistro && !si(m.asistio) && <span className="cv-estado anulado">No asistió</span>}
+                              {sinRegistro && <span className="cv-estado creado">Sin registrar</span>}
+                            </td>
+                            {editable && (
+                              <td className="cq-row-actions">
+                                {!si(m.asistio) && formDni(`miembro-${m.idDocente}`, 'Con DNI', 'Registrar', (v) => asistencia('miembro', m.idDocente, true, v))}
+                                {(si(m.asistio) || sinRegistro) && dni.clave !== `miembro-${m.idDocente}` && (
+                                  <button type="button" className="cv-btn cv-btn-ghost cq-mini" disabled={saving} onClick={() => asistencia('miembro', m.idDocente, false)}>
+                                    <MenuIcon name="close" size={13} /> {si(m.asistio) ? 'Quitar' : 'Ausente'}
+                                  </button>
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -458,30 +563,30 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
             </>
           )}
 
-          {/* ── Paso 2: personeros ── */}
+          {/* ── Personeros (CUN07 paso 4: el presidente recibe sus credenciales) ── */}
           {paso === 'PERSONEROS' && (
             <div className="panel cv-form">
               <div className="cv-section-head">
                 <div>
-                  <h3>Personeros presentes</h3>
-                  <p className="muted">Personeros acreditados de esta mesa y personeros generales de las listas en carrera. Su presencia es opcional; los presentes firman el acta. Para registrarlos con QR use el lector del paso 1.</p>
+                  <h3>Credenciales de personeros</h3>
+                  <p className="muted">El presidente recibe las credenciales de los personeros de esta mesa y de los personeros generales de las listas en carrera (CUS05). Es opcional; los presentes firman el acta. Para recibirlas con QR use el lector del paso 1.</p>
                 </div>
                 <span className="im-contador">{personerosPresentes} presente(s)</span>
               </div>
               {detalle.personeros.length === 0 ? <p className="empty-state">No hay personeros acreditados para esta mesa (CUS05).</p> : (
                 <div className="table-wrap">
                   <table>
-                    <thead><tr><th>Personero</th><th>Lista</th><th>Tipo</th><th>Presencia</th>{editable && <th aria-label="Acciones" />}</tr></thead>
+                    <thead><tr><th>Personero</th><th>Lista</th><th>Tipo</th><th>Credencial</th>{editable && <th aria-label="Acciones" />}</tr></thead>
                     <tbody>
                       {detalle.personeros.map((p) => (
                         <tr key={p.idPersonero}>
                           <td><strong>{p.nombre}</strong><small className="pd-sub">DNI {p.dni}</small></td>
                           <td>{p.lista}<small className="pd-sub">{p.cargo}</small></td>
                           <td>{p.tipo === 'MESA' ? 'De mesa' : p.tipo === 'GENERAL' ? 'General' : 'Alterno'}</td>
-                          <td>{si(p.presente) ? <span className="cv-estado votacion">Presente · {p.metodo} {hora(p.horaAcreditacion)}</span> : <span className="cv-estado creado">No registrado</span>}</td>
+                          <td>{si(p.presente) ? <span className="cv-estado votacion">Recibida · {p.metodo} {hora(p.horaLlegada)}</span> : <span className="cv-estado creado">No presentada</span>}</td>
                           {editable && (
                             <td className="cq-row-actions">
-                              {!si(p.presente) && formDni('personero', p.idPersonero)}
+                              {!si(p.presente) && formDni(`personero-${p.idPersonero}`, 'Con DNI', 'Registrar', (v) => asistencia('personero', p.idPersonero, true, v))}
                               {si(p.presente) && (
                                 <button type="button" className="cv-btn cv-btn-ghost cq-mini" disabled={saving} onClick={() => asistencia('personero', p.idPersonero, false)}>
                                   <MenuIcon name="close" size={13} /> Quitar
@@ -502,41 +607,74 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
             </div>
           )}
 
-          {/* ── Paso 3: material ── */}
+          {/* ── 5-8: material ── */}
           {paso === 'MATERIAL' && (
             <div className="panel cv-form">
               <div className="cv-section-head">
                 <div>
-                  <h3>Material electoral recibido</h3>
-                  <p className="muted">Marque lo que recibió la mesa. Sin el material obligatorio (*) la mesa no se puede instalar.</p>
+                  <h3>Material electoral (RF57)</h3>
+                  <p className="muted">Verifique el estado de cada material recibido. Sin todo el material la mesa no se instala. Las cédulas se cuentan y el presidente las firma en el reverso (CUN07).</p>
                 </div>
-                {editable && <button type="button" className="cv-btn cv-btn-soft" onClick={marcarTodo} disabled={saving}><MenuIcon name="check" size={15} /> Marcar todo</button>}
+                {editable && yoPresente && <button type="button" className="cv-btn cv-btn-soft" onClick={todoConforme} disabled={saving}><MenuIcon name="check" size={15} /> Todo conforme</button>}
               </div>
-              <ul className="im-material">
-                {detalle.material.map((m) => (
-                  <li key={m.codigo}>
-                    <label>
-                      <input type="checkbox" checked={!!material[m.codigo]} disabled={!editable || saving}
-                        onChange={(e) => marcarMaterial(m.codigo, e.target.checked)} />
-                      <span>{m.descripcion}{m.obligatorio && <b title="Obligatorio"> *</b>}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
+              <div className="table-wrap">
+                <table className="im-tabla-material">
+                  <thead><tr><th>Material</th><th>Estado</th><th>Observación</th></tr></thead>
+                  <tbody>
+                    {detalle.material.items.map((m) => {
+                      const valor = material[m.codigo] ?? { estado: 'NO_RECIBIDO', observacion: '' };
+                      return (
+                        <tr key={m.codigo} className={`im-mat-${valor.estado.toLowerCase()}`}>
+                          <td><strong>{m.descripcion}</strong></td>
+                          <td>
+                            <div className="im-estados" role="radiogroup" aria-label={`Estado de ${m.descripcion}`}>
+                              {ESTADOS_MATERIAL.map((e) => (
+                                <label key={e.codigo} className={valor.estado === e.codigo ? `on ${e.codigo.toLowerCase()}` : ''}>
+                                  <input type="radio" name={`mat-${m.codigo}`} value={e.codigo} checked={valor.estado === e.codigo}
+                                    disabled={!editable || !yoPresente || saving} onChange={() => marcarMaterial(m.codigo, { estado: e.codigo })} />
+                                  {e.texto}
+                                </label>
+                              ))}
+                            </div>
+                          </td>
+                          <td>
+                            <input className="im-obs-input" maxLength={200} value={valor.observacion ?? ''}
+                              placeholder={valor.estado === 'OBSERVADO' ? 'Describa el problema (obligatorio)' : 'Opcional'}
+                              disabled={!editable || !yoPresente || saving} onChange={(e) => marcarMaterial(m.codigo, { observacion: e.target.value })} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="im-cedulas">
+                <label className="cv-field">
+                  <span className="cv-label">Cantidad de cédulas recibidas (RF59)</span>
+                  <input type="number" min={0} max={100000} value={cedulas} disabled={!editable || !yoPresente || saving}
+                    onChange={(e) => { setCedulas(e.target.value); setMaterialCambiado(true); }} />
+                  <small className="muted">Electores de la mesa: {mesa.totalElectores}{cedulas !== '' && Number(cedulas) < mesa.totalElectores ? ' · hay menos cédulas que electores' : ''}</small>
+                </label>
+                <label className="im-check">
+                  <input type="checkbox" checked={firmadas} disabled={!editable || !yoPresente || saving}
+                    onChange={(e) => { setFirmadas(e.target.checked); setMaterialCambiado(true); }} />
+                  <span>El presidente firmó las cédulas en el reverso</span>
+                </label>
+              </div>
               <label className="cv-field">
-                <span className="cv-label">Observaciones de la instalación (opcional)</span>
-                <textarea rows={3} maxLength={500} value={observaciones} disabled={!editable || saving}
-                  placeholder="Ej.: el cartel llegó a las 08:40; se reemplazó el lapicero del secretario."
+                <span className="cv-label">Observaciones de la instalación (van en el acta)</span>
+                <textarea rows={3} maxLength={500} value={observaciones} disabled={!editable || !yoPresente || saving}
+                  placeholder="Ej.: el cartel de candidatos llegó con una esquina rota."
                   onChange={(e) => { setObservaciones(e.target.value); setMaterialCambiado(true); }} />
               </label>
-              {detalle.registro?.fechaActualizacion && (
+              {detalle.material.registrado && detalle.registro?.fechaActualizacion && (
                 <p className="muted im-nota">Último registro: {fecha(detalle.registro.fechaActualizacion)}{detalle.registro.registradoPor ? ` por ${detalle.registro.registradoPor}` : ''}.</p>
               )}
-              {editable && (
+              {editable && yoPresente && (
                 <div className="cv-actions">
-                  {obligatoriosFaltan > 0 && <span className="cv-actions-note cv-error">Falta {obligatoriosFaltan} material obligatorio.</span>}
-                  <button type="button" className="cv-btn cv-btn-success" disabled={saving || !materialCambiado} onClick={guardarMaterial}>
-                    <MenuIcon name="check" size={15} /> {saving ? 'Guardando…' : 'Guardar material'}
+                  {faltaMaterial > 0 && <span className="cv-actions-note cv-error">{faltaMaterial} material(es) sin recibir.</span>}
+                  <button type="button" className="cv-btn cv-btn-success" disabled={saving || !materialCambiado} onClick={ingresarMaterial}>
+                    <MenuIcon name="check" size={15} /> {saving ? 'Verificando…' : 'Verificar y registrar material'}
                   </button>
                   <button type="button" className="cv-btn cv-btn-primary" disabled={materialCambiado} onClick={() => setPaso('ACTA')}>Continuar con el acta</button>
                 </div>
@@ -544,7 +682,7 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
             </div>
           )}
 
-          {/* ── Paso 4: acta ── */}
+          {/* ── 9-13: acta ── */}
           {paso === 'ACTA' && (
             <>
               {mesa.estado === 'PENDIENTE' && (
@@ -552,7 +690,7 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
                   <div className="cv-section-head">
                     <div>
                       <h3>Instalar la mesa</h3>
-                      <p className="muted">Al instalar se emite el Acta de Instalación con huella SHA-256, la firman los tres miembros que ejercen el cargo y los personeros presentes, y se habilita el sufragio de la mesa.</p>
+                      <p className="muted">Al confirmar se registra la hora de instalación, se emite el Acta de Instalación con huella SHA-256 (RF59), la firman quienes ejercen los tres cargos y los personeros presentes, y se habilita el sufragio de la mesa.</p>
                     </div>
                   </div>
                   <ul className="im-requisitos">
@@ -567,7 +705,8 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
                   {editable && !confirmando && (
                     <div className="cv-actions">
                       {pendientesRequisito.length > 0 && <span className="cv-actions-note muted">Complete los requisitos pendientes para instalar.</span>}
-                      <button type="button" className="cv-btn cv-btn-success" disabled={saving || !detalle.puedeInstalar} onClick={() => setConfirmando(true)}>
+                      {pendientesRequisito.length === 0 && !soyPresidente && <span className="cv-actions-note muted">Instala el presidente en funciones: {presidencia?.nombre}.</span>}
+                      <button type="button" className="cv-btn cv-btn-success" disabled={saving || !detalle.puedeInstalar || !soyPresidente || !yoPresente} onClick={() => setConfirmando(true)}>
                         <MenuIcon name="shield" size={15} /> Instalar mesa y emitir acta
                       </button>
                     </div>
@@ -577,13 +716,13 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
                       <div>
                         <strong>¿Instalar la mesa {mesa.numero}?</strong>
                         <span>
-                          Se registrará la hora de instalación y el acta ya no podrá modificarse (RN28). Quienes no se acreditaron quedarán como inasistentes (RN35).
-                          {' '}Cargos: {detalle.conformacion.map((c) => `${CARGO[c.cargo]} ${c.nombre ?? '—'}`).join(' · ')}.
+                          La hora de instalación será la del servidor y el acta ya no podrá modificarse (RN28). Quienes no llegaron quedarán como inasistentes (RN35).
+                          {' '}Cargos: {detalle.conformacion.map((c) => `${CARGO[c.cargo]} ${c.nombre ?? '—'}`).join(' · ')}. Cédulas: {detalle.material.cedulasRecibidas}.
                         </span>
                       </div>
                       <div className="cv-actions">
                         <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setConfirmando(false)}>Cancelar</button>
-                        <button type="button" className="cv-btn cv-btn-success" disabled={saving} onClick={instalar}>
+                        <button type="button" className="cv-btn cv-btn-success" disabled={saving} onClick={confirmarInstalacion}>
                           <MenuIcon name="check" size={15} /> {saving ? 'Instalando…' : 'Confirmar instalación'}
                         </button>
                       </div>
@@ -599,13 +738,13 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
                       ) : (
                         <form onSubmit={(e) => { e.preventDefault(); declararNoInstalada(); }} className="cv-form">
                           <label className="cv-field">
-                            <span className="cv-label">Motivo (RN07)</span>
+                            <span className="cv-label">Motivo (RF58)</span>
                             <textarea rows={2} minLength={10} maxLength={255} required value={motivo}
                               placeholder="Ej.: a las 12:00 no se presentaron los miembros suficientes para conformar la mesa."
                               onChange={(e) => setMotivo(e.target.value)} />
                           </label>
                           <div className="cv-actions">
-                            <span className="cv-actions-note muted">Sus electores no podrán votar en esta mesa y los miembros no acreditados quedarán como inasistentes.</span>
+                            <span className="cv-actions-note muted">Sus electores no podrán votar en esta mesa y los miembros que no llegaron quedarán como inasistentes.</span>
                             <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setDeclarando(false)}>Cancelar</button>
                             <button type="submit" className="cv-btn im-btn-peligro-solido" disabled={saving || motivo.trim().length < 10}>Declarar no instalada</button>
                           </div>
@@ -622,11 +761,49 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
                     <div className="cq-resultado-head">
                       <span className="cq-resultado-icono"><MenuIcon name="alert" size={22} /></span>
                       <div>
-                        <strong>Mesa no instalada</strong>
+                        <strong>Mesa no instalada{si(detalle.registro?.automatica) ? ' (registro automático, RF58)' : ''}</strong>
                         <span>{detalle.registro?.motivoNoInstalacion} · {fecha(detalle.registro?.fechaActualizacion)}{detalle.registro?.cerradoPor ? ` · ${detalle.registro.cerradoPor}` : ''}</span>
                       </div>
                     </div>
                   </div>
+
+                  <div className="cv-section-head">
+                    <div>
+                      <h3>Evaluación de nulidad (RF60)</h3>
+                      <p className="muted">El CEUNP evalúa si procede la nulidad de la votación de esta mesa (Art. 64a).</p>
+                    </div>
+                  </div>
+                  {detalle.registro?.evaluacionNulidad ? (
+                    <dl className="cq-meta">
+                      <div><dt>Decisión</dt><dd>{detalle.registro.evaluacionNulidad === 'PROCEDE' ? 'Procede la nulidad' : 'No procede la nulidad'}</dd></div>
+                      <div><dt>Fecha</dt><dd>{fecha(detalle.registro.fechaEvaluacion)}</dd></div>
+                      <div><dt>Registró</dt><dd>{detalle.registro.evaluadoPor ?? '—'}</dd></div>
+                      <div className="im-dl-ancho"><dt>Fundamento</dt><dd>{detalle.registro.fundamentoEvaluacion}</dd></div>
+                    </dl>
+                  ) : esCeunp && detalle.puedeEvaluarNulidad ? (
+                    <form className="cv-form" onSubmit={(e) => { e.preventDefault(); evaluarNulidad(); }}>
+                      <div className="im-estados" role="radiogroup" aria-label="Decisión">
+                        {[['PROCEDE', 'Procede la nulidad'], ['NO_PROCEDE', 'No procede']].map(([codigo, texto]) => (
+                          <label key={codigo} className={evaluacion.decision === codigo ? `on ${codigo === 'PROCEDE' ? 'no_recibido' : 'conforme'}` : ''}>
+                            <input type="radio" name="decision" value={codigo} checked={evaluacion.decision === codigo}
+                              onChange={() => setEvaluacion((v) => ({ ...v, decision: codigo }))} />
+                            {texto}
+                          </label>
+                        ))}
+                      </div>
+                      <label className="cv-field">
+                        <span className="cv-label">Fundamento</span>
+                        <textarea rows={3} minLength={10} maxLength={500} required value={evaluacion.fundamento}
+                          placeholder="Ej.: los electores de la mesa representan menos del 2% del padrón y no alteran el resultado."
+                          onChange={(e) => setEvaluacion((v) => ({ ...v, fundamento: e.target.value }))} />
+                      </label>
+                      <div className="cv-actions">
+                        <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || evaluacion.fundamento.trim().length < 10}>
+                          <MenuIcon name="scale" size={15} /> Registrar evaluación
+                        </button>
+                      </div>
+                    </form>
+                  ) : <p className="muted im-nota">Pendiente de evaluación por el CEUNP.</p>}
                 </div>
               )}
 
@@ -639,10 +816,11 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
   );
 }
 
-/** Acta de instalación emitida: datos, firmas y, solo al emitirse, el QR de verificación. */
+/** 13 mostrarActaInstalacion(): datos, firmas y, solo al emitirse, el QR de verificación. */
 function ActaVista({ acta, mesa, emitida }) {
   const c = acta.contenido ?? {};
   const token = emitida && emitida.idActa === acta.idActa ? emitida.tokenQr : null;
+  const observados = Object.entries(c.material ?? {}).filter(([, v]) => v?.estado === 'OBSERVADO').length;
   return (
     <div className="panel cv-form im-acta">
       <div className="cv-section-head">
@@ -660,6 +838,8 @@ function ActaVista({ acta, mesa, emitida }) {
           <div><dt>Mesa</dt><dd>{c.mesa} · {c.ubicacion}</dd></div>
           <div><dt>Hora de instalación</dt><dd>{c.hora_instalacion}</dd></div>
           <div><dt>Electores</dt><dd>{c.total_electores}</dd></div>
+          <div><dt>Cédulas recibidas</dt><dd>{c.cedulas_recibidas ?? '—'}</dd></div>
+          <div><dt>Material observado</dt><dd>{observados}</dd></div>
           <div><dt>Personeros</dt><dd>{c.personeros?.length ?? 0}</dd></div>
         </dl>
         {token && (
