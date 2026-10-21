@@ -6,8 +6,8 @@ import DocentesPage from './DocentesPage';
 import UsuariosPage from './UsuariosPage';
 import CuentaPage from './CuentaPage';
 import MiembroMesaPage from './MiembroMesaPage';
-import VerificarElectorPage from './votacion/VerificarElectorPage';
-import EmitirVotoPage from './votacion/EmitirVotoPage';
+import PantallaVerificacion from './votacion/PantallaVerificacion';
+import TerminalVotacion from './votacion/TerminalVotacion';
 import ImportarDocentesPage from './ImportarDocentesPage';
 import ParametrosPage from './ParametrosPage';
 import BitacoraPage from './BitacoraPage';
@@ -65,7 +65,7 @@ const MENU_POR_ROL = {
     { group: 'WORKSPACE' },
     { key: 'mesa', label: 'Mi Mesa de Sufragio', icon: 'table', color: '#14b8a6' },
     { key: 'verificar-elector', label: 'Verificar elector', icon: 'scan', color: '#0ea5e9' },
-    { key: 'votar', label: 'Emitir mi voto', icon: 'vote', color: '#6366f1' },
+    { key: 'terminal', label: 'Terminal de votación', icon: 'vote', color: '#6366f1' },
     { key: 'fotocheck', label: 'Fotocheck QR (RF56)', icon: 'qr', color: '#f59e0b' },
     { key: 'verificar-qr', label: 'Verificar credencial QR', icon: 'scan', color: '#10b981' },
   ],
@@ -73,14 +73,12 @@ const MENU_POR_ROL = {
     { group: 'WORKSPACE' },
     { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6' },
     { key: 'credencial', label: 'Credencial QR (RF51)', icon: 'qr', color: '#10b981' },
-    { key: 'votar', label: 'Emitir voto', icon: 'vote', color: '#6366f1' },
     { key: 'tachas', label: 'Tachas e Impugnaciones', icon: 'scale', color: '#f97316' },
   ],
   DOCENTE: [
     { group: 'WORKSPACE' },
     { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6' },
     { key: 'pase', label: 'Mi pase de votación QR', icon: 'qr', color: '#8b5cf6' },
-    { key: 'votar', label: 'Emitir voto', icon: 'vote', color: '#6366f1' },
     { key: 'tachas', label: 'Presentar tacha', icon: 'scale', color: '#f97316' },
   ],
 };
@@ -99,7 +97,7 @@ const SECTION_TITLES = {
   usuarios: 'Usuarios del sistema',
   cuenta: 'Configuración de mi cuenta',
   mesa: 'Mi Mesa de Sufragio',
-  terminal: 'Terminal de Votación',
+  terminal: 'Terminal de votación (CUS10)',
   sorteos: 'Sorteos: miembros de mesa y cédula',
   'importar-docentes': 'Importar Padrón de Docentes',
   parametros: 'Parámetros globales',
@@ -111,7 +109,6 @@ const SECTION_TITLES = {
   credencial: 'Mi credencial de personero',
   pase: 'Mi pase de votación QR',
   'verificar-elector': 'Verificar elector (CUS09)',
-  votar: 'Cabina de votación (CUS10)',
 };
 
 /**
@@ -460,12 +457,12 @@ export default function DashboardPage({ session, onLogout }) {
         {/* Mesa */}
         {section === 'mesa' && <MiembroMesaPage />}
 
-        {/* CUS10 · Emitir voto (cabina del docente elector) */}
-        {(section === 'votar' || section === 'terminal') && <EmitirVotoPage onSessionExpired={onLogout} />}
+        {/* CUS10 · Registrar voto en el terminal de la cabina (el docente no inicia sesión) */}
+        {section === 'terminal' && (session.rol === 'MIEMBRO_MESA' || canManage) && <TerminalVotacion onSessionExpired={onLogout} />}
 
-        {/* CUS09 · Verificar elector (miembro de mesa; CEUNP supervisa) */}
+        {/* CUS09 · Verificar elector con QR (Secretario de mesa; CEUNP supervisa) */}
         {section === 'verificar-elector' && (session.rol === 'MIEMBRO_MESA' || canManage) && (
-          <VerificarElectorPage onSessionExpired={onLogout} />
+          <PantallaVerificacion onSessionExpired={onLogout} />
         )}
 
         {/* Módulos de CEUNP */}

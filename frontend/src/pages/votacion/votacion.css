@@ -30,11 +30,10 @@
 .vt-filtros input[type="search"] { flex: 1 1 220px; min-width: 0; }
 .vt-estado { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .68rem; font-weight: 750; letter-spacing: .02em; white-space: nowrap; }
 .vt-estado.VOTO { color: #065f46; background: #d1fae5; }
-.vt-estado.AUTORIZADO { color: #1e40af; background: #dbeafe; }
+.vt-estado.HABILITADO { color: #1e40af; background: #dbeafe; }
+.vt-estado.HABILITADO_SIN_VOTAR { color: #92400e; background: #fef3c7; }
 .vt-estado.PENDIENTE { color: #475569; background: #f1f5f9; }
 .vt-estado.INHABILITADO { color: #9f1239; background: #ffe4e6; }
-.vt-estado.USADA { color: #065f46; background: #d1fae5; }
-.vt-estado.ANULADA { color: #9f1239; background: #ffe4e6; }
 .vt-acciones { white-space: nowrap; text-align: right; }
 .vt-acciones > * + * { margin-left: 4px; }
 .vt-mini { padding: 5px 10px; font-size: .74rem; }
@@ -44,8 +43,6 @@
 .vt-cabina { display: grid; gap: 16px; max-width: 980px; }
 .vt-proceso-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; }
 .vt-proceso-head h3 { margin: 0; font-size: 1.05rem; }
-.vt-reloj { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-weight: 750; font-variant-numeric: tabular-nums; color: #1e40af; background: #dbeafe; }
-.vt-reloj.poco { color: #9f1239; background: #ffe4e6; }
 .vt-progreso { display: grid; gap: 6px; }
 .vt-progreso span { font-size: .78rem; font-weight: 650; color: var(--text-muted); }
 .vt-barra { height: 8px; border-radius: 999px; background: var(--gray-100); overflow: hidden; }
@@ -79,22 +76,40 @@
 .vt-resumen li span { color: var(--text-muted); font-size: .84rem; }
 .vt-resumen li strong { color: var(--text-main); text-align: right; }
 
-/* ── Constancia ─────────────────────────────────────────────────── */
-.vt-constancia { display: grid; gap: 14px; padding: 20px; border-radius: var(--r-lg); border: 1.5px solid #a7f3d0; background: #fff; }
-.vt-constancia header { display: grid; gap: 2px; text-align: center; }
-.vt-constancia header span { font-size: .74rem; color: var(--text-muted); }
-.vt-constancia header strong { font-size: 1.05rem; color: #065f46; }
-.vt-constancia dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px 16px; margin: 0; }
-.vt-constancia dt { font-size: .7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
-.vt-constancia dd { margin: 0; font-size: .86rem; color: var(--text-main); }
-.vt-qrs { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
-.vt-qr { display: grid; justify-items: center; gap: 6px; padding: 10px; border: 1px solid var(--border); border-radius: var(--r-md); text-align: center; }
-.vt-qr strong { font-size: .8rem; }
-.vt-qr code { font-size: .62rem; color: var(--text-muted); word-break: break-all; }
-.vt-nota { font-size: .76rem; color: var(--text-muted); text-align: center; }
 
 @media (max-width: 900px) {
   .vt-grid { grid-template-columns: 1fr; }
   .vt-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .vt-head select { min-width: 0; width: 100%; }
 }
+
+/* ── Foto del padrón y del candidato (RF62, RF68) ───────────────── */
+.vt-foto { display: block; width: 36px; height: 36px; flex: none; border-radius: 50%; object-fit: cover; background: var(--gray-100); }
+.vt-foto.grande { width: 96px; height: 116px; border-radius: 10px; }
+.vt-foto-vacia { display: grid; place-items: center; font-weight: 800; font-size: .8rem; color: var(--cv-blue); background: var(--cv-blue-soft); }
+.vt-foto-vacia.grande { font-size: 1.6rem; }
+.vt-ficha { display: flex; gap: 14px; align-items: center; }
+.vt-ficha .in-cand-body strong { font-size: 1.02rem; }
+.vt-ficha .in-cand-body b { font-variant-numeric: tabular-nums; letter-spacing: .06em; color: var(--text-main); }
+.vt-terminal-select { display: inline-grid; gap: 2px; font-size: .72rem; font-weight: 650; color: var(--text-muted); }
+
+/* ── Terminales de la mesa ──────────────────────────────────────── */
+.vt-terminales { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.vt-terminal { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-md); border: 1.5px solid var(--border); }
+.vt-terminal > div { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.vt-terminal strong { font-size: .86rem; }
+.vt-terminal span { font-size: .74rem; color: var(--text-muted); }
+.vt-terminal.LIBRE { border-color: #a7f3d0; color: #065f46; }
+.vt-terminal.HABILITADO, .vt-terminal.EN_USO { border-color: #93c5fd; color: #1e40af; background: #eff6ff; }
+.vt-terminal.FUERA_DE_SERVICIO { border-color: #fecdd3; color: #9f1239; background: #fff1f2; }
+
+/* ── Terminal de votación (cabina) ──────────────────────────────── */
+.vt-opcion-cuerpo { display: flex; gap: 12px; align-items: flex-start; }
+.vt-opcion-cuerpo > div { display: grid; gap: 4px; }
+.vt-espera { display: grid; justify-items: center; gap: 8px; padding: 56px 24px; text-align: center; color: var(--cv-blue); }
+.vt-espera h2 { margin: 6px 0 0; color: var(--text-main); }
+.vt-espera p { margin: 0; max-width: 520px; color: var(--text-muted); line-height: 1.5; }
+.vt-espera.fuera { color: var(--cv-red); }
+.vt-kiosco .vt-resumen li strong { font-size: 1.05rem; }
+.vt-opcion .vt-foto.grande { width: 64px; height: 78px; font-size: 1.3rem; }
+.vt-opcion-cuerpo > div { padding-right: 18px; }

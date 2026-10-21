@@ -9,20 +9,21 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import pe.unp.elecciones.electoral.service.Bitacora;
 import pe.unp.elecciones.electoral.service.ProcedimientoDao;
 
 /**
- * CUS09 / CUS10 · Lecturas compartidas por VerificarElector y EmitirVoto.
+ * CUS09 / CUS10 · Lecturas compartidas por VerificarElector, RegistrarAsistencia y RegistrarVoto.
  *
- * <p>Usa las mismas tablas que CUS08 (mesa_electoral.estado = 'INSTALADA') y que sp_emitir_voto
- * (padron_electoral.ya_voto). La autorización de cabina vive en autorizacion_voto.
+ * <p>Usa la mesa de CUS08 (mesa_electoral.estado = 'INSTALADA') y el padrón (PadronMesa). Los estados
+ * del elector son los de la sección 5.4.1 del informe: PENDIENTE, HABILITADO, VOTO y
+ * HABILITADO_SIN_VOTAR (más INHABILITADO si el padrón lo excluye).
  */
 @Service
 public class VotacionConsulta {
 
     static final String MESA_INSTALADA = "INSTALADA";
     static final String PROCESO_EN_VOTACION = "VOTACION";
-    private static final int MINUTOS_POR_DEFECTO = 15;
 
     private static final String SELECT_MESA = """
             SELECT m.id_mesa AS id, m.numero_mesa AS numero, m.ubicacion, m.estado,
@@ -33,77 +34,59 @@ public class VotacionConsulta {
               JOIN proceso_electoral p ON p.id_proceso = m.id_proceso
             """;
 
-    /** Una fila por elector de la mesa: cargos del padrón y autorización pendiente. */
+    /** Una fila por elector de la mesa: cargos del padrón, asistencia y habilitación pendiente. */
     private static final String SELECT_ELECTORES = """
-            SELECT x.id_docente, d.dni, CONCAT(d.apellidos, ', ', d.nombres) AS nombre,
-                   d.categoria, f.nombre AS facultad,
+            SELECT x.id_docente, d.dni, d.nombres, d.apellidos,
+                   CONCAT(d.apellidos, ', ', d.nombres) AS nombre, d.categoria, d.url_foto,
+                   f.nombre AS facultad,
                    x.id_proceso, x.id_mesa, x.habilitado, x.cargos, x.cargos_votados, x.pendientes,
-                   x.ultima_votacion,
-                   a.id_autorizacion, a.metodo AS metodo_autorizacion,
-                   a.fecha_autorizacion, a.fecha_expiracion AS autorizacion_vence
+                   a.id_asistencia, a.metodo AS metodo_asistencia, a.hora_asistencia,
+                   h.id_habilitacion, h.id_terminal, t.nombre AS terminal, h.fecha_entrega
               FROM (SELECT id_docente, id_proceso, MAX(id_mesa) AS id_mesa,
                            MAX(habilitado_para_votar) AS habilitado,
                            COUNT(*) AS cargos, SUM(ya_voto) AS cargos_votados,
-                           SUM(habilitado_para_votar = 1 AND ya_voto = 0) AS pendientes,
-                           MAX(fecha_votacion) AS ultima_votacion
+                           SUM(habilitado_para_votar = 1 AND ya_voto = 0) AS pendientes
                       FROM padron_electoral WHERE id_mesa = ?
                      GROUP BY id_docente, id_proceso) x
               JOIN docente d ON d.id_docente = x.id_docente
               LEFT JOIN facultad f ON f.id_facultad = d.id_facultad
-              LEFT JOIN autorizacion_voto a ON a.id_proceso = x.id_proceso
-                    AND a.id_docente = x.id_docente AND a.estado = 'PENDIENTE'
+              LEFT JOIN asistencia_elector a ON a.id_proceso = x.id_proceso AND a.id_docente = x.id_docente
+              LEFT JOIN habilitacion_terminal h ON h.id_asistencia = a.id_asistencia AND h.estado = 'PENDIENTE'
+              LEFT JOIN terminal_votacion t ON t.id_terminal = h.id_terminal
              WHERE 1 = 1
             """;
 
     private final ProcedimientoDao dao;
+    private final Bitacora bitacora;
     private volatile boolean instalada;
+    private volatile Boolean hayRolInstalacion;
 
-    public VotacionConsulta(ProcedimientoDao dao) {
+    public VotacionConsulta(ProcedimientoDao dao, Bitacora bitacora) {
         this.dao = dao;
+        this.bitacora = bitacora;
     }
 
-    /** Falla con un mensaje claro si falta ejecutar la migración de autorizacion_voto. */
+    /** Falla con un mensaje claro si falta ejecutar la migración de CUS09 / CUS10. */
     void verificarInstalacion() {
         if (instalada) {
             return;
         }
         int existe = dao.entero("""
                 SELECT COUNT(*) FROM information_schema.tables
-                 WHERE table_schema = DATABASE() AND table_name = 'autorizacion_voto'
+                 WHERE table_schema = DATABASE() AND table_name = 'asistencia_elector'
                 """);
         if (existe == 0) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Falta la tabla autorizacion_voto: ejecute base-de-datos/06_verificar_elector_emitir_voto.sql.");
+                    "Faltan las tablas de CUS09/CUS10: ejecute base-de-datos/06_verificar_elector_emitir_voto.sql.");
         }
         instalada = true;
-    }
-
-    /** Las autorizaciones vencidas sin votar se anulan solas (el elector debe volver a la mesa). */
-    void anularVencidas() {
-        verificarInstalacion();
-        dao.ejecutar("""
-                UPDATE autorizacion_voto
-                   SET estado = 'ANULADA', motivo_anulacion = 'Venció sin que el elector termine de votar.'
-                 WHERE estado = 'PENDIENTE' AND fecha_expiracion <= NOW()
-                """);
-    }
-
-    int minutosAutorizacion() {
-        List<Map<String, Object>> filas = dao.consultar(
-                "SELECT valor FROM parametro_global WHERE clave = 'MINUTOS_AUTORIZACION_VOTO'");
-        try {
-            int minutos = filas.isEmpty() ? MINUTOS_POR_DEFECTO
-                    : Integer.parseInt(String.valueOf(filas.get(0).get("valor")).trim());
-            return minutos > 0 ? minutos : MINUTOS_POR_DEFECTO;
-        } catch (NumberFormatException e) {
-            return MINUTOS_POR_DEFECTO;
-        }
     }
 
     // ─── Mesas ───────────────────────────────────────────────────────────────
 
     /** Mesas de los procesos vigentes; un miembro de mesa solo ve las suyas. */
     public List<Map<String, Object>> mesas(Integer idDocenteMiembro) {
+        verificarInstalacion();
         String filtro = idDocenteMiembro == null ? "" : """
                  AND EXISTS (SELECT 1 FROM miembro_mesa mm WHERE mm.id_mesa = m.id_mesa AND mm.id_docente = ?)
                 """;
@@ -113,17 +96,19 @@ public class VotacionConsulta {
     }
 
     public Map<String, Object> mesa(Integer idMesa) {
+        verificarInstalacion();
         List<Map<String, Object>> filas = dao.consultar(SELECT_MESA + " WHERE m.id_mesa = ?", idMesa);
         if (filas.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "La mesa no existe.");
         }
         Map<String, Object> mesa = filas.get(0);
-        mesa.put("atiende", motivoNoAtiende(mesa) == null);
-        mesa.put("motivoNoAtiende", motivoNoAtiende(mesa));
+        String motivo = motivoNoAtiende(mesa);
+        mesa.put("atiende", motivo == null);
+        mesa.put("motivoNoAtiende", motivo);
         return mesa;
     }
 
-    /** null si la mesa puede atender electores; si no, el motivo (RN06 / RN07). */
+    /** null si la mesa puede atender electores; si no, el motivo (RF61, RN06, RF73). */
     static String motivoNoAtiende(Map<String, Object> mesa) {
         String estado = String.valueOf(mesa.get("estado"));
         if (!PROCESO_EN_VOTACION.equals(String.valueOf(mesa.get("estadoProceso")))) {
@@ -131,33 +116,27 @@ public class VotacionConsulta {
         }
         if (!MESA_INSTALADA.equals(estado)) {
             return "PENDIENTE".equals(estado)
-                    ? "RN07: la mesa aún no está instalada (CUS08 Instalar mesa)."
-                    : "La mesa está " + estado + ": ya no atiende electores.";
+                    ? "RF61: la mesa aún no está instalada (CUS08 Instalar mesa)."
+                    : "La mesa está " + estado + ": no atiende electores.";
         }
         LocalDateTime ahora = LocalDateTime.now();
         if (mesa.get("fechaInicio") instanceof LocalDateTime inicio && ahora.isBefore(inicio)) {
             return "RN06: el sufragio aún no empieza.";
         }
         if (mesa.get("fechaFin") instanceof LocalDateTime fin && ahora.isAfter(fin)) {
-            return "RN06: el horario de sufragio ya terminó.";
+            return "RF73: el horario de sufragio ya terminó.";
         }
         return null;
     }
 
-    /** Totales de la mesa para el tablero del miembro de mesa. */
-    public Map<String, Object> resumen(List<Map<String, Object>> electores) {
-        Map<String, Object> resumen = new LinkedHashMap<>();
-        resumen.put("electores", electores.size());
-        for (String estado : List.of("VOTO", "AUTORIZADO", "PENDIENTE", "INHABILITADO")) {
-            resumen.put(estado.toLowerCase(), electores.stream().filter(e -> estado.equals(e.get("estadoElector"))).count());
+    static void exigirQueAtienda(Map<String, Object> mesa) {
+        String motivo = motivoNoAtiende(mesa);
+        if (motivo != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, motivo);
         }
-        long votaron = (long) resumen.get("voto");
-        int habilitados = (int) electores.stream().filter(e -> !"INHABILITADO".equals(e.get("estadoElector"))).count();
-        resumen.put("participacion", habilitados == 0 ? 0 : Math.round(votaron * 1000.0 / habilitados) / 10.0);
-        return resumen;
     }
 
-    // ─── Electores ───────────────────────────────────────────────────────────
+    // ─── Electores (PadronMesa) ─────────────────────────────────────────────
 
     public List<Map<String, Object>> electoresDeMesa(Integer idMesa) {
         List<Map<String, Object>> filas = dao.consultar(SELECT_ELECTORES + " ORDER BY d.apellidos, d.nombres", idMesa);
@@ -165,7 +144,7 @@ public class VotacionConsulta {
         return filas;
     }
 
-    /** El elector en el padrón de ESTA mesa, por DNI o por id; null si no figura en ella. */
+    /** 3 consultarHabilitacion(): el elector en el padrón de ESTA mesa; null si no figura en ella. */
     Map<String, Object> electorEnMesa(Integer idMesa, String dni, Integer idDocente) {
         List<Map<String, Object>> filas = dni != null
                 ? dao.consultar(SELECT_ELECTORES + " AND d.dni = ?", idMesa, dni)
@@ -178,10 +157,11 @@ public class VotacionConsulta {
         return elector;
     }
 
-    /** Si el docente figura en el padrón del proceso pero en otra mesa, la indica (para orientarlo). */
+    /** A3: si figura en el padrón del proceso pero en otra mesa, la indica. */
     Map<String, Object> mesaAsignada(Integer idProceso, String dni, Integer idDocente) {
         List<Map<String, Object>> filas = dao.consultar("""
-                SELECT m.id_mesa, m.numero_mesa, m.ubicacion
+                SELECT d.id_docente, CONCAT(d.apellidos, ', ', d.nombres) AS nombre,
+                       m.id_mesa, m.numero_mesa, m.ubicacion
                   FROM padron_electoral pe
                   JOIN docente d ON d.id_docente = pe.id_docente
                   JOIN mesa_electoral m ON m.id_mesa = pe.id_mesa
@@ -191,17 +171,18 @@ public class VotacionConsulta {
         return filas.isEmpty() ? null : filas.get(0);
     }
 
-    /** Calcula estadoElector: VOTO, AUTORIZADO, PENDIENTE o INHABILITADO. */
     private static void completarElector(Map<String, Object> e) {
         int pendientes = numero(e.get("pendientes"));
         int votados = numero(e.get("cargosVotados"));
         String estado;
-        if (numero(e.get("habilitado")) == 0) {
+        if (numero(e.get("habilitado")) == 0 || (pendientes == 0 && votados == 0)) {
             estado = "INHABILITADO";
         } else if (pendientes == 0) {
-            estado = votados > 0 ? "VOTO" : "INHABILITADO";
-        } else if (e.get("idAutorizacion") != null) {
-            estado = "AUTORIZADO";
+            estado = "VOTO";
+        } else if (e.get("idHabilitacion") != null) {
+            estado = "HABILITADO";
+        } else if (e.get("idAsistencia") != null) {
+            estado = "HABILITADO_SIN_VOTAR";
         } else {
             estado = "PENDIENTE";
         }
@@ -212,34 +193,104 @@ public class VotacionConsulta {
         e.put("cargos", numero(e.get("cargos")));
     }
 
-    // ─── Autorizaciones ──────────────────────────────────────────────────────
-
-    /** Autorización PENDIENTE (y sin vencer) del docente en el proceso; null si no tiene. */
-    Map<String, Object> autorizacionPendiente(Integer idProceso, Integer idDocente) {
-        List<Map<String, Object>> filas = dao.consultar("""
-                SELECT a.id_autorizacion, a.id_mesa, m.numero_mesa, m.ubicacion, m.estado AS estado_mesa,
-                       a.metodo, a.fecha_autorizacion, a.fecha_expiracion
-                  FROM autorizacion_voto a
-                  JOIN mesa_electoral m ON m.id_mesa = a.id_mesa
-                 WHERE a.id_proceso = ? AND a.id_docente = ? AND a.estado = 'PENDIENTE'
-                   AND a.fecha_expiracion > NOW()
-                """, idProceso, idDocente);
-        return filas.isEmpty() ? null : filas.get(0);
+    /** Totales de la mesa por estado del elector. */
+    public Map<String, Object> resumen(List<Map<String, Object>> electores) {
+        Map<String, Object> resumen = new LinkedHashMap<>();
+        resumen.put("electores", electores.size());
+        for (String estado : List.of("PENDIENTE", "HABILITADO", "VOTO", "HABILITADO_SIN_VOTAR", "INHABILITADO")) {
+            resumen.put(estado, electores.stream().filter(e -> estado.equals(e.get("estadoElector"))).count());
+        }
+        long votaron = (long) resumen.get("VOTO");
+        long habiles = electores.size() - (long) resumen.get("INHABILITADO");
+        resumen.put("participacion", habiles == 0 ? 0 : Math.round(votaron * 1000.0 / habiles) / 10.0);
+        return resumen;
     }
 
-    /** Últimas autorizaciones de la mesa (sin dato alguno del sentido del voto). */
-    public List<Map<String, Object>> autorizacionesDeMesa(Integer idMesa) {
-        return dao.consultar("""
-                SELECT a.id_autorizacion, a.id_docente, d.dni, CONCAT(d.apellidos, ', ', d.nombres) AS nombre,
-                       a.metodo, a.estado, a.fecha_autorizacion, a.fecha_expiracion, a.fecha_uso,
-                       a.motivo_anulacion, u.username AS autorizado_por
-                  FROM autorizacion_voto a
-                  JOIN docente d ON d.id_docente = a.id_docente
-                  LEFT JOIN usuario u ON u.id_usuario = a.id_usuario_mesa
-                 WHERE a.id_mesa = ?
-                 ORDER BY a.id_autorizacion DESC
-                 LIMIT 50
+    // ─── Terminales ──────────────────────────────────────────────────────────
+
+    /** Terminales de la mesa con su estado: LIBRE, HABILITADO, EN_USO o FUERA_DE_SERVICIO. */
+    public List<Map<String, Object>> terminales(Integer idMesa) {
+        List<Map<String, Object>> filas = dao.consultar("""
+                SELECT t.id_terminal, t.nombre, t.activo, t.ultima_conexion,
+                       h.id_habilitacion, h.fecha_habilitacion, h.fecha_entrega
+                  FROM terminal_votacion t
+                  LEFT JOIN habilitacion_terminal h ON h.id_terminal = t.id_terminal AND h.estado = 'PENDIENTE'
+                 WHERE t.id_mesa = ?
+                 ORDER BY t.nombre
                 """, idMesa);
+        for (Map<String, Object> t : filas) {
+            String estado;
+            if (numero(t.get("activo")) == 0) {
+                estado = "FUERA_DE_SERVICIO";
+            } else if (t.get("idHabilitacion") == null) {
+                estado = "LIBRE";
+            } else {
+                estado = t.get("fechaEntrega") == null ? "HABILITADO" : "EN_USO";
+            }
+            t.put("activo", numero(t.get("activo")) == 1);
+            t.put("estadoTerminal", estado);
+        }
+        return filas;
+    }
+
+    Map<String, Object> terminal(Integer idTerminal) {
+        List<Map<String, Object>> filas = dao.consultar(
+                "SELECT id_terminal, id_mesa, nombre, activo FROM terminal_votacion WHERE id_terminal = ?", idTerminal);
+        if (filas.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "El terminal no existe.");
+        }
+        return filas.get(0);
+    }
+
+    // ─── Incidencias (RF66) ──────────────────────────────────────────────────
+
+    void registrarIncidencia(Integer idProceso, Integer idMesa, Integer idDocente, String tipo, String detalle,
+            Integer idUsuario) {
+        dao.ejecutar("""
+                INSERT INTO incidencia_mesa (id_proceso, id_mesa, id_docente, tipo, detalle, id_usuario)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """, idProceso, idMesa, idDocente, tipo, detalle, idUsuario);
+        Map<String, Object> bit = new LinkedHashMap<>();
+        bit.put("id_mesa", idMesa);
+        bit.put("id_docente", idDocente);
+        bit.put("tipo", tipo);
+        bitacora.registrar(idUsuario, idProceso, "INCIDENCIA_MESA", bit);
+    }
+
+    public List<Map<String, Object>> incidencias(Integer idMesa) {
+        return dao.consultar("""
+                SELECT i.id_incidencia, i.tipo, i.detalle, i.fecha, i.id_docente, d.dni,
+                       CONCAT(d.apellidos, ', ', d.nombres) AS nombre, u.username AS registrado_por
+                  FROM incidencia_mesa i
+                  LEFT JOIN docente d ON d.id_docente = i.id_docente
+                  LEFT JOIN usuario u ON u.id_usuario = i.id_usuario
+                 WHERE i.id_mesa = ?
+                 ORDER BY i.id_incidencia DESC
+                 LIMIT 100
+                """, idMesa);
+    }
+
+    // ─── Presidente de mesa ──────────────────────────────────────────────────
+
+    /**
+     * El Presidente que ejerce en la mesa. Si existe la columna de CUS08 (rol_instalacion: un suplente
+     * puede asumir la presidencia), se usa; si no, el presidente titular sorteado.
+     */
+    boolean esPresidente(Integer idMesa, Integer idDocente) {
+        if (idDocente == null) {
+            return false;
+        }
+        if (hayRolInstalacion == null) {
+            hayRolInstalacion = dao.entero("""
+                    SELECT COUNT(*) FROM information_schema.columns
+                     WHERE table_schema = DATABASE() AND table_name = 'miembro_mesa' AND column_name = 'rol_instalacion'
+                    """) > 0;
+        }
+        String condicion = hayRolInstalacion
+                ? "COALESCE(rol_instalacion, IF(titular = 1, rol, NULL)) = 'PRESIDENTE'"
+                : "titular = 1 AND rol = 'PRESIDENTE'";
+        return dao.entero("SELECT COUNT(*) FROM miembro_mesa WHERE id_mesa = ? AND id_docente = ? AND " + condicion,
+                idMesa, idDocente) > 0;
     }
 
     static int numero(Object valor) {

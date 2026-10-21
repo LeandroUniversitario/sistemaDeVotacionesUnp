@@ -2,7 +2,6 @@ package pe.unp.elecciones.electoral.votacion;
 
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
@@ -11,64 +10,59 @@ import org.springframework.web.server.ResponseStatusException;
 
 import pe.unp.elecciones.electoral.credenciales.VerificarCredencial;
 import pe.unp.elecciones.electoral.service.Bitacora;
-import pe.unp.elecciones.electoral.service.ProcedimientoDao;
 
 /**
- * CUS09 · Verificar elector (actor: miembro de mesa).
+ * CUS09 · Verificar elector con QR («VerificarElector», capa de control).
  *
  * <ol>
- *   <li>identificarElector(QR | DNI): el pase QR (CUS07) se comprueba con VerificarCredencial;
- *       el DNI se busca directamente en el padrón.</li>
- *   <li>consultarPadronMesa: el elector debe figurar en el padrón de ESTA mesa, que debe estar
- *       INSTALADA (CUS08) con el proceso en VOTACION y dentro del horario (RN04, RN06, RN07).</li>
- *   <li>validarNoVoto: no debe haber votado en todos sus cargos ni tener otra autorización pendiente (RN01).</li>
- *   <li>autorizarCabina: registra la autorización (vence en MINUTOS_AUTORIZACION_VOTO); sin ella
- *       EmitirVoto rechaza el voto.</li>
+ *   <li>2 verificar(token): el pase QR (CUS07) se valida con VerificarCredencial (vigente, no revocado).
+ *       A1: si el QR no se puede leer, se busca por DNI. A2: código inválido → alerta e incidencia.</li>
+ *   <li>3 consultarHabilitacion(): PadronMesa de ESTA mesa, habilitado y sin voto previo (RF63).
+ *       A3: no figura u otra mesa → no vota (RN30) e incidencia. A4: ya registrado → bloquea e incidencia.</li>
+ *   <li>4 mostrarDatosYFoto(): nombres y fotografía del padrón para comparar con el DNI (RF62).</li>
  * </ol>
  *
- * Todas las lecturas y autorizaciones quedan en la bitácora; ninguna guarda el sentido del voto.
+ * La confirmación (5) y el registro de asistencia (6, 7) están en RegistrarAsistencia.
  */
 @Service
 public class VerificarElector {
 
     private final VotacionConsulta consulta;
     private final VerificarCredencial verificarCredencial;
-    private final ProcedimientoDao dao;
     private final Bitacora bitacora;
 
-    public VerificarElector(VotacionConsulta consulta, VerificarCredencial verificarCredencial,
-            ProcedimientoDao dao, Bitacora bitacora) {
+    public VerificarElector(VotacionConsulta consulta, VerificarCredencial verificarCredencial, Bitacora bitacora) {
         this.consulta = consulta;
         this.verificarCredencial = verificarCredencial;
-        this.dao = dao;
         this.bitacora = bitacora;
     }
 
-    /** Pantalla de la mesa: datos, totales y padrón con el estado de cada elector. */
-    public Map<String, Object> tablero(Integer idMesa) {
-        consulta.anularVencidas();
+    /** PantallaVerificacion: mesa, totales, padrón, terminales e incidencias. */
+    public Map<String, Object> tablero(Integer idMesa, Integer idDocenteUsuario, boolean supervisor) {
         Map<String, Object> mesa = consulta.mesa(idMesa);
         List<Map<String, Object>> electores = consulta.electoresDeMesa(idMesa);
         Map<String, Object> respuesta = new LinkedHashMap<>();
         respuesta.put("mesa", mesa);
         respuesta.put("resumen", consulta.resumen(electores));
         respuesta.put("electores", electores);
-        respuesta.put("autorizaciones", consulta.autorizacionesDeMesa(idMesa));
-        respuesta.put("minutosAutorizacion", consulta.minutosAutorizacion());
+        respuesta.put("terminales", consulta.terminales(idMesa));
+        respuesta.put("incidencias", consulta.incidencias(idMesa));
+        respuesta.put("puedeRehabilitar", supervisor || consulta.esPresidente(idMesa, idDocenteUsuario));
         return respuesta;
     }
 
-    /** 1-3: identifica al elector con el QR leído o con el DNI digitado. */
+    /** 1 escanearQR() → 2 verificar(token) → 3 consultarHabilitacion() → 4 mostrarDatosYFoto(). */
     public Map<String, Object> verificar(Integer idMesa, String dni, String codigo, Integer idUsuario) {
-        consulta.anularVencidas();
         Map<String, Object> mesa = consulta.mesa(idMesa);
+        VotacionConsulta.exigirQueAtienda(mesa);
         boolean porQR = codigo != null && !codigo.isBlank();
         if (!porQR && (dni == null || dni.isBlank())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lea el pase QR o digite el DNI del elector.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Escanee el QR o digite el DNI del elector.");
         }
-        Map<String, Object> ficha = porQR ? porQR(mesa, codigo, idUsuario) : porDni(mesa, normalizarDni(dni));
+        Map<String, Object> ficha = porQR ? porQR(mesa, codigo, idUsuario) : porDni(mesa, normalizarDni(dni), idUsuario);
         ficha.put("metodo", porQR ? "QR" : "DNI");
-        ficha.put("mesa", Map.of("id", mesa.get("id"), "numero", mesa.get("numero"), "estado", mesa.get("estado")));
+        ficha.put("terminalesLibres", consulta.terminales(idMesa).stream()
+                .filter(t -> "LIBRE".equals(t.get("estadoTerminal"))).toList());
 
         Map<String, Object> detalle = new LinkedHashMap<>();
         detalle.put("id_mesa", idMesa);
@@ -81,159 +75,95 @@ public class VerificarElector {
         return ficha;
     }
 
-    private Map<String, Object> porDni(Map<String, Object> mesa, String dni) {
-        Integer idMesa = (Integer) mesa.get("id");
-        Map<String, Object> elector = consulta.electorEnMesa(idMesa, dni, null);
+    private Map<String, Object> porDni(Map<String, Object> mesa, String dni, Integer idUsuario) {
+        Map<String, Object> elector = consulta.electorEnMesa((Integer) mesa.get("id"), dni, null);
         if (elector == null) {
-            return noFigura(mesa, dni, null);
+            return noFigura(mesa, dni, null, idUsuario);
         }
-        return evaluar(mesa, elector, null);
+        return evaluar(mesa, elector, null, idUsuario);
     }
 
     private Map<String, Object> porQR(Map<String, Object> mesa, String codigo, Integer idUsuario) {
+        Integer idMesa = (Integer) mesa.get("id");
+        Integer idProceso = (Integer) mesa.get("idProceso");
         Map<String, Object> lectura = verificarCredencial.verificar(codigo, idUsuario);
         if (!Boolean.TRUE.equals(lectura.get("valida"))) {
-            return ficha("CREDENCIAL_INVALIDA", false, String.valueOf(lectura.get("mensaje")));
+            return qrInvalido(idProceso, idMesa, String.valueOf(lectura.get("mensaje")), idUsuario);
         }
         Map<?, ?> credencial = (Map<?, ?>) lectura.get("credencial");
         if (!"ELECTOR".equals(credencial.get("tipo"))) {
-            return ficha("CREDENCIAL_INVALIDA", false,
-                    "El QR es un " + credencial.get("titulo") + ", no un pase de votación. Pida el pase o el DNI.");
+            return qrInvalido(idProceso, idMesa,
+                    "El QR es un " + credencial.get("titulo") + ", no un pase de votación.", idUsuario);
         }
         Map<?, ?> proceso = (Map<?, ?>) lectura.get("proceso");
-        if (!mesa.get("idProceso").equals(proceso.get("id"))) {
-            return ficha("CREDENCIAL_INVALIDA", false,
-                    "El pase es del proceso «" + proceso.get("nombre") + "», no del proceso de esta mesa.");
+        if (!idProceso.equals(proceso.get("id"))) {
+            return qrInvalido(idProceso, idMesa,
+                    "El pase es del proceso «" + proceso.get("nombre") + "», no del proceso de esta mesa.", idUsuario);
         }
-        Map<?, ?> titular = (Map<?, ?>) lectura.get("titular");
-        Integer idDocente = ((Number) titular.get("idTitular")).intValue();
-        Map<String, Object> elector = consulta.electorEnMesa((Integer) mesa.get("id"), null, idDocente);
+        Integer idDocente = ((Number) ((Map<?, ?>) lectura.get("titular")).get("idTitular")).intValue();
+        Map<String, Object> elector = consulta.electorEnMesa(idMesa, null, idDocente);
         if (elector == null) {
-            return noFigura(mesa, null, idDocente);
+            return noFigura(mesa, null, idDocente, idUsuario);
         }
-        return evaluar(mesa, elector, ((Number) credencial.get("id")).longValue());
+        return evaluar(mesa, elector, ((Number) credencial.get("id")).longValue(), idUsuario);
     }
 
-    /** El docente no está en el padrón de esta mesa: se le indica su mesa, si la tiene. */
-    private Map<String, Object> noFigura(Map<String, Object> mesa, String dni, Integer idDocente) {
-        Map<String, Object> otra = consulta.mesaAsignada((Integer) mesa.get("idProceso"), dni, idDocente);
+    /** A2: código inválido o revocado → alerta, verificar por DNI e incidencia. */
+    private Map<String, Object> qrInvalido(Integer idProceso, Integer idMesa, String motivo, Integer idUsuario) {
+        consulta.registrarIncidencia(idProceso, idMesa, null, "QR_INVALIDO", motivo, idUsuario);
+        return ficha("QR_INVALIDO", false, motivo + " Verifique al elector por su DNI.");
+    }
+
+    /** A3: no figura en el padrón de esta mesa; si es de otra mesa, se indica sin habilitarlo. */
+    private Map<String, Object> noFigura(Map<String, Object> mesa, String dni, Integer idDocente, Integer idUsuario) {
+        Integer idProceso = (Integer) mesa.get("idProceso");
+        Map<String, Object> otra = consulta.mesaAsignada(idProceso, dni, idDocente);
         if (otra == null) {
-            return ficha("NO_FIGURA", false, "RN04: el elector no figura en el padrón del proceso.");
+            consulta.registrarIncidencia(idProceso, (Integer) mesa.get("id"), idDocente, "NO_FIGURA",
+                    dni == null ? "No figura en el padrón." : "DNI " + dni + " no figura en el padrón.", idUsuario);
+            return ficha("NO_FIGURA", false, "RN30: el elector no figura en el padrón del proceso. No vota.");
         }
+        consulta.registrarIncidencia(idProceso, (Integer) mesa.get("id"), (Integer) otra.get("idDocente"), "OTRA_MESA",
+                "Vota en la mesa " + otra.get("numeroMesa") + ".", idUsuario);
         Map<String, Object> ficha = ficha("OTRA_MESA", false,
-                "El elector vota en la mesa " + otra.get("numeroMesa") + " (" + otra.get("ubicacion") + ").");
+                otra.get("nombre") + " vota en la mesa " + otra.get("numeroMesa") + " (" + otra.get("ubicacion") + ").");
         ficha.put("mesaAsignada", otra);
         return ficha;
     }
 
-    /** 3: validarNoVoto — decide si el miembro de mesa puede autorizar la cabina. */
-    private Map<String, Object> evaluar(Map<String, Object> mesa, Map<String, Object> elector, Long idCredencial) {
-        String motivoMesa = VotacionConsulta.motivoNoAtiende(mesa);
-        Map<String, Object> ficha;
-        switch (String.valueOf(elector.get("estadoElector"))) {
-            case "INHABILITADO" -> ficha = ficha("INHABILITADO", false,
-                    "RN04: el docente no está habilitado para votar en este proceso.");
-            case "VOTO" -> ficha = ficha("YA_VOTO", false,
-                    "RN01: el elector ya votó en todos sus cargos.");
-            case "AUTORIZADO" -> ficha = ficha("AUTORIZADO", false,
-                    "El elector ya tiene la cabina habilitada. Si no la usará, anule la autorización.");
-            default -> ficha = motivoMesa != null
-                    ? ficha("MESA_NO_ATIENDE", false, motivoMesa)
-                    : ficha("APTO", true, "Identidad verificada. Puede habilitar la cabina de votación.");
-        }
+    /** 3 consultarHabilitacion(): RF63 y A4. */
+    private Map<String, Object> evaluar(Map<String, Object> mesa, Map<String, Object> elector, Long idCredencial,
+            Integer idUsuario) {
+        Integer idProceso = (Integer) mesa.get("idProceso");
+        Integer idMesa = (Integer) mesa.get("id");
+        Integer idDocente = (Integer) elector.get("idDocente");
+        Map<String, Object> ficha = switch (String.valueOf(elector.get("estadoElector"))) {
+            case "PENDIENTE" -> ficha("APTO", true,
+                    "Compare los nombres y la fotografía con el DNI y con el rostro del elector antes de confirmar.");
+            case "INHABILITADO" -> {
+                consulta.registrarIncidencia(idProceso, idMesa, idDocente, "INHABILITADO",
+                        "Inhabilitado en el padrón.", idUsuario);
+                yield ficha("INHABILITADO", false, "RN04: el docente no está habilitado para votar. No vota.");
+            }
+            case "VOTO" -> {
+                consulta.registrarIncidencia(idProceso, idMesa, idDocente, "YA_REGISTRADO",
+                        "Intentó ingresar después de votar.", idUsuario);
+                yield ficha("YA_VOTO", false, "RN01: el elector ya votó. Se registró la incidencia.");
+            }
+            case "HABILITADO" -> ficha("HABILITADO", false,
+                    "El elector ya tiene habilitado el terminal " + elector.get("terminal") + ".");
+            default -> {
+                consulta.registrarIncidencia(idProceso, idMesa, idDocente, "YA_REGISTRADO",
+                        "Asistencia ya registrada y sin voto.", idUsuario);
+                yield ficha("YA_REGISTRADO", false,
+                        "A4: la asistencia ya fue registrada y el elector no votó. Solo el Presidente puede rehabilitar el terminal.");
+            }
+        };
         ficha.put("elector", elector);
         if (idCredencial != null) {
             ficha.put("idCredencial", idCredencial);
         }
         return ficha;
-    }
-
-    /** 4: autorizarCabina — el elector verificado pasa a votar. */
-    public Map<String, Object> autorizar(Integer idMesa, Integer idDocente, String metodo, Long idCredencial,
-            Integer idUsuario) {
-        consulta.anularVencidas();
-        Map<String, Object> mesa = consulta.mesa(idMesa);
-        String motivoMesa = VotacionConsulta.motivoNoAtiende(mesa);
-        if (motivoMesa != null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, motivoMesa);
-        }
-        String forma = metodo == null ? "" : metodo.trim().toUpperCase(Locale.ROOT);
-        if (!forma.equals("QR") && !forma.equals("DNI")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Indique cómo se identificó al elector: QR o DNI.");
-        }
-        Map<String, Object> elector = consulta.electorEnMesa(idMesa, null, idDocente);
-        if (elector == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "RN04: el elector no figura en el padrón de esta mesa.");
-        }
-        switch (String.valueOf(elector.get("estadoElector"))) {
-            case "INHABILITADO" -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "RN04: el docente no está habilitado para votar.");
-            case "VOTO" -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "RN01: el elector ya votó.");
-            case "AUTORIZADO" -> throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "El elector ya tiene una autorización pendiente.");
-            default -> { }
-        }
-        Integer idProceso = (Integer) mesa.get("idProceso");
-        if (forma.equals("QR")) {
-            if (idCredencial == null || dao.entero("""
-                    SELECT COUNT(*) FROM credencial_qr
-                     WHERE id_credencial = ? AND id_docente = ? AND id_proceso = ?
-                       AND tipo = 'ELECTOR' AND estado = 'VIGENTE' AND fecha_expiracion > NOW()
-                    """, idCredencial, idDocente, idProceso) == 0) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "El pase QR ya no es válido para este elector. Vuelva a leerlo o use el DNI.");
-            }
-        } else {
-            idCredencial = null;
-        }
-
-        dao.ejecutar("""
-                INSERT INTO autorizacion_voto
-                       (id_proceso, id_mesa, id_docente, metodo, id_credencial, id_usuario_mesa, fecha_expiracion)
-                VALUES (?, ?, ?, ?, ?, ?, NOW() + INTERVAL ? MINUTE)
-                """, idProceso, idMesa, idDocente, forma, idCredencial, idUsuario, consulta.minutosAutorizacion());
-
-        Map<String, Object> autorizacion = consulta.autorizacionPendiente(idProceso, idDocente);
-        Map<String, Object> detalle = new LinkedHashMap<>();
-        detalle.put("id_mesa", idMesa);
-        detalle.put("id_docente", idDocente);
-        detalle.put("metodo", forma);
-        detalle.put("id_autorizacion", autorizacion == null ? null : autorizacion.get("idAutorizacion"));
-        bitacora.registrar(idUsuario, idProceso, "AUTORIZAR_VOTO", detalle);
-
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("mensaje", elector.get("nombre") + " puede pasar a la cabina de votación.");
-        respuesta.put("autorizacion", autorizacion);
-        respuesta.put("elector", consulta.electorEnMesa(idMesa, null, idDocente));
-        return respuesta;
-    }
-
-    /** Anula una autorización que no se usó (el elector se retiró o se autorizó por error). */
-    public Map<String, Object> anular(Integer idMesa, Long idAutorizacion, String motivo, Integer idUsuario) {
-        consulta.verificarInstalacion();
-        List<Map<String, Object>> filas = dao.consultar("""
-                SELECT id_proceso, id_docente, estado FROM autorizacion_voto
-                 WHERE id_autorizacion = ? AND id_mesa = ?
-                """, idAutorizacion, idMesa);
-        if (filas.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "La autorización no existe en esta mesa.");
-        }
-        if (!"PENDIENTE".equals(filas.get(0).get("estado"))) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Solo se anula una autorización PENDIENTE (esta está " + filas.get(0).get("estado") + ").");
-        }
-        dao.ejecutar("""
-                UPDATE autorizacion_voto SET estado = 'ANULADA', motivo_anulacion = ?
-                 WHERE id_autorizacion = ? AND estado = 'PENDIENTE'
-                """, motivo.trim(), idAutorizacion);
-
-        Map<String, Object> detalle = new LinkedHashMap<>();
-        detalle.put("id_mesa", idMesa);
-        detalle.put("id_autorizacion", idAutorizacion);
-        detalle.put("id_docente", filas.get(0).get("idDocente"));
-        detalle.put("motivo", motivo.trim());
-        bitacora.registrar(idUsuario, (Integer) filas.get(0).get("idProceso"), "ANULAR_AUTORIZACION_VOTO", detalle);
-        return tablero(idMesa);
     }
 
     private static Map<String, Object> ficha(String resultado, boolean apto, String mensaje) {
@@ -244,7 +174,7 @@ public class VerificarElector {
         return ficha;
     }
 
-    private static String normalizarDni(String dni) {
+    static String normalizarDni(String dni) {
         String limpio = dni == null ? "" : dni.trim();
         if (limpio.matches("\\d{1,8}")) {
             return String.format("%08d", Long.parseLong(limpio));

@@ -1,51 +1,77 @@
-# CUS09 · Verificar elector y CUS10 · Emitir voto
+# CUS09 · Verificar elector con QR y CUS10 · Registrar voto
 
-**Actores:** miembro de mesa (CUS09), docente elector (CUS10) · **Requiere:** padrón y mesas (CUS02, CUS06), pase QR (CUS07, opcional), mesa INSTALADA (CUS08)
-**Instalación:** en una base ya creada, ejecutar `base-de-datos/06_verificar_elector_emitir_voto.sql`. `01_crear_base_de_datos.sql` ya incluye la tabla y `02_limpiar_datos_electorales.sql` también la vacía.
+**Fuente:** colaboración «Verificar elector y emitir voto» del modelo Rose (`diagramas/Sistema De Elecciones.mdl`), tablas 35 y 36 y sección 5.4.1 del informe v2.1, RF61 a RF73, decisiones D12 y D14.
+**Actores:** Secretario de mesa (CUS09), Docente elector (CUS10, **no inicia sesión**), Presidente de mesa (rehabilitación).
+**Requiere:** mesa INSTALADA (CUS08), pase QR (CUS07).
+**Instalación:** en una base ya creada, ejecutar `base-de-datos/06_verificar_elector_emitir_voto.sql`. `01_crear_base_de_datos.sql` ya lo incluye y `02_limpiar_datos_electorales.sql` vacía sus tablas.
 
-## Flujo
-1. El elector llega a su mesa. El miembro de mesa abre «Verificar elector», lee su **pase QR** (CUS07) o digita su **DNI**.
-2. El sistema comprueba: mesa INSTALADA, proceso en VOTACION y dentro del horario (RN06, RN07), elector en el padrón de **esa** mesa (RN04; si es de otra mesa, la indica), habilitado y sin haber votado (RN01).
-3. «Habilitar cabina de votación» registra una **autorización** (`autorizacion_voto`) que vence en `MINUTOS_AUTORIZACION_VOTO` (15 por defecto, en `parametro_global`). Si el elector se retira, la mesa la **anula** con un motivo.
-4. En la cabina, el docente entra con su cuenta → «Emitir voto». Sin autorización vigente la cédula no aparece y el voto se rechaza (también en `POST /api/votos`).
-5. La cédula muestra cada cargo pendiente con sus listas ADMITIDAS en el orden sorteado (RN18) y sus candidatos, más **voto en blanco**. El elector marca una opción por cargo, revisa y confirma.
-6. Por cada cargo se llama a `sp_emitir_voto` (sin cambios): bloquea el padrón, marca que votó, inserta el voto **anónimo** y emite la constancia. Al terminar todos los cargos la autorización queda USADA.
-7. Se muestra la **constancia** con un QR por cargo que apunta a `/api/publico/constancias/{token}` (prueba la participación, no el sentido del voto). Se puede imprimir.
+## Correspondencia con el diagrama de colaboración
+| N.° | Mensaje | Frontend | Backend |
+|---|---|---|---|
+| 1 | escanearQR() | `PantallaVerificacion` (EscanerQR o búsqueda por DNI, A1) | `POST /api/sufragio/mesas/{id}/verificar` |
+| 2 | verificar(token) | — | `VerificarElector.verificar` → `VerificarCredencial` (CUS07) |
+| 3 | consultarHabilitacion() | — | `VotacionConsulta.electorEnMesa` (PadronMesa) |
+| 4 | mostrarDatosYFoto() | ficha con nombres y fotografía | `docente.url_foto` |
+| 5 | confirmarConDNI() | «Confirmar con DNI y habilitar terminal» | `POST /api/sufragio/mesas/{id}/asistencias` |
+| 6 | registrarAsistencia() | — | `RegistrarAsistencia.confirmar` → `asistencia_elector` (RF64) |
+| 7 | habilitarTerminal() | elige un terminal libre | `habilitacion_terminal` de un solo uso (RF67) |
+| 8 | elegirOpcion() | `TerminalVotacion` (cédula, corregir y confirmar, A1) | `GET /api/sufragio/terminales/{id}` entrega el token y la cédula una sola vez |
+| 9 | registrarVoto(opción) | «Confirmar voto» (sin datos del elector) | `POST /api/sufragio/terminales/{id}/voto` → `RegistrarVoto` |
+| 10 | crear(opción, mesa) | — | `sp_votar_habilitado` por cargo + consumo de la habilitación, en **una** transacción (A5) |
+| — | generarConstancia() | la mesa la imprime: botón «Constancia» | `GET/DELETE /api/sufragio/mesas/{id}/constancias/{docente}` |
+| 11 | imprimirCedula(opción) | `ImpresoraCedula.imprimirCedula` | respuesta del voto: solo la elección |
+| 12 | confirmarImpresion() | «Sí, retiré mi cédula» / «Reimprimir cédula» (A2) | — |
+| 13 | liberarTerminal() | borra la elección de la memoria | `POST /api/sufragio/terminales/{id}/liberar` |
 
-## Correspondencia con secuencia_emitir_voto.puml
-| Mensaje | Frontend | Backend |
-|---|---|---|
-| validarHabilitacion / verificarHabilitacion | `EmitirVotoPage` (estado del proceso) | `GET /api/sufragio/cedula` → `EmitirVoto.cedula` |
-| obtenerListasAdmitidas / mostrarOpciones | cédula | `EmitirVoto.cargosConListas` |
-| registrarVoto (transacción atómica) | «Confirmar y emitir voto» | `POST /api/sufragio/votar` → `sp_emitir_voto` por cargo |
-| mostrarConstancia | `Constancia`, «Imprimir constancia» | tokens devueltos por `sp_emitir_voto` |
+## Estados del elector (sección 5.4.1)
+Pendiente → **Habilitado** (asistencia y terminal asignado) → **Votó** (se marca solo dentro de la transacción del voto). Si abandona o algo falla: **Habilitado sin votar**, y solo el Presidente puede rehabilitar el terminal. Además: Inhabilitado.
 
-## Supuestos
-- **Voto nulo:** no se ofrece. RN25 y `sp_emitir_voto` lo prohíben en el voto electrónico (un intento devuelve el error RN25). Se ofrece voto en blanco.
-- La cabina es la sesión del propio docente (en la PC de la cabina o su dispositivo). El miembro de mesa nunca ve la cédula.
-- Una cédula incluye todos los cargos pendientes del elector; hay que marcar uno por cargo.
-- La autorización no guarda nada del sentido del voto; la tabla `voto` sigue sin referencias a docente.
+## Flujos alternos implementados
+- **CUS09 A1/A2:** si el QR no se lee o no es válido, se alerta, se registra la incidencia `QR_INVALIDO` y se verifica por DNI.
+- **CUS09 A3:** el elector no figura (`NO_FIGURA`) o es de otra mesa (`OTRA_MESA`, se indica cuál): no vota.
+- **CUS09 A4:** si la asistencia ya está registrada, se bloquea con incidencia `YA_REGISTRADO`, salvo rehabilitación.
+- **CUS09 A5:** «El DNI no corresponde»: se rechaza el ingreso con motivo (incidencia `SUPLANTACION`).
+- **CUS10 A1:** «Corregir» antes de confirmar.
+- **CUS10 A2:** «Reimprimir cédula» desde la memoria temporal hasta confirmar la impresión.
+- **CUS10 A3:** la mesa anula la habilitación (incidencia `ABANDONO_TERMINAL`) y el Presidente puede rehabilitar (`REHABILITACION`).
+- **CUS10 A4:** terminal «Fuera de servicio» (`FALLA_TERMINAL`). Si la página del terminal se recarga a mitad del voto, el token no se vuelve a entregar: la mesa anula y rehabilita en otro terminal.
+- **CUS10 A5:** si falla un cargo o el servidor, se revierte todo y el elector sigue Habilitado.
+
+## Decisiones y supuestos
+- **Sin voto nulo** en el terminal (D12 / RN25): solo una lista o voto en blanco.
+- **El terminal es el equipo de la cabina** abierto con la cuenta de la mesa en «Terminal de votación». El terminal nunca recibe ni envía datos del elector (RF69). La cédula impresa no lleva datos del elector (RNF07).
+- **Constancia:** `sp_votar_habilitado` la emite y el backend guarda el token **solo en memoria** (3 horas) para que la mesa la imprima y la entregue. No pasa por el terminal, para no juntar identidad y voto en la cabina.
+- **Rehabilitación:** la autoriza el Presidente que ejerce en la mesa. Si existe `miembro_mesa.rol_instalacion` (CUS08) se usa; si no, el presidente titular. El CEUNP y el ADMIN también pueden.
+- **Fotografías:** se agregan `docente.url_foto` y `candidato.url_foto` (URL de la imagen). Si no hay foto se muestran las iniciales o el símbolo de la lista. Cargar las fotos no es parte de estos casos de uso.
+- **El voto con la sesión del docente se deshabilitó:** `POST /api/votos` responde 403 (D14).
+- Firma y huella (RF65) y atención preferente (RF72) quedan fuera, porque no tienen paso en la colaboración.
 
 ## Endpoints
-| Método | Ruta | Rol |
+| Método | Ruta | Uso |
 |---|---|---|
-| GET | `/api/sufragio/mesas` | ADMIN, CEUNP, MIEMBRO_MESA (solo sus mesas) |
-| GET | `/api/sufragio/mesas/{id}` (mesa, totales, padrón, autorizaciones) | ídem |
-| POST | `/api/sufragio/mesas/{id}/verificar` `{dni}` o `{codigo}` | ídem |
-| POST | `/api/sufragio/mesas/{id}/autorizaciones` `{idDocente, metodo, idCredencial}` | ídem |
-| POST | `/api/sufragio/mesas/{id}/autorizaciones/{a}/anular` `{motivo}` | ídem |
-| GET | `/api/sufragio/cedula` | DOCENTE, MIEMBRO_MESA, PERSONERO |
-| POST | `/api/sufragio/votar` `{procesoId, votos:[{cargoId, tipo, listaId}]}` | ídem |
+| GET | `/api/sufragio/mesas`, `/api/sufragio/mesas/{id}` | mesas y tablero (padrón, terminales, incidencias) |
+| POST | `/api/sufragio/mesas/{id}/verificar` `{codigo}` o `{dni}` | 1-4 |
+| POST | `/api/sufragio/mesas/{id}/asistencias` `{idDocente, metodo, idCredencial, idTerminal}` | 5-7 |
+| POST | `/api/sufragio/mesas/{id}/rechazos` `{dni, idDocente, motivo}` | A5 |
+| POST | `/api/sufragio/mesas/{id}/habilitaciones/{h}/anular` `{motivo}` | abandono |
+| POST | `/api/sufragio/mesas/{id}/rehabilitaciones` `{idDocente, idTerminal, motivo}` | Presidente |
+| PUT | `/api/sufragio/mesas/{id}/terminales/{t}` `{activo}` | fuera de servicio |
+| GET / DELETE | `/api/sufragio/mesas/{id}/constancias/{idDocente}` | constancia por entregar |
+| POST | `/api/sufragio/terminales` `{idMesa, nombre}` | conectar el equipo |
+| GET | `/api/sufragio/terminales/{id}` | LIBRE / HABILITADO (token y cédula) / EN_USO / FUERA_DE_SERVICIO |
+| POST | `/api/sufragio/terminales/{id}/voto` `{idHabilitacion, token, votos}` | 9-11 |
+| POST | `/api/sufragio/terminales/{id}/liberar` | 13 |
 
-Bitácora: `VERIFICAR_ELECTOR`, `AUTORIZAR_VOTO`, `ANULAR_AUTORIZACION_VOTO` (y `EMITIR_VOTO` de `sp_emitir_voto`).
+Roles: ADMIN, CEUNP y MIEMBRO_MESA. Un miembro de mesa solo opera su mesa.
 
 ## Archivos
-- BD: `base-de-datos/06_verificar_elector_emitir_voto.sql`
-- Backend: `backend/src/main/java/pe/unp/elecciones/electoral/votacion/` (`VerificarElectorController`, `EmisionVotoController`, `VerificarElector`, `EmitirVoto`, `VotacionConsulta`, `VotacionDto`); `VotoController` exige la autorización
-- Frontend: `frontend/src/pages/votacion/` (`VerificarElectorPage`, `EmitirVotoPage`, `votacion.css`); menús en `DashboardPage`
+- BD: `06_verificar_elector_emitir_voto.sql` (tablas `asistencia_elector`, `terminal_votacion`, `habilitacion_terminal`, `incidencia_mesa`; procedimiento `sp_votar_habilitado`)
+- Backend `electoral/votacion/`: `VerificarElector`, `RegistrarAsistencia`, `RegistrarVoto`, `VotacionConsulta`, `VotacionDto`, `VerificarElectorController`, `TerminalVotacionController`
+- Frontend `pages/votacion/`: `PantallaVerificacion.jsx`, `TerminalVotacion.jsx`, `ImpresoraCedula.js`, `votacion.css`
 
 ## Prueba rápida
-1. Ejecutar `06_verificar_elector_emitir_voto.sql`. Tener un proceso en VOTACION con una mesa INSTALADA (CUS08).
-2. Como miembro de mesa: «Verificar elector» → pestaña DNI → DNI de un elector de la mesa → «Habilitar cabina de votación».
-3. Como ese docente: «Emitir voto» → marcar una lista o blanco → «Revisar mi voto» → «Confirmar y emitir voto» → constancia.
-4. Volver a verificarlo en la mesa → «El elector ya votó». Votar sin pasar por la mesa → «No tiene la cabina habilitada».
+1. Ejecutar el script 06. Tener un proceso en VOTACION con la mesa INSTALADA.
+2. En el equipo de la cabina, con la cuenta de un miembro de mesa: «Terminal de votación» → elegir la mesa → «Conectar terminal».
+3. En el equipo de mesa: «Verificar elector» → escanear el QR (o «Buscar por DNI») → comparar la foto → «Confirmar con DNI y habilitar terminal».
+4. En el terminal aparece la cédula. Elegir una opción → «Continuar» → «Confirmar voto» → se imprime la cédula → «Sí, retiré mi cédula». El terminal queda libre.
+5. En la mesa: el elector aparece como «Votó» → «Constancia» para imprimirla y entregarla.

@@ -28,7 +28,10 @@ SET FOREIGN_KEY_CHECKS = 0;
 TRUNCATE TABLE voto;
 TRUNCATE TABLE constancia_voto;
 TRUNCATE TABLE credencial_qr;          -- CUS07 (credenciales QR)
-TRUNCATE TABLE autorizacion_voto;      -- CUS09 (autorizaciones de cabina)
+TRUNCATE TABLE incidencia_mesa;        -- CUS09 / CUS10
+TRUNCATE TABLE habilitacion_terminal;  -- CUS09 / CUS10
+TRUNCATE TABLE terminal_votacion;      -- CUS09 / CUS10
+TRUNCATE TABLE asistencia_elector;     -- CUS09 / CUS10
 TRUNCATE TABLE firma_acta;
 TRUNCATE TABLE acta_electoral;
 
