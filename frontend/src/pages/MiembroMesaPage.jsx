@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiRequest } from '../api/apiClient';
 import MenuIcon from '../components/MenuIcon';
 
-export default function MiembroMesaPage({ onIrInstalacion }) {
+export default function MiembroMesaPage({ onIrInstalacion, onIrCierre }) {
   const [mesas, setMesas] = useState([]);
   const [selectedMesa, setSelectedMesa] = useState(null);
   const [dniElector, setDniElector] = useState('');
@@ -21,22 +21,6 @@ export default function MiembroMesaPage({ onIrInstalacion }) {
       setMesas(data);
     } catch (error) {
       setFeedback({ type: 'error', text: 'Error cargando mesas: ' + error.message });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleCerrar() {
-    if (!selectedMesa) return;
-    setLoading(true);
-    setFeedback(null);
-    try {
-      const resp = await apiRequest(`/api/mesas/${selectedMesa.id}/cerrar`, { method: 'POST' });
-      setSelectedMesa(resp.mesa);
-      setFeedback({ type: 'success', text: 'Sufragio cerrado correctamente.' });
-      loadMesas();
-    } catch (error) {
-      setFeedback({ type: 'error', text: error.message });
     } finally {
       setLoading(false);
     }
@@ -121,8 +105,8 @@ export default function MiembroMesaPage({ onIrInstalacion }) {
                 </button>
               )}
               {selectedMesa.estado === 'INSTALADA' && (
-                <button className="primary-small reject-button" onClick={handleCerrar} disabled={loading}>
-                  <MenuIcon name="lock" /> Cerrar Sufragio
+                <button className="primary-small reject-button" onClick={onIrCierre} disabled={loading || !onIrCierre}>
+                  <MenuIcon name="lock" /> Ir a cerrar sufragio (CUS11)
                 </button>
               )}
             </div>

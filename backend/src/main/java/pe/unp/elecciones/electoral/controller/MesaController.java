@@ -69,10 +69,16 @@ public class MesaController {
         return mesaService.instalar(id, usuario.getId());
     }
 
+    /**
+     * Ya no se cierra la mesa en un solo paso: según CUS11 el presidente cierra la votación, marca
+     * NO VOTÓ y emite el acta de sufragio (POST /api/cierre/mesas/{id}/...). El acta de escrutinio
+     * corresponde al CUS12.
+     */
     @PostMapping("/{id}/cerrar")
     public Map<String, Object> cerrar(@PathVariable Integer id, Authentication authentication) {
-        Usuario usuario = exigirAcceso(id, authentication);
-        return mesaService.cerrar(id, usuario.getId());
+        exigirAcceso(id, authentication);
+        throw new ResponseStatusException(HttpStatus.GONE,
+                "CUS11: el sufragio se cierra en «Cerrar sufragio» (cierre, marca NO VOTÓ y acta de sufragio).");
     }
 
     @GetMapping("/{id}/verificar-elector")

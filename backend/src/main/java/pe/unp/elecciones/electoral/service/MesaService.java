@@ -85,16 +85,6 @@ public class MesaService {
         return respuesta;
     }
 
-    /** RN27 / RN28: cierra la mesa y emite las actas de sufragio y escrutinio. */
-    public Map<String, Object> cerrar(Integer idMesa, Integer idUsuario) {
-        ProcedimientoDao.Resultado resultado =
-                dao.llamar("sp_cerrar_mesa", ProcedimientoDao.SIN_SALIDA, idMesa, idUsuario);
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("mensaje", "Mesa cerrada. Se emitieron las actas de sufragio y escrutinio.");
-        respuesta.put("mesa", obtenerMesa(idMesa));
-        respuesta.put("actas", resultado.filas());
-        return respuesta;
-    }
 
     /** RN04 / RN05 / RN30: comprueba que el DNI pertenece al padrón de la mesa. */
     public Map<String, Object> verificarElector(Integer idMesa, String dni) {

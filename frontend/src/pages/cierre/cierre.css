@@ -1,0 +1,16 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CUS11 · Cerrar sufragio (PantallaCierreSufragio)
+   Reutiliza .cv-*, .pd-*, .in-*, .cq-* e .im-* (convocatoria, padrón, inscripción,
+   credenciales e instalación de mesa).
+   ═══════════════════════════════════════════════════════════════════ */
+
+.cs-shell .pd-tab:disabled { opacity: .45; cursor: not-allowed; }
+.cs-acciones-head { display: flex; gap: 8px; align-items: center; }
+.cs-lista { max-height: 420px; overflow: auto; }
+
+.cs-firmantes { display: grid; gap: 6px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.cs-firmantes h4 { margin: 0; font-size: .88rem; }
+.cs-firmantes ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cs-firmantes li { display: flex; gap: 8px; align-items: center; font-size: .84rem; color: var(--text-body); }
+.cs-firmantes li > svg { color: var(--cv-green); flex: none; }
+.cs-firmantes .im-check { font-weight: 500; }

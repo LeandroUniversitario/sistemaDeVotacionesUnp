@@ -235,15 +235,17 @@ export default function TerminalVotacion({ onSessionExpired }) {
   // ─── Espera ─────────────────────────────────────────────────────────────
   if (paso === 'ESPERA') {
     const fuera = estado?.estado === 'FUERA_DE_SERVICIO';
+    const cerrada = estado?.mesa?.estado === 'CERRADA'; // CUS11: al cerrar el sufragio se deshabilitan los terminales
     return (
       <div className="pd-shell vt-cabina">
         {cabecera}
         {error && <div className="alert error" role="alert" onClick={() => setError('')}>{error}</div>}
         <div className={`panel vt-espera${fuera ? ' fuera' : ''}`}>
           <MenuIcon name={fuera ? 'lock' : 'vote'} size={44} />
-          <h2>{fuera ? 'Terminal fuera de servicio' : estado?.estado === 'EN_USO' ? 'Habilitación en uso' : 'Terminal libre'}</h2>
+          <h2>{cerrada ? 'Sufragio cerrado' : fuera ? 'Terminal fuera de servicio' : estado?.estado === 'EN_USO' ? 'Habilitación en uso' : 'Terminal libre'}</h2>
           <p>
-            {fuera ? 'La mesa marcó este terminal como fuera de servicio.'
+            {cerrada ? 'El presidente cerró el sufragio de esta mesa: el terminal quedó deshabilitado.'
+              : fuera ? 'La mesa marcó este terminal como fuera de servicio.'
               : estado?.estado === 'EN_USO' ? estado.mensaje
                 : estado?.motivoMesa ?? 'Acérquese a la mesa con su DNI y su pase QR. El Secretario habilitará este terminal para usted.'}
           </p>
