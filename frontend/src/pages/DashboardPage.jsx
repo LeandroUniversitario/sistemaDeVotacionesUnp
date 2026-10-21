@@ -6,7 +6,8 @@ import DocentesPage from './DocentesPage';
 import UsuariosPage from './UsuariosPage';
 import CuentaPage from './CuentaPage';
 import MiembroMesaPage from './MiembroMesaPage';
-import TerminalVotacionPage from './TerminalVotacionPage';
+import PantallaVerificacion from './votacion/PantallaVerificacion';
+import TerminalVotacion from './votacion/TerminalVotacion';
 import ImportarDocentesPage from './ImportarDocentesPage';
 import ParametrosPage from './ParametrosPage';
 import BitacoraPage from './BitacoraPage';
@@ -57,6 +58,7 @@ const MENU_POR_ROL = {
     { key: 'sorteos', label: 'Sorteos', icon: 'sorteo', color: '#eab308' },
     { group: 'JORNADA ELECTORAL' },
     { key: 'instalacion', label: 'Instalación de mesas', icon: 'shield', color: '#14b8a6' },
+    { key: 'verificar-elector', label: 'Verificación de electores', icon: 'scan', color: '#14b8a6' },
     { group: 'RESULTADOS' },
     { key: 'computo', label: 'Cómputo y Proclamación', icon: 'trophy', color: '#6366f1' },
     { key: 'impugnaciones', label: 'Impugnaciones y Nulidades', icon: 'alert', color: '#ef4444' },
@@ -66,7 +68,8 @@ const MENU_POR_ROL = {
     { group: 'WORKSPACE' },
     { key: 'instalacion', label: 'Instalar mesa', icon: 'shield', color: '#0ea5e9' },
     { key: 'mesa', label: 'Mi Mesa de Sufragio', icon: 'table', color: '#14b8a6' },
-    { key: 'terminal', label: 'Terminal de Votación', icon: 'vote', color: '#6366f1' },
+    { key: 'verificar-elector', label: 'Verificar elector', icon: 'scan', color: '#0ea5e9' },
+    { key: 'terminal', label: 'Terminal de votación', icon: 'vote', color: '#6366f1' },
     { key: 'fotocheck', label: 'Fotocheck QR (RF56)', icon: 'qr', color: '#f59e0b' },
     { key: 'verificar-qr', label: 'Verificar credencial QR', icon: 'scan', color: '#10b981' },
   ],
@@ -98,7 +101,7 @@ const SECTION_TITLES = {
   usuarios: 'Usuarios del sistema',
   cuenta: 'Configuración de mi cuenta',
   mesa: 'Mi Mesa de Sufragio',
-  terminal: 'Terminal de Votación',
+  terminal: 'Terminal de votación (CUS10)',
   sorteos: 'Sorteos: miembros de mesa y cédula',
   'importar-docentes': 'Importar Padrón de Docentes',
   parametros: 'Parámetros globales',
@@ -110,6 +113,7 @@ const SECTION_TITLES = {
   credencial: 'Mi credencial de personero',
   pase: 'Mi pase de votación QR',
   instalacion: 'Instalación de mesa de sufragio',
+  'verificar-elector': 'Verificar elector (CUS09)',
 };
 
 /**
@@ -478,8 +482,13 @@ export default function DashboardPage({ session, onLogout }) {
           <InstalacionMesaPage session={session} onSessionExpired={onLogout} />
         )}
 
-        {/* Terminal de Votación */}
-        {section === 'terminal' && <TerminalVotacionPage />}
+        {/* CUS10 · Registrar voto en el terminal de la cabina (el docente no inicia sesión) */}
+        {section === 'terminal' && (session.rol === 'MIEMBRO_MESA' || canManage) && <TerminalVotacion onSessionExpired={onLogout} />}
+
+        {/* CUS09 · Verificar elector con QR (Secretario de mesa; CEUNP supervisa) */}
+        {section === 'verificar-elector' && (session.rol === 'MIEMBRO_MESA' || canManage) && (
+          <PantallaVerificacion onSessionExpired={onLogout} />
+        )}
 
         {/* Módulos de CEUNP */}
         {/* CUS05 · Acreditar personeros (CEUNP) */}
