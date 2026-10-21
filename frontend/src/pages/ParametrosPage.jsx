@@ -6,6 +6,9 @@ const LABELS = {
   UIT: { label: 'Valor de la UIT vigente (S/.)', icon: 'coins', desc: 'Unidad Impositiva Tributaria vigente' },
   MULTA_ELECTOR_OMISO_PCT: { label: 'Multa elector omiso (%)', icon: 'ballot', desc: 'Porcentaje de la UIT para electores que no voten' },
   MULTA_MIEMBRO_MESA_OMISO_PCT: { label: 'Multa miembro de mesa omiso (%)', icon: 'scale', desc: 'Porcentaje de la UIT para miembros que no asistan' },
+  INSTALACION_HORA_INICIO: { label: 'Inicio de instalación de mesas (hora)', icon: 'calendar', desc: 'RN07 · hora del día en decimal: 9 = 09:00, 8.5 = 08:30', max: 23.99 },
+  INSTALACION_HORA_LIMITE: { label: 'Límite de instalación de mesas (hora)', icon: 'lock', desc: 'RN07 · pasada esta hora la mesa queda NO INSTALADA (12 = 12:00)', max: 23.99 },
+  INSTALACION_CONTROL_HORARIO: { label: 'Exigir horario de instalación (1 = sí, 0 = no)', icon: 'shield', desc: 'Use 0 solo para pruebas fuera del día de la elección', max: 1 },
 };
 
 /**
@@ -42,13 +45,17 @@ export default function ParametrosPage({ onSessionExpired }) {
   }
 
   function validate() {
-    for (const clave of Object.keys(form)) {
+    // Solo los parámetros numéricos que muestra esta pantalla (UBICACION_SUFRAGIO es texto)
+    for (const clave of Object.keys(LABELS).filter((c) => c in form)) {
       const val = parseFloat(form[clave]);
       if (isNaN(val) || val < 0) {
         return `El valor de ${LABELS[clave]?.label || clave} debe ser un número positivo`;
       }
       if ((clave.includes('_PCT')) && val > 100) {
         return `El porcentaje de ${LABELS[clave]?.label || clave} no puede superar 100%`;
+      }
+      if (LABELS[clave].max !== undefined && val > LABELS[clave].max) {
+        return `El valor de ${LABELS[clave].label} no puede superar ${LABELS[clave].max}`;
       }
     }
     return null;
@@ -63,7 +70,7 @@ export default function ParametrosPage({ onSessionExpired }) {
     try {
       await apiRequest('/api/parametros', {
         method: 'PUT',
-        body: JSON.stringify(form),
+        body: JSON.stringify(Object.fromEntries(Object.keys(LABELS).filter((c) => c in form).map((c) => [c, form[c]]))),
       });
       setFeedback({ type: 'success', text: 'Parámetros guardados. El cambio ha sido registrado en la bitácora.' });
       await loadParams();
@@ -98,7 +105,7 @@ export default function ParametrosPage({ onSessionExpired }) {
             </div>
           </div>
 
-          {Object.keys(LABELS).map(clave => (
+          {Object.keys(LABELS).filter(clave => clave in form).map(clave => (
             <div className="param-field" key={clave}>
               <div className="param-icon"><MenuIcon name={LABELS[clave].icon} size={20} /></div>
               <div className="param-info">
@@ -110,7 +117,7 @@ export default function ParametrosPage({ onSessionExpired }) {
                 type="number"
                 step="0.01"
                 min="0"
-                max={clave.includes('_PCT') ? 100 : undefined}
+                max={LABELS[clave].max ?? (clave.includes('_PCT') ? 100 : undefined)}
                 value={form[clave] ?? ''}
                 onChange={e => handleChange(clave, e.target.value)}
                 className="param-input"

@@ -40,6 +40,7 @@ BEGIN
   DECLARE v_mesa     INT DEFAULT 0;
   DECLARE v_sig      INT;
   DECLARE v_token    CHAR(64);
+  DECLARE v_control  VARCHAR(255);
 
   SELECT COUNT(*) INTO v_deps FROM departamento;
   IF v_deps = 0 THEN
@@ -65,8 +66,9 @@ BEGIN
   -- Una autoridad vigente: no debe salir sorteada como miembro de mesa (RN20)
   SELECT id_docente INTO v_doc FROM docente WHERE dni = '90000060';
   IF NOT EXISTS (SELECT 1 FROM cargo_admin WHERE id_docente = v_doc AND vigente = 1) THEN
-    INSERT INTO cargo_admin (id_docente, nombre_cargo, nivel, fecha_inicio)
-    VALUES (v_doc, 'Decano', 'FACULTAD', CURDATE() - INTERVAL 1 YEAR);
+    INSERT INTO cargo_admin (id_docente, id_catalogo_cargo, fecha_inicio)
+    SELECT v_doc, id_catalogo_cargo, CURDATE() - INTERVAL 1 YEAR
+      FROM catalogo_cargo WHERE nombre_cargo = 'Decano';
   END IF;
 
   -- 2. Proceso y cargo ---------------------------------------------------------
@@ -120,6 +122,23 @@ BEGIN
   -- 6. Día de la elección ------------------------------------------------------
   CALL sp_cambiar_estado_proceso(v_proceso, 'VOTACION', NULL);
 
+  -- CUS08: acreditación de miembros. Todos asisten salvo un vocal (recibirá multa
+  -- OMISO_MESA); en su mesa el primer suplente asume el cargo de vocal.
+  UPDATE miembro_mesa mm JOIN mesa_electoral m ON m.id_mesa = mm.id_mesa
+     SET mm.asistio = 1, mm.hora_acreditacion = NOW(), mm.metodo_acreditacion = 'DNI'
+   WHERE m.id_proceso = v_proceso;
+  UPDATE miembro_mesa mm JOIN mesa_electoral m ON m.id_mesa = mm.id_mesa
+     SET mm.asistio = 0, mm.hora_acreditacion = NULL, mm.metodo_acreditacion = NULL
+   WHERE m.id_proceso = v_proceso AND mm.rol = 'VOCAL' AND m.numero_mesa = '001';
+  -- Material electoral recibido en todas las mesas
+  INSERT INTO instalacion_mesa (id_mesa, material_json, material_completo)
+  SELECT id_mesa, '{"PADRON_MESA":true,"TERMINAL_VOTACION":true,"CABINA_SECRETA":true,"ANFORA":true,"FORMATOS_ACTA":true,"LECTOR_QR":true,"UTILES":true,"CARTEL":true}', TRUE
+    FROM mesa_electoral WHERE id_proceso = v_proceso;
+
+  -- La demo se ejecuta a cualquier hora: se suspende el control horario (RN07) y se restaura
+  SELECT valor INTO v_control FROM parametro_global WHERE clave = 'INSTALACION_CONTROL_HORARIO';
+  UPDATE parametro_global SET valor = '0' WHERE clave = 'INSTALACION_CONTROL_HORARIO';
+
   SET v_mesa = 0;
   instalar: LOOP
     SELECT MIN(id_mesa) INTO v_sig FROM mesa_electoral WHERE id_proceso = v_proceso AND id_mesa > v_mesa;
@@ -130,12 +149,7 @@ BEGIN
     SET v_mesa = v_sig;
   END LOOP;
 
-  -- Asistencia de miembros: todos asisten salvo un vocal (recibirá multa OMISO_MESA)
-  UPDATE miembro_mesa mm JOIN mesa_electoral m ON m.id_mesa = mm.id_mesa
-     SET mm.asistio = 1 WHERE m.id_proceso = v_proceso;
-  UPDATE miembro_mesa mm JOIN mesa_electoral m ON m.id_mesa = mm.id_mesa
-     SET mm.asistio = 0
-   WHERE m.id_proceso = v_proceso AND mm.rol = 'VOCAL' AND m.numero_mesa = '001';
+  UPDATE parametro_global SET valor = COALESCE(v_control, '1') WHERE clave = 'INSTALACION_CONTROL_HORARIO';
 
   -- Votan todos menos 1 de cada 7 (omisos). 1 de cada 10 vota en blanco.
   SET v_i = 1;

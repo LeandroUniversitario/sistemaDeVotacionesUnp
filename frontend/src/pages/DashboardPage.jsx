@@ -21,6 +21,7 @@ import CredencialesPage from './credenciales/CredencialesPage';
 import MisCredencialesPage from './credenciales/MisCredencialesPage';
 import VerificarCredencialPanel from './credenciales/VerificarCredencialPanel';
 import MiPaseQRPage from './MiPaseQRPage';
+import InstalacionMesaPage from './instalacion/InstalacionMesaPage';
 
 // ─── Mapas de iconos por sección ─────────────────────────────────────────
 const MENU_ICONS = {
@@ -54,6 +55,8 @@ const MENU_POR_ROL = {
     { key: 'personeros', label: 'Personeros', icon: 'person', color: '#8b5cf6' },
     { key: 'credenciales', label: 'Credenciales y QR', icon: 'qr', color: '#10b981' },
     { key: 'sorteos', label: 'Sorteos', icon: 'sorteo', color: '#eab308' },
+    { group: 'JORNADA ELECTORAL' },
+    { key: 'instalacion', label: 'Instalación de mesas', icon: 'shield', color: '#14b8a6' },
     { group: 'RESULTADOS' },
     { key: 'computo', label: 'Cómputo y Proclamación', icon: 'trophy', color: '#6366f1' },
     { key: 'impugnaciones', label: 'Impugnaciones y Nulidades', icon: 'alert', color: '#ef4444' },
@@ -61,6 +64,7 @@ const MENU_POR_ROL = {
   ],
   MIEMBRO_MESA: [
     { group: 'WORKSPACE' },
+    { key: 'instalacion', label: 'Instalar mesa', icon: 'shield', color: '#0ea5e9' },
     { key: 'mesa', label: 'Mi Mesa de Sufragio', icon: 'table', color: '#14b8a6' },
     { key: 'terminal', label: 'Terminal de Votación', icon: 'vote', color: '#6366f1' },
     { key: 'fotocheck', label: 'Fotocheck QR (RF56)', icon: 'qr', color: '#f59e0b' },
@@ -105,6 +109,7 @@ const SECTION_TITLES = {
   'verificar-qr': 'Verificar credenciales QR',
   credencial: 'Mi credencial de personero',
   pase: 'Mi pase de votación QR',
+  instalacion: 'Instalación de mesa de sufragio',
 };
 
 /**
@@ -451,7 +456,12 @@ export default function DashboardPage({ session, onLogout }) {
         )}
 
         {/* Mesa */}
-        {section === 'mesa' && <MiembroMesaPage />}
+        {section === 'mesa' && <MiembroMesaPage onIrInstalacion={() => setSection('instalacion')} />}
+
+        {/* CUS08 · Instalar mesa (miembros de mesa y CEUNP; ADMIN solo consulta) */}
+        {section === 'instalacion' && ['MIEMBRO_MESA', 'CEUNP', 'ADMIN'].includes(session.rol) && (
+          <InstalacionMesaPage session={session} onSessionExpired={onLogout} />
+        )}
 
         {/* Terminal de Votación */}
         {section === 'terminal' && <TerminalVotacionPage />}

@@ -1,0 +1,66 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CUS08 · Instalar mesa (PantallaInstalacion)
+   Reutiliza .cv-*, .pd-*, .in-* y .cq-* (convocatoria, padrón, inscripción, credenciales).
+   ═══════════════════════════════════════════════════════════════════ */
+
+.im-shell .cv-form { display: grid; gap: 14px; }
+.im-shell .cv-section-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.im-shell .cv-section-head h3 { margin: 0 0 4px; font-size: .98rem; }
+.im-shell .cv-section-head p { margin: 0; font-size: .82rem; max-width: 760px; }
+
+/* ── Selector de mesas ────────────────────────────────────────────── */
+.im-mesas { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.im-mesa { display: grid; gap: 4px; justify-items: start; padding: 12px 14px; text-align: left; border-radius: var(--r-lg, 14px); border: 1.5px solid var(--border); background: var(--surface); box-shadow: var(--shadow-xs); cursor: pointer; font: inherit; }
+.im-mesa:hover { border-color: #93c5fd; }
+.im-mesa.on { border-color: var(--cv-blue); box-shadow: 0 0 0 3px rgb(37 99 235 / .14); }
+.im-mesa-num { font-weight: 750; font-size: .95rem; color: var(--text-main); }
+.im-mesa small { font-size: .74rem; color: var(--text-muted); }
+
+.im-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.im-cabecera h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.im-cabecera p { margin: 0; font-size: .82rem; }
+.im-contador { padding: 4px 10px; border-radius: 999px; font-size: .76rem; font-weight: 700; color: var(--cv-blue); background: var(--cv-blue-soft); white-space: nowrap; }
+
+/* ── Conformación ─────────────────────────────────────────────────── */
+.im-cargos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.im-cargo { display: grid; gap: 3px; padding: 12px; border-radius: var(--r-md); border: 1px solid #a7f3d0; background: #ecfdf5; }
+.im-cargo span { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #047857; }
+.im-cargo strong { font-size: .88rem; color: var(--text-main); }
+.im-cargo em { font-style: normal; font-size: .74rem; color: #92400e; }
+.im-cargo.vacante { border-color: #fecdd3; background: #fff1f2; }
+.im-cargo.vacante span, .im-cargo.vacante strong { color: var(--cv-red); }
+
+.im-dni { display: inline-flex; gap: 4px; align-items: center; }
+.im-dni input { width: 96px; padding: 5px 8px; font-size: .78rem; font-variant-numeric: tabular-nums; border: 1px solid var(--border); border-radius: var(--r-sm, 6px); }
+
+/* ── Material ─────────────────────────────────────────────────────── */
+.im-material { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+.im-material label { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); font-size: .84rem; cursor: pointer; }
+.im-material input { width: 17px; height: 17px; accent-color: var(--cv-green); }
+.im-material b { color: var(--cv-red); }
+.im-shell textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--r-md); font: inherit; resize: vertical; }
+.im-nota { margin: 0; font-size: .8rem; }
+
+/* ── Requisitos e instalación ─────────────────────────────────────── */
+.im-requisitos { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.im-requisitos li { display: flex; gap: 10px; align-items: flex-start; padding: 9px 12px; border-radius: var(--r-md); font-size: .84rem; }
+.im-requisitos li div { display: grid; gap: 2px; }
+.im-requisitos li span { font-size: .78rem; color: var(--text-body); }
+.im-requisitos li.ok { background: #ecfdf5; color: #047857; }
+.im-requisitos li.mal { background: #fff7ed; color: #c2410c; }
+.im-no-instalada { padding-top: 12px; border-top: 1px dashed var(--border); }
+.im-btn-peligro { color: var(--cv-red); border-color: #fecdd3; }
+.im-btn-peligro-solido { color: #fff; background: var(--cv-red); }
+.im-btn-peligro-solido:hover:not(:disabled) { background: #be123c; }
+
+/* ── Acta ─────────────────────────────────────────────────────────── */
+.im-acta { border-top: 4px solid var(--cv-green); }
+.im-acta-cuerpo { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; justify-content: space-between; }
+.im-acta-cuerpo .cq-meta { flex: 1 1 360px; }
+.im-acta-qr { display: grid; justify-items: center; gap: 6px; max-width: 190px; text-align: center; }
+.im-acta-qr small { font-size: .72rem; font-weight: 650; color: var(--cv-amber); }
+.im-hash { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .74rem; word-break: break-all; }
+
+@media (max-width: 720px) {
+  .im-cargos { grid-template-columns: 1fr; }
+}

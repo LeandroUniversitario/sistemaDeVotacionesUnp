@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiRequest } from '../api/apiClient';
 import MenuIcon from '../components/MenuIcon';
 
-export default function MiembroMesaPage() {
+export default function MiembroMesaPage({ onIrInstalacion }) {
   const [mesas, setMesas] = useState([]);
   const [selectedMesa, setSelectedMesa] = useState(null);
   const [dniElector, setDniElector] = useState('');
@@ -21,22 +21,6 @@ export default function MiembroMesaPage() {
       setMesas(data);
     } catch (error) {
       setFeedback({ type: 'error', text: 'Error cargando mesas: ' + error.message });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleInstalar() {
-    if (!selectedMesa) return;
-    setLoading(true);
-    setFeedback(null);
-    try {
-      const resp = await apiRequest(`/api/mesas/${selectedMesa.id}/instalar`, { method: 'POST' });
-      setSelectedMesa(resp.mesa);
-      setFeedback({ type: 'success', text: 'Mesa instalada correctamente.' });
-      loadMesas();
-    } catch (error) {
-      setFeedback({ type: 'error', text: error.message });
     } finally {
       setLoading(false);
     }
@@ -132,8 +116,8 @@ export default function MiembroMesaPage() {
             <h3>Mesa {selectedMesa.numero} <span className={`badge ${selectedMesa.estado.toLowerCase()}`}>{selectedMesa.estado}</span></h3>
             <div className="action-buttons">
               {selectedMesa.estado === 'PENDIENTE' && (
-                <button className="primary-small" onClick={handleInstalar} disabled={loading}>
-                  <MenuIcon name="plus" /> Instalar Mesa
+                <button className="primary-small" onClick={onIrInstalacion} disabled={loading || !onIrInstalacion}>
+                  <MenuIcon name="shield" /> Ir a instalar mesa (CUS08)
                 </button>
               )}
               {selectedMesa.estado === 'INSTALADA' && (
@@ -174,6 +158,20 @@ export default function MiembroMesaPage() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {selectedMesa.estado === 'PENDIENTE' && (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#536176' }}>
+              <h4>La mesa aún no está instalada.</h4>
+              <p>Acredite a los miembros, registre el material y emita el acta de instalación en «Instalar mesa».</p>
+            </div>
+          )}
+
+          {selectedMesa.estado === 'NO_INSTALADA' && (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#ae2b35' }}>
+              <h4>La mesa fue declarada NO INSTALADA (RN07).</h4>
+              <p>Sus electores no pueden votar en ella.</p>
             </div>
           )}
 

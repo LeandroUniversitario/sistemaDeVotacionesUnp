@@ -82,6 +82,16 @@ public class ParametrosController {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "El porcentaje de " + clave + " no puede superar 100");
                 }
+                // CUS08 · horario de instalación (horas del día) y control horario (0 o 1)
+                if (clave.startsWith("INSTALACION_HORA_") && bd.compareTo(new BigDecimal("24")) >= 0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "La hora de " + clave + " debe estar entre 0 y 23.99");
+                }
+                if (clave.equals("INSTALACION_CONTROL_HORARIO")
+                        && bd.compareTo(BigDecimal.ZERO) != 0 && bd.compareTo(BigDecimal.ONE) != 0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "INSTALACION_CONTROL_HORARIO solo admite 1 (exigir horario) o 0 (sin control)");
+                }
             } catch (NumberFormatException e) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "El valor de " + clave + " debe ser numérico");

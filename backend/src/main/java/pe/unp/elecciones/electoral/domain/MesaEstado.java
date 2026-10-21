@@ -4,5 +4,6 @@ public enum MesaEstado {
     PENDIENTE,
     INSTALADA,
     CERRADA,
-    ANULADA
+    ANULADA,
+    NO_INSTALADA   // CUS08 / RN07: no se instaló dentro del plazo
 }
