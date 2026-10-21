@@ -1,0 +1,100 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CUS09 · Verificar elector (PantallaMesa) y CUS10 · Emitir voto (Cabina)
+   Reutiliza .cv-btn (convocatoria), .pd-* (padrón), .in-* (inscripción)
+   y .cq-* (credenciales).
+   ═══════════════════════════════════════════════════════════════════ */
+
+.vt-shell { display: grid; gap: 16px; min-width: 0; }
+.vt-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.vt-head label { display: grid; gap: 4px; font-size: .76rem; font-weight: 650; color: var(--text-muted); }
+.vt-head select { min-width: 280px; }
+.vt-head .vt-head-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.vt-aviso { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r-md); border: 1px solid #fde68a; background: #fffbeb; color: #92400e; font-size: .84rem; line-height: 1.45; }
+.vt-aviso.info { border-color: #bfdbfe; background: #eff6ff; color: #1e40af; }
+.vt-aviso.ok { border-color: #a7f3d0; background: #ecfdf5; color: #065f46; }
+.vt-aviso strong { display: block; margin-bottom: 2px; }
+.vt-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+/* ── Identificación ─────────────────────────────────────────────── */
+.vt-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.vt-dni { display: flex; gap: 8px; flex-wrap: wrap; }
+.vt-dni input { flex: 1 1 160px; font-variant-numeric: tabular-nums; letter-spacing: .08em; font-size: 1rem; }
+.vt-ficha-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.vt-ficha-acciones .cv-btn { padding-top: 10px; padding-bottom: 10px; }
+.cq-resultado.info { border-color: #93c5fd; background: #eff6ff; }
+.vt-anular { display: grid; gap: 8px; padding: 12px; border: 1px solid #fecdd3; border-radius: var(--r-md); background: #fff7f8; }
+.vt-anular input { width: 100%; }
+
+/* ── Padrón de la mesa ──────────────────────────────────────────── */
+.vt-filtros { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.vt-filtros input[type="search"] { flex: 1 1 220px; min-width: 0; }
+.vt-estado { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .68rem; font-weight: 750; letter-spacing: .02em; white-space: nowrap; }
+.vt-estado.VOTO { color: #065f46; background: #d1fae5; }
+.vt-estado.AUTORIZADO { color: #1e40af; background: #dbeafe; }
+.vt-estado.PENDIENTE { color: #475569; background: #f1f5f9; }
+.vt-estado.INHABILITADO { color: #9f1239; background: #ffe4e6; }
+.vt-estado.USADA { color: #065f46; background: #d1fae5; }
+.vt-estado.ANULADA { color: #9f1239; background: #ffe4e6; }
+.vt-acciones { white-space: nowrap; text-align: right; }
+.vt-acciones > * + * { margin-left: 4px; }
+.vt-mini { padding: 5px 10px; font-size: .74rem; }
+.vt-vacio { padding: 18px; text-align: center; color: var(--text-muted); font-size: .85rem; }
+
+/* ── Cabina (CUS10) ─────────────────────────────────────────────── */
+.vt-cabina { display: grid; gap: 16px; max-width: 980px; }
+.vt-proceso-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; }
+.vt-proceso-head h3 { margin: 0; font-size: 1.05rem; }
+.vt-reloj { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-weight: 750; font-variant-numeric: tabular-nums; color: #1e40af; background: #dbeafe; }
+.vt-reloj.poco { color: #9f1239; background: #ffe4e6; }
+.vt-progreso { display: grid; gap: 6px; }
+.vt-progreso span { font-size: .78rem; font-weight: 650; color: var(--text-muted); }
+.vt-barra { height: 8px; border-radius: 999px; background: var(--gray-100); overflow: hidden; }
+.vt-barra b { display: block; height: 100%; background: var(--cv-blue); border-radius: inherit; transition: width .25s; }
+
+.vt-cargo { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.vt-cargo.marcado { border-color: #93c5fd; }
+.vt-cargo-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.vt-cargo-head h4 { margin: 0; font-size: .98rem; color: var(--text-main); }
+.vt-cargo-head span { font-size: .74rem; color: var(--text-muted); }
+.vt-opciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.vt-opcion { position: relative; display: grid; gap: 6px; padding: 14px 14px 12px 52px; text-align: left; border-radius: var(--r-md); border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; font: inherit; color: var(--text-body); transition: border-color var(--t-fast), background var(--t-fast), box-shadow var(--t-fast); }
+.vt-opcion:hover { border-color: #93c5fd; }
+.vt-opcion:focus-visible { outline: 3px solid #bfdbfe; outline-offset: 1px; }
+.vt-opcion.on { border-color: var(--cv-blue); background: #eff6ff; box-shadow: 0 0 0 3px #dbeafe; }
+.vt-opcion .vt-orden { position: absolute; left: 12px; top: 12px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; font-weight: 800; color: var(--cv-blue); background: var(--cv-blue-soft); }
+.vt-opcion.on .vt-orden { color: #fff; background: var(--cv-blue); }
+.vt-opcion strong { font-size: .92rem; color: var(--text-main); }
+.vt-opcion small { font-size: .74rem; color: var(--text-muted); }
+.vt-opcion ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: .76rem; }
+.vt-opcion ul em { font-style: normal; color: var(--text-muted); }
+.vt-opcion.blanco { border-style: dashed; }
+.vt-opcion.blanco .vt-orden { color: #475569; background: #f1f5f9; }
+.vt-marca { position: absolute; right: 10px; top: 10px; color: var(--cv-blue); }
+
+.vt-pie { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding: 12px 0; background: linear-gradient(to top, var(--bg, #f8fafc) 70%, transparent); }
+.vt-pie .cv-btn { padding: 12px 22px; font-size: .95rem; }
+
+.vt-resumen { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.vt-resumen li { display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-md); }
+.vt-resumen li span { color: var(--text-muted); font-size: .84rem; }
+.vt-resumen li strong { color: var(--text-main); text-align: right; }
+
+/* ── Constancia ─────────────────────────────────────────────────── */
+.vt-constancia { display: grid; gap: 14px; padding: 20px; border-radius: var(--r-lg); border: 1.5px solid #a7f3d0; background: #fff; }
+.vt-constancia header { display: grid; gap: 2px; text-align: center; }
+.vt-constancia header span { font-size: .74rem; color: var(--text-muted); }
+.vt-constancia header strong { font-size: 1.05rem; color: #065f46; }
+.vt-constancia dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px 16px; margin: 0; }
+.vt-constancia dt { font-size: .7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.vt-constancia dd { margin: 0; font-size: .86rem; color: var(--text-main); }
+.vt-qrs { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.vt-qr { display: grid; justify-items: center; gap: 6px; padding: 10px; border: 1px solid var(--border); border-radius: var(--r-md); text-align: center; }
+.vt-qr strong { font-size: .8rem; }
+.vt-qr code { font-size: .62rem; color: var(--text-muted); word-break: break-all; }
+.vt-nota { font-size: .76rem; color: var(--text-muted); text-align: center; }
+
+@media (max-width: 900px) {
+  .vt-grid { grid-template-columns: 1fr; }
+  .vt-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vt-head select { min-width: 0; width: 100%; }
+}
