@@ -8,6 +8,7 @@ Guía rápida de scripts de base de datos para MariaDB / MySQL (XAMPP).
 
 | Archivo | Función | Cuándo usarlo |
 |---|---|---|
+| **`00_script_unico_elecciones_unp.sql`** | **Script único: toda la base en un solo archivo** | Instalar desde cero con la versión final de cada objeto (CUS07, CUS08, CUS09/CUS10 y CUS11 incluidos): 37 tablas, 4 funciones, 29 triggers, 14 vistas, 34 procedimientos, parámetros, usuario admin, 14 facultades y 44 departamentos. Hace `DROP DATABASE` y no necesita ningún otro script. Al final trae, separada, la demo opcional (`CALL sp_demo_flujo_completo();`). |
 | **`01_crear_base_de_datos.sql`** | **Crear base de datos completa desde cero** | Instalar por primera vez o reconstruir toda la BD (crea 27 tablas, 4 funciones, 19 triggers, 14 vistas, 26 procedimientos almacenados, parámetros, usuario admin, 14 facultades y los 44 departamentos académicos oficiales de la UNP). |
 | **`02_limpiar_datos_electorales.sql`** | **Limpiar / reiniciar datos de elecciones** | Vaciar votos, actas, padrón, mesas, listas y procesos electorales para iniciar una nueva elección limpia **sin borrar** facultades, departamentos, docentes registrados ni usuarios. |
 | **`03_demo_flujo_completo.sql`** | **Demostración de punta a punta** | Prueba automatizada del ciclo electoral (crea 60 docentes de prueba, convoca elección de Rector, sortea mesas, emite votos y computa resultados). |
@@ -38,6 +39,8 @@ Guía rápida de scripts de base de datos para MariaDB / MySQL (XAMPP).
 
 **Crear toda la base de datos de cero:**
 ```bash
+mysql -u root < "base-de-datos/00_script_unico_elecciones_unp.sql"
+# (equivalente anterior, por partes)
 mysql -u root < "base-de-datos/01_crear_base_de_datos.sql"
 ```
 
