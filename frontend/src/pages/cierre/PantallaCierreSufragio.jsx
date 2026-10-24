@@ -10,6 +10,7 @@ import '../inscripcion/inscripcion.css';
 import '../credenciales/credenciales.css';
 import '../instalacion/instalacion.css';
 import './cierre.css';
+import '../mesa/mesa-ejecutivo.css';
 
 /**
  * CUS11 · Cerrar sufragio — «PantallaCierreSufragio» (boundary). Actor: Presidente de mesa.
@@ -26,9 +27,9 @@ import './cierre.css';
  */
 
 const PASOS = [
-  { codigo: 'CERRAR', texto: '1. Cerrar la votación' },
-  { codigo: 'AUSENTES', texto: '2. Marcar NO VOTÓ' },
-  { codigo: 'ACTA', texto: '3. Acta de sufragio' },
+  { codigo: 'CERRAR', texto: 'Cerrar la votación' },
+  { codigo: 'AUSENTES', texto: 'Marcar NO VOTÓ' },
+  { codigo: 'ACTA', texto: 'Acta de sufragio' },
 ];
 const ORDEN = ['CERRAR', 'AUSENTES', 'ACTA', 'EMITIDA'];
 const CARGO = { PRESIDENTE: 'Presidente', SECRETARIO: 'Secretario' };
@@ -43,7 +44,7 @@ const ESTADO_MESA = {
 const si = (v) => v === true || v === 1 || v === '1';
 const hora = (v) => (v ? new Date(v).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : '—');
 
-export default function PantallaCierreSufragio({ session, onSessionExpired }) {
+export default function PantallaCierreSufragio({ session, onSessionExpired, onIrEscrutinio }) {
   const esMiembro = session.rol === 'MIEMBRO_MESA';
   const puedeOperar = esMiembro || session.rol === 'CEUNP';
 
@@ -209,7 +210,7 @@ export default function PantallaCierreSufragio({ session, onSessionExpired }) {
   const sugeridas = registro?.cedulasRecibidas != null ? Math.max(registro.cedulasRecibidas - votaron, 0) : null;
 
   return (
-    <div className="pd-shell cq-shell im-shell cs-shell">
+    <div className="pd-shell cq-shell im-shell cs-shell mx">
       <section className="in-head">
         {!esMiembro && (
           <label className="cv-field in-proceso">
@@ -282,18 +283,22 @@ export default function PantallaCierreSufragio({ session, onSessionExpired }) {
 
       {detalle && (
         <>
-          <div className="panel im-cabecera">
-            <div>
-              <h3>Mesa {mesa.numero} · {mesa.ubicacion}</h3>
-              <p className="muted">
-                {mesa.proceso} · instalada {hora(mesa.horaInstalacion)}
-                {presidencia && ` · preside ${presidencia.nombre}`}
-              </p>
+          <div className="panel mx-ficha">
+            <div className="mx-ficha-top">
+              <div>
+                <h3>Mesa {mesa.numero}</h3>
+                <p>{mesa.ubicacion}</p>
+              </div>
+              <span className={`cv-estado ${(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).clase}`}>
+                {(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).texto}
+              </span>
             </div>
-            <span className={`cv-estado ${(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).clase}`}>
-              {(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).texto}
-              {mesa.horaCierre && ` · ${hora(mesa.horaCierre)}`}
-            </span>
+            <dl className="mx-datos">
+              <div><dt>Proceso</dt><dd>{mesa.proceso}</dd></div>
+              <div><dt>Instalada</dt><dd>{hora(mesa.horaInstalacion)}</dd></div>
+              <div><dt>Cierre</dt><dd>{mesa.horaCierre ? hora(mesa.horaCierre) : `Programado ${detalle.horario.horaCierre}`}</dd></div>
+              {presidencia && <div><dt>Preside</dt><dd>{presidencia.nombre}</dd></div>}
+            </dl>
           </div>
 
           {!puedeOperar && <div className="alert success" role="note">Vista de consulta: el cierre lo realiza el presidente de mesa o el CEUNP.</div>}
@@ -320,13 +325,20 @@ export default function PantallaCierreSufragio({ session, onSessionExpired }) {
             </div>
           </section>
 
-          <div className="pd-tabs cq-tabs" role="tablist">
-            {PASOS.map((p, i) => (
-              <button key={p.codigo} type="button" role="tab" aria-selected={paso === p.codigo}
-                className={`pd-tab${paso === p.codigo ? ' on' : ''}`} disabled={i > avance} onClick={() => setPaso(p.codigo)}>
-                {i < avance && <MenuIcon name="check" size={13} />} {p.texto}
-              </button>
-            ))}
+          <div className="pd-tabs cq-tabs mx-pasos" role="tablist" aria-label="Pasos del cierre">
+            {PASOS.map((p, i) => {
+              const hecho = i < avance || (p.codigo === 'ACTA' && detalle.paso === 'EMITIDA');
+              return (
+                <button key={p.codigo} type="button" role="tab" aria-selected={paso === p.codigo}
+                  className={`pd-tab mx-paso${paso === p.codigo ? ' on' : ''}${hecho ? ' hecho' : ''}`} disabled={i > avance} onClick={() => setPaso(p.codigo)}>
+                  <span className="mx-paso-num">{hecho ? <MenuIcon name="check" size={14} /> : i + 1}</span>
+                  <span className="mx-paso-texto">
+                    <b>{p.texto}</b>
+                    <small>{hecho ? 'Completado' : i === avance ? 'En curso' : 'Pendiente'}</small>
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* ── 1-4: cerrar la votación ── */}
@@ -363,7 +375,7 @@ export default function PantallaCierreSufragio({ session, onSessionExpired }) {
                     </div>
                   )}
                   {confirmando === 'CERRAR' && (
-                    <div className="cq-confirmar-emision" role="alert">
+                    <div className="cq-confirmar-emision peligro" role="alert">
                       <div>
                         <strong>¿Cerrar el sufragio de la mesa {mesa.numero}?</strong>
                         <span>Votaron {votaron} de {habiles} electores. Ya no se podrá verificar ni votar en esta mesa.</span>
@@ -525,7 +537,7 @@ export default function PantallaCierreSufragio({ session, onSessionExpired }) {
             </form>
           )}
 
-          {paso === 'ACTA' && detalle.acta && <ActaVista acta={detalle.acta} emitida={emitida} />}
+          {paso === 'ACTA' && detalle.acta && <ActaVista acta={detalle.acta} emitida={emitida} onIrEscrutinio={onIrEscrutinio} />}
         </>
       )}
     </div>
@@ -533,7 +545,7 @@ export default function PantallaCierreSufragio({ session, onSessionExpired }) {
 }
 
 /** 13 mostrarActaSufragio(): datos, firmas y, solo al emitirse, el QR de verificación. */
-function ActaVista({ acta, emitida }) {
+function ActaVista({ acta, emitida, onIrEscrutinio }) {
   const c = acta.contenido ?? {};
   const token = emitida && emitida.idActa === acta.idActa ? emitida.tokenQr : null;
   return (
@@ -543,9 +555,16 @@ function ActaVista({ acta, emitida }) {
           <h3>Acta de Sufragio N.º {String(acta.idActa).padStart(6, '0')}</h3>
           <p className="muted">Emitida el {fecha(acta.fechaEmision)} · estado {acta.estado}</p>
         </div>
-        <button type="button" className="cv-btn cv-btn-primary" onClick={() => imprimirActaSufragio(acta, token)}>
-          <MenuIcon name="file" size={15} /> Imprimir acta
-        </button>
+        <div className="cs-acciones-head">
+          <button type="button" className="cv-btn cv-btn-primary" onClick={() => imprimirActaSufragio(acta, token)}>
+            <MenuIcon name="file" size={15} /> Imprimir acta
+          </button>
+          {onIrEscrutinio && (
+            <button type="button" className="cv-btn cv-btn-success" onClick={onIrEscrutinio}>
+              <MenuIcon name="table" size={15} /> Continuar con el escrutinio
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="im-acta-cuerpo">

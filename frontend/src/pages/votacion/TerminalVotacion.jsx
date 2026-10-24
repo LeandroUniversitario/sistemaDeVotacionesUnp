@@ -5,6 +5,7 @@ import { imprimirCedula } from './ImpresoraCedula';
 import '../convocatoria/convocatoria.css';
 import '../padron/padron.css';
 import './votacion.css';
+import '../mesa/mesa-ejecutivo.css';
 
 const BLANCO = 'BLANCO';
 const CLAVE_TERMINAL = 'siceunp.terminalVotacion';
@@ -171,7 +172,7 @@ export default function TerminalVotacion({ onSessionExpired }) {
   // ─── Configuración del equipo ──────────────────────────────────────────
   if (!config) {
     return (
-      <div className="pd-shell vt-cabina">
+      <div className="pd-shell vt-cabina mx">
         <form className="panel cv-form" onSubmit={conectar}>
           <div className="cv-section-head">
             <div>
@@ -211,7 +212,7 @@ export default function TerminalVotacion({ onSessionExpired }) {
   // ─── 11-13 Impresión de la cédula ───────────────────────────────────────
   if (paso === 'IMPRESION' && impresion) {
     return (
-      <div className="pd-shell vt-cabina">
+      <div className="pd-shell vt-cabina mx">
         {cabecera}
         <div className="panel cv-form vt-kiosco">
           <div className="vt-aviso ok"><MenuIcon name="check" size={20} /><div><strong>Su voto fue registrado.</strong>{impresion.mensaje}</div></div>
@@ -237,7 +238,7 @@ export default function TerminalVotacion({ onSessionExpired }) {
     const fuera = estado?.estado === 'FUERA_DE_SERVICIO';
     const cerrada = estado?.mesa?.estado === 'CERRADA'; // CUS11: al cerrar el sufragio se deshabilitan los terminales
     return (
-      <div className="pd-shell vt-cabina">
+      <div className="pd-shell vt-cabina mx">
         {cabecera}
         {error && <div className="alert error" role="alert" onClick={() => setError('')}>{error}</div>}
         <div className={`panel vt-espera${fuera ? ' fuera' : ''}`}>
@@ -256,7 +257,7 @@ export default function TerminalVotacion({ onSessionExpired }) {
 
   // ─── 8 elegirOpcion() y confirmación ─────────────────────────────────────
   return (
-    <div className="pd-shell vt-cabina">
+    <div className="pd-shell vt-cabina mx">
       {cabecera}
       {error && <div className="alert error" role="alert" onClick={() => setError('')}>{error}</div>}
 

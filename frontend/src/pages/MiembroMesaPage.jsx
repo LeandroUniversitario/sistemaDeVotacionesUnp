@@ -1,8 +1,22 @@
 import { useState, useEffect } from 'react';
 import { apiRequest } from '../api/apiClient';
 import MenuIcon from '../components/MenuIcon';
+import './convocatoria/convocatoria.css';
+import './padron/padron.css';
+import './credenciales/credenciales.css';
+import './inscripcion/inscripcion.css';
+import './votacion/votacion.css';
+import './mesa/mesa-ejecutivo.css';
 
-export default function MiembroMesaPage({ onIrInstalacion, onIrCierre }) {
+const ESTADO_MESA = {
+  PENDIENTE: { clase: 'creado', texto: 'Por instalar' },
+  INSTALADA: { clase: 'votacion', texto: 'Sufragio abierto' },
+  CERRADA: { clase: 'inscripcion', texto: 'Sufragio cerrado' },
+  NO_INSTALADA: { clase: 'anulado', texto: 'No instalada' },
+  ANULADA: { clase: 'anulado', texto: 'Anulada' },
+};
+
+export default function MiembroMesaPage({ onIrImpugnaciones, onIrInstalacion, onIrCierre, onIrEscrutinio }) {
   const [mesas, setMesas] = useState([]);
   const [selectedMesa, setSelectedMesa] = useState(null);
   const [dniElector, setDniElector] = useState('');
@@ -59,13 +73,30 @@ export default function MiembroMesaPage({ onIrInstalacion, onIrCierre }) {
     }
   }
 
+  const estado = selectedMesa ? (ESTADO_MESA[selectedMesa.estado] ?? { clase: '', texto: selectedMesa.estado }) : null;
+
   return (
-    <div className="miembro-mesa-layout">
-      <div className="panel-heading">
-        <div>
-          <h2>Gestión de Mesa de Sufragio</h2>
-          <p className="muted">Instalación, verificación de electores y cierre</p>
-        </div>
+    <div className="pd-shell mx">
+      <div className="panel mx-elegir">
+        <label className="cv-field">
+          <span className="cv-label">Mesa asignada</span>
+          <select
+            value={selectedMesa ? selectedMesa.id : ''}
+            onChange={(e) => {
+              const m = mesas.find(x => x.id === Number(e.target.value));
+              setSelectedMesa(m || null);
+              setElectorVerificado(null);
+              setFeedback(null);
+            }}
+            disabled={loading}
+          >
+            <option value="">Seleccione una mesa</option>
+            {mesas.map(m => (
+              <option key={m.id} value={m.id}>Mesa {m.numero} · {(ESTADO_MESA[m.estado] ?? { texto: m.estado }).texto}</option>
+            ))}
+          </select>
+        </label>
+        <p className="muted">Desde aquí instala la mesa, verifica a los electores y cierra el sufragio.</p>
       </div>
 
       {feedback && (
@@ -74,95 +105,116 @@ export default function MiembroMesaPage({ onIrInstalacion, onIrCierre }) {
         </div>
       )}
 
-      <div className="panel" style={{ marginBottom: '20px' }}>
-        <h3>Seleccionar Mesa asignada</h3>
-        <select 
-          value={selectedMesa ? selectedMesa.id : ''} 
-          onChange={(e) => {
-            const m = mesas.find(x => x.id === Number(e.target.value));
-            setSelectedMesa(m || null);
-            setElectorVerificado(null);
-            setFeedback(null);
-          }}
-          disabled={loading}
-          style={{ maxWidth: '300px', marginTop: '10px' }}
-        >
-          <option value="">-- Seleccione --</option>
-          {mesas.map(m => (
-            <option key={m.id} value={m.id}>Mesa {m.numero} - {m.estado}</option>
-          ))}
-        </select>
-      </div>
-
       {selectedMesa && (
-        <div className="panel">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h3>Mesa {selectedMesa.numero} <span className={`badge ${selectedMesa.estado.toLowerCase()}`}>{selectedMesa.estado}</span></h3>
-            <div className="action-buttons">
-              {selectedMesa.estado === 'PENDIENTE' && (
-                <button className="primary-small" onClick={onIrInstalacion} disabled={loading || !onIrInstalacion}>
-                  <MenuIcon name="shield" /> Ir a instalar mesa (CUS08)
-                </button>
-              )}
-              {selectedMesa.estado === 'INSTALADA' && (
-                <button className="primary-small reject-button" onClick={onIrCierre} disabled={loading || !onIrCierre}>
-                  <MenuIcon name="lock" /> Ir a cerrar sufragio (CUS11)
-                </button>
-              )}
+        <div className="panel mx-ficha">
+          <div className="mx-ficha-top">
+            <div>
+              <h3>Mesa {selectedMesa.numero}</h3>
+              <p>Gestión de la jornada de sufragio</p>
+            </div>
+            <div className="mx-acciones">
+              <span className={`cv-estado ${estado.clase}`}>{estado.texto}</span>
             </div>
           </div>
 
+          {selectedMesa.estado === 'PENDIENTE' && (
+            <div className="mx-mensaje info">
+              <MenuIcon name="shield" size={20} />
+              <div>
+                <h4>La mesa aún no está instalada</h4>
+                <p>Acredite a los miembros, registre el material y emita el acta de instalación.</p>
+              </div>
+            </div>
+          )}
+
           {selectedMesa.estado === 'INSTALADA' && (
-            <div style={{ padding: '20px', border: '1px solid #e3e9f1', borderRadius: '8px', background: '#fcfdfd' }}>
-              <h4>Verificar Elector (QR / DNI)</h4>
-              <form onSubmit={handleVerificarElector} style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-                <input 
-                  placeholder="Ingrese DNI del elector" 
-                  value={dniElector} 
+            <div className="cv-form">
+              <div className="cv-section-head">
+                <div>
+                  <h3>Verificar elector</h3>
+                  <p>Busque al elector por su DNI para confirmar su identidad y habilitarle el voto.</p>
+                </div>
+              </div>
+              <form className="vt-dni" onSubmit={handleVerificarElector}>
+                <input
+                  placeholder="DNI del elector (8 dígitos)"
+                  aria-label="DNI del elector"
+                  inputMode="numeric"
+                  value={dniElector}
                   onChange={e => setDniElector(e.target.value)}
                   maxLength={8}
                   required
-                  style={{ maxWidth: '250px' }}
                 />
-                <button type="submit" className="primary-small" disabled={loading}>
-                  Buscar
+                <button type="submit" className="cv-btn cv-btn-primary" disabled={loading}>
+                  <MenuIcon name="search" size={15} /> Buscar
                 </button>
               </form>
 
               {electorVerificado && (
-                <div style={{ marginTop: '20px', padding: '15px', background: '#eef2f6', borderRadius: '8px' }}>
-                  <p><strong>Nombres:</strong> {electorVerificado.nombres} {electorVerificado.apellidos}</p>
-                  <p><strong>DNI:</strong> {electorVerificado.dni}</p>
-                  {electorVerificado.yaVoto ? (
-                    <p style={{ color: '#ae2b35', fontWeight: 'bold', marginTop: '10px' }}>Este elector ya ha votado.</p>
-                  ) : (
-                    <button className="primary-small" style={{ marginTop: '15px' }} onClick={handleRegistrarAsistencia} disabled={loading}>
-                      Confirmar Identidad y Habilitar Voto
-                    </button>
+                <div className={`cq-resultado ${electorVerificado.yaVoto ? 'mal' : 'ok'}`} role="status">
+                  <div className="cq-resultado-head">
+                    <span className="cq-resultado-icono"><MenuIcon name={electorVerificado.yaVoto ? 'close' : 'check'} size={20} /></span>
+                    <div>
+                      <strong>{electorVerificado.nombres} {electorVerificado.apellidos}</strong>
+                      <span>DNI {electorVerificado.dni}{electorVerificado.yaVoto ? ' · este elector ya votó' : ''}</span>
+                    </div>
+                  </div>
+                  {!electorVerificado.yaVoto && (
+                    <div className="cv-actions">
+                      <button type="button" className="cv-btn cv-btn-success" onClick={handleRegistrarAsistencia} disabled={loading}>
+                        <MenuIcon name="check" size={15} /> Confirmar identidad y habilitar voto
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
             </div>
           )}
 
-          {selectedMesa.estado === 'PENDIENTE' && (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#536176' }}>
-              <h4>La mesa aún no está instalada.</h4>
-              <p>Acredite a los miembros, registre el material y emita el acta de instalación en «Instalar mesa».</p>
-            </div>
-          )}
-
           {selectedMesa.estado === 'NO_INSTALADA' && (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#ae2b35' }}>
-              <h4>La mesa fue declarada NO INSTALADA (RN07).</h4>
-              <p>Sus electores no pueden votar en ella.</p>
+            <div className="mx-mensaje peligro">
+              <MenuIcon name="alert" size={20} />
+              <div>
+                <h4>La mesa fue declarada no instalada (RN07)</h4>
+                <p>Sus electores no pueden votar en ella.</p>
+              </div>
             </div>
           )}
 
           {selectedMesa.estado === 'CERRADA' && (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#536176' }}>
-              <h4>El sufragio ha finalizado.</h4>
-              <p>Proceda a realizar el escrutinio (Conteo de votos manual).</p>
+            <div className="mx-mensaje">
+              <MenuIcon name="lock" size={20} />
+              <div>
+                <h4>El sufragio terminó</h4>
+                <p>Continúe con el escrutinio de los votos de la mesa.</p>
+              </div>
+              <button type="button" className="cv-btn cv-btn-primary" style={{ marginLeft: 'auto', flex: 'none' }} onClick={onIrEscrutinio} disabled={loading || !onIrEscrutinio}>
+                <MenuIcon name="table" size={15} /> Ir al escrutinio
+              </button>
+            </div>
+          )}
+
+          {/* CUS13 · impugnaciones de votos del escrutinio */}
+          {selectedMesa.estado === 'CERRADA' && onIrImpugnaciones && (
+            <div className="cv-actions">
+              <button type="button" className="cv-btn cv-btn-ghost" onClick={onIrImpugnaciones} disabled={loading}>
+                <MenuIcon name="scale" size={15} /> Impugnaciones del escrutinio
+              </button>
+            </div>
+          )}
+
+          {(selectedMesa.estado === 'PENDIENTE' || selectedMesa.estado === 'INSTALADA') && (
+            <div className="cv-actions">
+              {selectedMesa.estado === 'PENDIENTE' && (
+                <button type="button" className="cv-btn cv-btn-primary" onClick={onIrInstalacion} disabled={loading || !onIrInstalacion}>
+                  <MenuIcon name="shield" size={15} /> Instalar mesa
+                </button>
+              )}
+              {selectedMesa.estado === 'INSTALADA' && (
+                <button type="button" className="cv-btn im-btn-peligro" onClick={onIrCierre} disabled={loading || !onIrCierre}>
+                  <MenuIcon name="lock" size={15} /> Ir a cerrar el sufragio
+                </button>
+              )}
             </div>
           )}
         </div>

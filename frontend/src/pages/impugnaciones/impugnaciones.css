@@ -1,0 +1,83 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CUS13 · Gestionar impugnaciones y apelaciones (PantallaImpugnaciones)
+   Reutiliza .cv-*, .pd-*, .in-*, .cq-*, .im-*, .cs-* y el estilo ejecutivo .mx
+   (mesa-ejecutivo.css). Misma paleta: azul #2563eb, verde #059669,
+   rojo #e11d48, ámbar #d97706 y grises pizarra.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.ig-shell .ig-vistas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ig-shell .cq-resumen { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ig-shell .ig-vistas .mx-paso { cursor: pointer; }
+
+/* Formularios de cada instancia */
+.ig-shell .ig-form {
+  display: grid; gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--mx-line, #e2e8f0);
+  border-left: 3px solid var(--cv-blue, #2563eb);
+  border-radius: 10px;
+  background: var(--mx-canvas, #f8fafc);
+}
+.ig-shell .ig-form h4 { margin: 0; font-size: .92rem; font-weight: 650; color: var(--mx-ink, #0f172a); }
+.ig-shell .ig-form .im-estados { display: flex; flex-wrap: wrap; width: fit-content; max-width: 100%; }
+.ig-shell .ig-fijo { margin: 0; padding: 9px 12px; border: 1px solid var(--mx-line, #e2e8f0); border-radius: 8px; background: #fff; font-size: .84rem; }
+.ig-shell .ig-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+
+/* Opciones de la cédula: listas, blanco y nulo */
+.ig-shell .ig-opciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.ig-shell .ig-opciones label {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--mx-line, #e2e8f0); border-radius: 8px;
+  background: #fff; cursor: pointer; font-size: .84rem; color: var(--mx-text, #334155);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.ig-shell .ig-opciones label:hover { border-color: #cbd5e1; }
+.ig-shell .ig-opciones input { position: absolute; opacity: 0; pointer-events: none; }
+.ig-shell .ig-opciones label span:last-child { display: grid; gap: 1px; }
+.ig-shell .ig-opciones small { color: var(--mx-muted, #64748b); font-size: .74rem; }
+.ig-shell .ig-op-num {
+  display: inline-grid; place-items: center; flex: none;
+  width: 26px; height: 26px; border-radius: 6px;
+  background: var(--mx-line-soft, #f1f5f9); font-weight: 700; font-size: .78rem; color: var(--mx-ink, #0f172a);
+}
+.ig-shell .ig-opciones label.on { border-color: var(--cv-blue, #2563eb); box-shadow: 0 0 0 3px var(--cv-blue-soft, #dbeafe); }
+.ig-shell .ig-opciones label.on .ig-op-num { background: var(--cv-blue, #2563eb); color: #fff; }
+.ig-shell .ig-opciones label.on.blanco { border-color: #94a3b8; box-shadow: 0 0 0 3px #e2e8f0; }
+.ig-shell .ig-opciones label.on.blanco .ig-op-num { background: #475569; }
+.ig-shell .ig-opciones label.on.nulo { border-color: var(--cv-red, #e11d48); box-shadow: 0 0 0 3px var(--cv-red-soft, #ffe4e6); }
+.ig-shell .ig-opciones label.on.nulo .ig-op-num { background: var(--cv-red, #e11d48); }
+
+/* Tabla de impugnaciones */
+.ig-shell .ig-tabla td { vertical-align: top; }
+.ig-shell .ig-motivo { max-width: 34ch; font-size: .82rem; color: var(--mx-text, #334155); }
+.ig-shell .ig-fila.on td { background: #eff6ff; }
+.ig-shell .ig-decision {
+  display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px;
+  font-size: .74rem; font-weight: 650; background: var(--mx-line-soft, #f1f5f9); color: var(--mx-muted, #64748b);
+}
+.ig-shell .ig-decision.aceptada, .ig-shell .ig-decision.modificada { background: var(--cv-red-soft, #ffe4e6); color: #be123c; }
+.ig-shell .ig-decision.rechazada, .ig-shell .ig-decision.confirmada { background: var(--cv-green-soft, #d1fae5); color: #047857; }
+.ig-shell .ig-decision.apelada { background: var(--cv-amber-soft, #fef3c7); color: #b45309; }
+.ig-shell .ig-decision.pendiente { background: var(--cv-amber-soft, #fef3c7); color: #b45309; }
+
+/* Expediente */
+.ig-shell .ig-expediente { border-top: 3px solid var(--cv-blue, #2563eb); }
+.ig-shell .ig-pasos { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ig-shell .ig-pasos .mx-paso { cursor: default; }
+.ig-shell .mx-paso.ig-omitido { opacity: .5; }
+.ig-shell .ig-instancias { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.ig-shell .ig-instancia {
+  display: grid; gap: 10px; align-content: start;
+  padding: 14px 16px; border: 1px solid var(--mx-line, #e2e8f0); border-radius: 10px; background: #fff;
+}
+.ig-shell .ig-instancia.pendiente { border-style: dashed; background: var(--mx-canvas, #f8fafc); }
+.ig-shell .ig-instancia.final { border-color: #a7f3d0; background: #f0fdf4; }
+.ig-shell .ig-instancia h4 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: .86rem; font-weight: 650; color: var(--mx-ink, #0f172a); }
+.ig-shell .ig-instancia .cq-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ig-shell .ig-texto { margin: 0; font-size: .83rem; line-height: 1.55; color: var(--mx-text, #334155); white-space: pre-wrap; }
+
+@media (max-width: 900px) {
+  .ig-shell .ig-grid, .ig-shell .cq-resumen { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ig-shell .ig-vistas, .ig-shell .ig-pasos { grid-template-columns: 1fr; }
+}
