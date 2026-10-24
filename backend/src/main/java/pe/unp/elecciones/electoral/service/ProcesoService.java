@@ -139,10 +139,88 @@ public class ProcesoService {
 
     // ─── Resultados ───────────────────────────────────────────────────────────
 
-    /** RN26 / RN31 / RN33: cómputo oficial, una sola vez. */
+    /**
+     * RN26 / RN31 / RN33: cómputo oficial, una sola vez. Con el CUS14 instalado lo hace
+     * sp_ejecutar_computo (exige la sesión de cómputo general, RF91); si no, el cómputo heredado.
+     */
     public Map<String, Object> computarResultados(Integer idProceso, Integer idUsuario) {
-        dao.llamar("sp_computar_resultados", ProcedimientoDao.SIN_SALIDA, idProceso, idUsuario);
+        dao.llamar(computoCus14Instalado() ? "sp_ejecutar_computo" : "sp_computar_resultados",
+                ProcedimientoDao.SIN_SALIDA, idProceso, idUsuario);
         return resultados(idProceso);
+    }
+
+    /**
+     * RF99: el portal muestra los resultados solo después de su publicación por el CEUNP (CUS14).
+     * Un proceso computado sin el CUS14 (cómputo heredado) se muestra como antes.
+     */
+    public Map<String, Object> resultadosPublicos(Integer idProceso) {
+        if (computoCus14Instalado()) {
+            List<Map<String, Object>> computo = dao.consultar(
+                    "SELECT estado FROM computo_proceso WHERE id_proceso = ?", idProceso);
+            if (!computo.isEmpty() && !"PUBLICADO".equals(String.valueOf(computo.get(0).get("estado")))) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "RF99: los resultados se muestran después de su publicación por el CEUNP.");
+            }
+        }
+        Map<String, Object> respuesta = resultados(idProceso);
+        if (computoCus14Instalado()) {
+            List<Map<String, Object>> publicado = dao.consultar("""
+                    SELECT resultado, participacion_pct, electores_habiles, votaron, numero_resolucion,
+                           fecha_computo, fecha_proclamacion, fecha_publicacion
+                      FROM v_portal_resultados WHERE id_proceso = ?
+                    """, idProceso);
+            respuesta.put("publicacion", publicado.isEmpty() ? null : publicado.get(0));
+            if (!publicado.isEmpty()) {
+                respuesta.put("proclamados", dao.consultar("""
+                        SELECT c.nombre AS cargo, l.nombre AS lista, pc.votos, pc.porcentaje_validos, pc.codigo_credencial
+                          FROM proclamacion_cargo pc
+                          JOIN cargo_electoral c ON c.id_cargo = pc.id_cargo
+                          JOIN lista_electoral l ON l.id_lista = pc.id_lista
+                         WHERE pc.id_proceso = ? ORDER BY pc.id_cargo
+                        """, idProceso));
+                respuesta.put("mesas", dao.consultar("""
+                        SELECT x.numero_mesa, c.nombre AS cargo,
+                               COALESCE(l.nombre, CASE x.opcion WHEN 'BLANCO' THEN 'Votos en blanco' ELSE 'Votos nulos' END) AS lista,
+                               x.votos
+                          FROM v_computo_conteo_mesa x
+                          JOIN mesa_electoral m  ON m.id_mesa = x.id_mesa AND m.estado <> 'ANULADA'
+                          JOIN cargo_electoral c ON c.id_cargo = x.id_cargo
+                          LEFT JOIN lista_electoral l ON l.id_lista = x.id_lista
+                         WHERE x.id_proceso = ? AND x.opcion <> 'IMPUGNADO'
+                         ORDER BY LENGTH(x.numero_mesa), x.numero_mesa, x.id_cargo,
+                                  FIELD(x.opcion, 'LISTA', 'BLANCO', 'NULO'), COALESCE(l.orden_cedula, 999)
+                        """, idProceso));
+            }
+        }
+        return respuesta;
+    }
+
+    /** RF99: procesos con resultados publicados en el portal. */
+    public List<Map<String, Object>> resultadosPublicados() {
+        if (!computoCus14Instalado()) {
+            return List.of();
+        }
+        return dao.consultar("""
+                SELECT id_proceso, proceso, tipo, estado_proceso, resultado, participacion_pct, numero_resolucion,
+                       fecha_publicacion
+                  FROM v_portal_resultados ORDER BY fecha_publicacion DESC
+                """);
+    }
+
+    /** Destino del QR del acta general de cómputo y de la resolución de proclamación (CUS14). */
+    public Map<String, Object> verificarActaComputo(String token) {
+        if (!computoCus14Instalado()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "El acta no existe o el código no es válido.");
+        }
+        return primeraFila(dao.llamar("sp_verificar_acta_computo", ProcedimientoDao.SIN_SALIDA, tokenValido(token)),
+                "El acta no existe o el código no es válido.");
+    }
+
+    private boolean computoCus14Instalado() {
+        return dao.entero("""
+                SELECT COUNT(*) FROM information_schema.routines
+                 WHERE routine_schema = DATABASE() AND routine_name = 'sp_ejecutar_computo'
+                """) > 0;
     }
 
     /** Solo hay resultados después del cómputo: nunca se exponen conteos parciales. */

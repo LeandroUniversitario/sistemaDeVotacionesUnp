@@ -38,6 +38,11 @@ TRUNCATE TABLE asistencia_elector;     -- CUS09 / CUS10
 TRUNCATE TABLE escrutinio_conteo;      -- CUS12
 TRUNCATE TABLE escrutinio_mesa;        -- CUS12
 TRUNCATE TABLE cierre_mesa;            -- CUS11
+TRUNCATE TABLE computo_personero;      -- CUS14 (cómputo y proclamación)
+TRUNCATE TABLE verificacion_acta;      -- CUS14
+TRUNCATE TABLE calificacion_mesa;      -- CUS14
+TRUNCATE TABLE proclamacion_cargo;     -- CUS14
+TRUNCATE TABLE computo_proceso;        -- CUS14
 TRUNCATE TABLE firma_acta;
 TRUNCATE TABLE acta_electoral;
 

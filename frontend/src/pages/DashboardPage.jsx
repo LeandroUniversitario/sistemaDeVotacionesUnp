@@ -25,6 +25,7 @@ import MiPaseQRPage from './MiPaseQRPage';
 import InstalacionMesaPage from './instalacion/InstalacionMesaPage';
 import PantallaCierreSufragio from './cierre/PantallaCierreSufragio';
 import PantallaImpugnaciones from './impugnaciones/PantallaImpugnaciones';
+import PantallaComputo from './computo/PantallaComputo';
 import PantallaEscrutinio from './escrutinio/PantallaEscrutinio';
 
 // ─── Mapas de iconos por sección ─────────────────────────────────────────
@@ -65,7 +66,7 @@ const MENU_POR_ROL = {
     { key: 'cierre', label: 'Cierre del sufragio', icon: 'lock', color: '#f43f5e' },
     { key: 'escrutinio', label: 'Escrutinio y conciliación', icon: 'table', color: '#2563eb' },
     { group: 'RESULTADOS' },
-    { key: 'computo', label: 'Cómputo y Proclamación', icon: 'trophy', color: '#6366f1' },
+    { key: 'computo', label: 'Cómputo y proclamación', icon: 'trophy', color: '#6366f1' },
     { key: 'impugnaciones', label: 'Impugnaciones y apelaciones', icon: 'scale', color: '#ef4444' },
     { key: 'multas', label: 'Gestión Multas', icon: 'coins', color: '#f97316' },
   ],
@@ -105,7 +106,7 @@ const SECTION_TITLES = {
   tachas: 'Tachas electorales',
   personeros: 'Personeros y Acreditaciones',
   credenciales: 'Credenciales y códigos QR',
-  computo: 'Cómputo General y Proclamación de Resultados',
+  computo: 'Computar y proclamar resultados (CUS14)',
   impugnaciones: 'Impugnaciones y apelaciones (CUS13)',
   usuarios: 'Usuarios del sistema',
   cuenta: 'Configuración de mi cuenta',
@@ -524,18 +525,9 @@ export default function DashboardPage({ session, onLogout }) {
           <CredencialesPage onSessionExpired={onLogout} />
         )}
 
-        {section === 'computo' && (
-          <section className="panel">
-            <div className="panel-heading">
-              <div>
-                <h2>Cómputo General y Proclamación</h2>
-                <p className="muted">Consolidación de actas escrutadas, cálculo de resultados finales y generación del acta de proclamación.</p>
-              </div>
-            </div>
-            <div style={{ padding: '1.5rem', color: 'var(--text-main)', fontSize: 14 }}>
-              <p>Cómputo general al 100% de actas, verificación de quórum y emisión de la resolución formal de proclamación de ganadores o convocatoria a segunda vuelta.</p>
-            </div>
-          </section>
+        {/* CUS14 · Computar y proclamar resultados (verificación previa, sesión, cómputo, proclamación y publicación) */}
+        {section === 'computo' && ['CEUNP', 'ADMIN'].includes(session.rol) && (
+          <PantallaComputo session={session} onSessionExpired={onLogout} />
         )}
 
         {/* CUS13 · Gestionar impugnaciones y apelaciones (personero de mesa impugna, la mesa decide, el CEUNP falla) */}
