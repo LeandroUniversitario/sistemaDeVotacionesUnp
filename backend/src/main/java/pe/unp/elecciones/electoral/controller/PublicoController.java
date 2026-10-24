@@ -42,8 +42,21 @@ public class PublicoController {
         return procesoService.candidatosPublicos(idProceso);
     }
 
+    /** Destino del QR del acta general de cómputo y de la resolución de proclamación (CUS14). */
+    @GetMapping("/computo/{token}")
+    public Map<String, Object> verificarActaComputo(@PathVariable String token) {
+        return procesoService.verificarActaComputo(token);
+    }
+
+    /** RF99: procesos con resultados publicados por el CEUNP. */
+    @GetMapping("/resultados")
+    public List<Map<String, Object>> resultadosPublicados() {
+        return procesoService.resultadosPublicados();
+    }
+
+    /** RF99: resultados generales y por mesa, solo después de su publicación. */
     @GetMapping("/procesos/{idProceso}/resultados")
     public Map<String, Object> resultados(@PathVariable Integer idProceso) {
-        return procesoService.resultados(idProceso);
+        return procesoService.resultadosPublicos(idProceso);
     }
 }
