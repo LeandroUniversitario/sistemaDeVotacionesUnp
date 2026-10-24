@@ -8,6 +8,7 @@ import '../padron/padron.css';
 import '../inscripcion/inscripcion.css';
 import '../credenciales/credenciales.css';
 import './votacion.css';
+import '../mesa/mesa-ejecutivo.css';
 
 const RESULTADOS = {
   APTO: { clase: 'ok', titulo: 'Elector en el padrón de esta mesa', icono: 'check' },
@@ -230,7 +231,7 @@ export default function PantallaVerificacion({ onSessionExpired }) {
   );
 
   return (
-    <div className="pd-shell vt-shell">
+    <div className="pd-shell vt-shell mx">
       <div className="panel vt-head">
         <label>
           Mesa de sufragio
@@ -239,10 +240,10 @@ export default function PantallaVerificacion({ onSessionExpired }) {
             {mesas.map((m) => <option key={m.id} value={m.id}>Mesa {m.numero} · {m.ubicacion} · {m.estado}</option>)}
           </select>
         </label>
-        {mesa && <span className={`badge ${mesa.estado === 'INSTALADA' ? 'votacion' : 'cerrado'}`}>{mesa.estado}</span>}
+        {mesa && <span className={`cv-estado ${mesa.estado === 'INSTALADA' ? 'votacion' : 'inscripcion'}`}>{mesa.estado === 'INSTALADA' ? 'Sufragio abierto' : mesa.estado === 'CERRADA' ? 'Sufragio cerrado' : mesa.estado}</span>}
         <div className="vt-head-actions">
           <button type="button" className="cv-btn cv-btn-ghost" onClick={() => cargarTablero(idMesa)} disabled={!idMesa || ocupado}>
-            <MenuIcon name="list" size={15} /> Actualizar
+            <MenuIcon name="refresh" size={15} /> Actualizar
           </button>
         </div>
       </div>

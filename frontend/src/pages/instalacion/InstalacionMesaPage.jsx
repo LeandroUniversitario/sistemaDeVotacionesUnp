@@ -8,6 +8,7 @@ import '../padron/padron.css';
 import '../inscripcion/inscripcion.css';
 import '../credenciales/credenciales.css';
 import './instalacion.css';
+import '../mesa/mesa-ejecutivo.css';
 
 /**
  * CUS08 · Instalar mesa — «PantallaInstalacion» (boundary). Actor: Presidente de mesa.
@@ -26,10 +27,10 @@ import './instalacion.css';
  */
 
 const PASOS = [
-  { codigo: 'MIEMBROS', texto: '1. Llegada de miembros' },
-  { codigo: 'PERSONEROS', texto: '2. Credenciales de personeros' },
-  { codigo: 'MATERIAL', texto: '3. Material electoral' },
-  { codigo: 'ACTA', texto: '4. Acta de instalación' },
+  { codigo: 'MIEMBROS', texto: 'Llegada de miembros' },
+  { codigo: 'PERSONEROS', texto: 'Credenciales de personeros' },
+  { codigo: 'MATERIAL', texto: 'Material electoral' },
+  { codigo: 'ACTA', texto: 'Acta de instalación' },
 ];
 const CARGO = { PRESIDENTE: 'Presidente', SECRETARIO: 'Secretario', VOCAL: 'Vocal', SUPLENTE: 'Suplente' };
 const ORIGEN = { TITULAR: 'Titular', SUPLENTE: 'Suplente', REEMPLAZANTE: 'Reemplazante' };
@@ -331,7 +332,7 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
   const faltaMaterial = Object.values(material).filter((m) => m.estado === 'NO_RECIBIDO').length;
 
   return (
-    <div className="pd-shell cq-shell im-shell">
+    <div className="pd-shell cq-shell im-shell mx">
       <section className="in-head">
         {!esMiembro && (
           <label className="cv-field in-proceso">
@@ -424,15 +425,23 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
 
       {detalle && (
         <>
-          <div className="panel im-cabecera">
-            <div>
-              <h3>Mesa {mesa.numero} · {mesa.ubicacion}</h3>
-              <p className="muted">{mesa.proceso} · {mesa.totalElectores} electores · proceso en {mesa.estadoProceso}</p>
+          <div className="panel mx-ficha">
+            <div className="mx-ficha-top">
+              <div>
+                <h3>Mesa {mesa.numero}</h3>
+                <p>{mesa.ubicacion}</p>
+              </div>
+              <span className={`cv-estado ${(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).clase}`}>
+                {(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).texto}
+              </span>
             </div>
-            <span className={`cv-estado ${(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).clase}`}>
-              {(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).texto}
-              {mesa.horaInstalacion && ` · ${hora(mesa.horaInstalacion)}`}
-            </span>
+            <dl className="mx-datos">
+              <div><dt>Proceso</dt><dd>{mesa.proceso}</dd></div>
+              <div><dt>Electores</dt><dd>{mesa.totalElectores}</dd></div>
+              <div><dt>Etapa del proceso</dt><dd>{mesa.estadoProceso}</dd></div>
+              <div><dt>Miembros presentes</dt><dd>{presentes} de {detalle.miembros.length}</dd></div>
+              {mesa.horaInstalacion && <div><dt>Instalada</dt><dd>{hora(mesa.horaInstalacion)}</dd></div>}
+            </dl>
           </div>
 
           {!puedeOperar && <div className="alert success" role="note">Vista de consulta: la instalación la realiza el presidente de mesa o el CEUNP.</div>}
@@ -440,16 +449,20 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
             <div className="alert error" role="note">Registre primero su propia llegada: lea su fotocheck o use «Con DNI» en la tabla de miembros.</div>
           )}
 
-          <div className="pd-tabs cq-tabs" role="tablist">
-            {PASOS.map((p) => {
+          <div className="pd-tabs cq-tabs mx-pasos" role="tablist" aria-label="Pasos de la instalación">
+            {PASOS.map((p, i) => {
               const hecho = (p.codigo === 'MIEMBROS' && detalle.conformacion.every((c) => !c.vacante))
                 || (p.codigo === 'PERSONEROS' && personerosPresentes > 0)
                 || (p.codigo === 'MATERIAL' && detalle.material.completo && detalle.requisitos.find((r) => r.codigo === 'CEDULAS')?.cumplido)
                 || (p.codigo === 'ACTA' && detalle.acta);
               return (
                 <button key={p.codigo} type="button" role="tab" aria-selected={paso === p.codigo}
-                  className={`pd-tab${paso === p.codigo ? ' on' : ''}`} onClick={() => setPaso(p.codigo)}>
-                  {hecho && <MenuIcon name="check" size={13} />} {p.texto}
+                  className={`pd-tab mx-paso${paso === p.codigo ? ' on' : ''}${hecho ? ' hecho' : ''}`} onClick={() => setPaso(p.codigo)}>
+                  <span className="mx-paso-num">{hecho ? <MenuIcon name="check" size={14} /> : i + 1}</span>
+                  <span className="mx-paso-texto">
+                    <b>{p.texto}</b>
+                    <small>{hecho ? 'Completado' : paso === p.codigo ? 'En curso' : 'Pendiente'}</small>
+                  </span>
                 </button>
               );
             })}
