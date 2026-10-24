@@ -216,6 +216,34 @@ public class ProcesoService {
                 "El acta no existe o el código no es válido.");
     }
 
+    /** RF102: resoluciones de nulidad declaradas y publicadas en el portal (CUS15). */
+    public List<Map<String, Object>> nulidadesPublicadas() {
+        if (!nulidadesCus15Instaladas()) {
+            return List.of();
+        }
+        return dao.consultar("""
+                SELECT id_nulidad, id_proceso, proceso, tipo, estado_proceso, alcance, numero_mesa, causal,
+                       numero_resolucion, fundamento_resolucion, fecha_resolucion, fecha_publicacion, comunicado_a
+                  FROM v_portal_nulidades ORDER BY fecha_publicacion DESC
+                """);
+    }
+
+    /** Destino del QR de una resolución de nulidad (CUS15). */
+    public Map<String, Object> verificarResolucionNulidad(String token) {
+        if (!nulidadesCus15Instaladas()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "La resolución no existe o el código no es válido.");
+        }
+        return primeraFila(dao.llamar("sp_verificar_resolucion_nulidad", ProcedimientoDao.SIN_SALIDA, tokenValido(token)),
+                "La resolución no existe o el código no es válido.");
+    }
+
+    private boolean nulidadesCus15Instaladas() {
+        return dao.entero("""
+                SELECT COUNT(*) FROM information_schema.routines
+                 WHERE routine_schema = DATABASE() AND routine_name = 'sp_verificar_resolucion_nulidad'
+                """) > 0;
+    }
+
     private boolean computoCus14Instalado() {
         return dao.entero("""
                 SELECT COUNT(*) FROM information_schema.routines

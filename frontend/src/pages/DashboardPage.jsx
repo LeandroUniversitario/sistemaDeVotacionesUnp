@@ -26,6 +26,7 @@ import InstalacionMesaPage from './instalacion/InstalacionMesaPage';
 import PantallaCierreSufragio from './cierre/PantallaCierreSufragio';
 import PantallaImpugnaciones from './impugnaciones/PantallaImpugnaciones';
 import PantallaComputo from './computo/PantallaComputo';
+import PantallaNulidades from './nulidades/PantallaNulidades';
 import PantallaEscrutinio from './escrutinio/PantallaEscrutinio';
 
 // ─── Mapas de iconos por sección ─────────────────────────────────────────
@@ -67,6 +68,7 @@ const MENU_POR_ROL = {
     { key: 'escrutinio', label: 'Escrutinio y conciliación', icon: 'table', color: '#2563eb' },
     { group: 'RESULTADOS' },
     { key: 'computo', label: 'Cómputo y proclamación', icon: 'trophy', color: '#6366f1' },
+    { key: 'nulidades', label: 'Nulidades y segunda vuelta', icon: 'scale', color: '#e11d48' },
     { key: 'impugnaciones', label: 'Impugnaciones y apelaciones', icon: 'scale', color: '#ef4444' },
     { key: 'multas', label: 'Gestión Multas', icon: 'coins', color: '#f97316' },
   ],
@@ -107,6 +109,7 @@ const SECTION_TITLES = {
   personeros: 'Personeros y Acreditaciones',
   credenciales: 'Credenciales y códigos QR',
   computo: 'Computar y proclamar resultados (CUS14)',
+  nulidades: 'Gestionar nulidades y segunda vuelta (CUS15)',
   impugnaciones: 'Impugnaciones y apelaciones (CUS13)',
   usuarios: 'Usuarios del sistema',
   cuenta: 'Configuración de mi cuenta',
@@ -528,6 +531,11 @@ export default function DashboardPage({ session, onLogout }) {
         {/* CUS14 · Computar y proclamar resultados (verificación previa, sesión, cómputo, proclamación y publicación) */}
         {section === 'computo' && ['CEUNP', 'ADMIN'].includes(session.rol) && (
           <PantallaComputo session={session} onSessionExpired={onLogout} />
+        )}
+
+        {/* CUS15 · Gestionar nulidades y segunda vuelta (nulidad parcial y total, resolución del Pleno, comunicación, sorteo y segunda vuelta) */}
+        {section === 'nulidades' && ['CEUNP', 'ADMIN'].includes(session.rol) && (
+          <PantallaNulidades session={session} onSessionExpired={onLogout} />
         )}
 
         {/* CUS13 · Gestionar impugnaciones y apelaciones (personero de mesa impugna, la mesa decide, el CEUNP falla) */}

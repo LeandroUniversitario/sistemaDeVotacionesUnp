@@ -186,6 +186,12 @@ public class ComputoConsulta {
             }
         }
         boolean antesDelComputo = "CERRADO".equals(estado) && (etapa == null || "SESION_INSTALADA".equals(etapa));
+        // CUS15: los recursos de nulidad pendientes detienen el cómputo y la nulidad total pendiente, la proclamación (RF94)
+        long recursosPendientes = nulidadesPendientes(idProceso, false);
+        long totalPendiente = nulidadesPendientes(idProceso, true);
+        if (antesDelComputo && recursosPendientes > 0) {
+            bloqueos.add(recursosPendientes + " recurso(s) de nulidad pendiente(s): resuélvalos en Nulidades y segunda vuelta (RF94).");
+        }
 
         Map<String, Object> respuesta = new LinkedHashMap<>();
         respuesta.put("proceso", proceso);
@@ -239,12 +245,26 @@ public class ComputoConsulta {
         acciones.put("registrarPersonero", ceunp && "SESION_INSTALADA".equals(etapa));
         acciones.put("verificarActas", ceunp && antesDelComputo);
         acciones.put("ejecutarComputo", ceunp && "CERRADO".equals(estado) && "SESION_INSTALADA".equals(etapa) && bloqueos.isEmpty());
-        acciones.put("proclamar", ceunp && "COMPUTADO".equals(etapa) && !"ANULADO".equals(estado));
+        acciones.put("proclamar", ceunp && "COMPUTADO".equals(etapa) && !"ANULADO".equals(estado) && totalPendiente == 0);
+        acciones.put("motivoNoProclama", totalPendiente > 0
+                ? "Hay un recurso de nulidad total pendiente: resuélvalo en Nulidades y segunda vuelta (RF94)." : null);
         acciones.put("publicar", ceunp && ("PROCLAMADO".equals(etapa) || ("COMPUTADO".equals(etapa) && "ANULADO".equals(estado))));
-        acciones.put("convocarSegundaVuelta", ceunp && computado && porSegunda > 0 && hijos.isEmpty());
+        acciones.put("convocarSegundaVuelta", ceunp && computado && porSegunda > 0 && hijos.isEmpty() && totalPendiente == 0);
         respuesta.put("acciones", acciones);
         respuesta.put("soloLectura", !ceunp);
         return respuesta;
+    }
+
+    /** Recursos de nulidad pendientes del proceso (CUS15); 0 si aún no se instaló su migración. */
+    private long nulidadesPendientes(Integer idProceso, boolean soloTotal) {
+        if (dao.entero("""
+                SELECT COUNT(*) FROM information_schema.tables
+                 WHERE table_schema = DATABASE() AND table_name = 'nulidad_electoral'
+                """) == 0) {
+            return 0;
+        }
+        return dao.entero("SELECT COUNT(*) FROM nulidad_electoral WHERE id_proceso = ? AND estado = 'PRESENTADA'"
+                + (soloTotal ? " AND alcance = 'TOTAL'" : ""), idProceso);
     }
 
     /** Sesión, cómputo, proclamación y publicación del proceso; null si la sesión no se instaló. */
