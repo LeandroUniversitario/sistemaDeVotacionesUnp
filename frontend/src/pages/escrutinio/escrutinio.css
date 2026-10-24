@@ -1,0 +1,86 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CUS12 · Realizar escrutinio y conciliar (PantallaEscrutinio)
+   Reutiliza .cv-*, .pd-*, .cq-*, .im-*, .cs-* y el estilo ejecutivo .mx
+   (mesa-ejecutivo.css). Solo agrega las piezas propias del escrutinio.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.mx.es-shell .pd-tab:disabled { opacity: .45; cursor: not-allowed; }
+.mx .es-ancho { grid-column: 1 / -1; }
+.mx.es-shell .mx-datos { row-gap: 12px; }
+.mx.es-shell .cq-meta > div:last-child { grid-column: auto / -1; }
+
+/* Indicadores de la mesa y del proceso: cuatro por fila */
+.mx.es-shell .cq-resumen { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .mx.es-shell .cq-resumen { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .mx.es-shell .cq-resumen { grid-template-columns: 1fr; } }
+
+/* ── 4 mostrarResultadoValidacion() · cédulas vs. votantes ─────────── */
+.mx .es-validacion {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 12px 14px; border: 1px solid var(--mx-line); border-left: 4px solid var(--cv-green);
+  border-radius: var(--mx-radius-ctl); background: #ecfdf5;
+}
+.mx .es-validacion > svg { flex: none; margin-top: 1px; color: var(--cv-green); }
+.mx .es-validacion > div { display: grid; gap: 3px; }
+.mx .es-validacion strong { font-size: .9rem; font-weight: 650; color: var(--mx-ink); }
+.mx .es-validacion span { font-size: .82rem; line-height: 1.5; color: var(--mx-text); }
+.mx .es-validacion.sobran { background: #fff7f8; border-color: #fecdd3; border-left-color: var(--cv-red); }
+.mx .es-validacion.sobran > svg { color: var(--cv-red); }
+.mx .es-validacion.faltan { background: #fffbeb; border-color: #fde68a; border-left-color: var(--cv-amber); }
+.mx .es-validacion.faltan > svg { color: var(--cv-amber); }
+
+/* ── Paso 4 · impugnación de un voto por un personero ──────────────── */
+.mx .es-impugnar {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;
+  padding: 14px; border: 1px solid #fecdd3; border-radius: var(--mx-radius-ctl); background: #fff7f8;
+}
+.mx .es-impugnar .cv-actions { justify-content: flex-end; }
+.mx .es-impugnar label, .mx .es-ejemplares label { margin: 0; }
+
+/* ── 5 ingresarConteoManual() · una tarjeta por cargo ──────────────── */
+.mx .es-cargo { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--mx-line); border-radius: var(--mx-radius); background: #fff; }
+.mx .es-cargo-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.mx .es-cargo-head h4 { margin: 0; font-size: .95rem; font-weight: 650; color: var(--mx-ink); }
+.mx .es-suma {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  font-size: .78rem; font-weight: 600; color: var(--mx-text); background: var(--mx-line-soft);
+}
+.mx .es-suma.ok { color: #065f46; background: var(--cv-green-soft); }
+.mx .es-suma.mal { color: #9f1239; background: var(--cv-red-soft); }
+
+.mx .es-opciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.mx .es-opcion {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  margin: 0; padding: 8px 10px; border: 1px solid var(--mx-line); border-radius: var(--mx-radius-ctl); background: var(--mx-canvas);
+}
+.mx .es-opcion.especial { background: #fff; border-style: dashed; }
+.mx .es-opcion input { width: 96px; flex: none; text-align: right; }
+.mx .es-opcion-nombre { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: .86rem; color: var(--mx-ink); }
+.mx .es-opcion-nombre > span { overflow-wrap: anywhere; }
+.mx .es-opcion-nombre small { color: var(--mx-muted); font-size: .74rem; }
+.mx .es-orden {
+  display: inline-grid; place-items: center; width: 26px; height: 26px; flex: none; border-radius: 6px;
+  font-size: .78rem; font-weight: 700; color: #1d4ed8; background: var(--cv-blue-soft);
+}
+.mx .es-opcion.especial .es-orden { color: var(--mx-text); background: var(--mx-line-soft); }
+
+/* ── 8 mostrarCuadre() · manual contra digital ─────────────────────── */
+.mx .es-cuadre { border-left: 4px solid var(--cv-green); }
+.mx .es-cuadre.mal { border-left-color: var(--cv-red); }
+.mx .es-cuadre table { width: 100%; }
+.mx .es-n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mx .es-dif.mas { color: #be123c; font-weight: 650; }
+.mx .es-dif.menos { color: #b45309; font-weight: 650; }
+.mx tr.es-difiere td { background: #fff7f8; }
+.mx tr.es-total td { font-weight: 650; color: var(--mx-ink); background: var(--mx-canvas); border-top: 2px solid var(--mx-line); }
+
+/* ── Paso 9 · ejemplares y material entregados ─────────────────────── */
+.mx .es-ejemplares { display: flex; flex-wrap: wrap; gap: 10px 22px; }
+
+/* ── 13 mostrarActaGenerada() · acta observada (A5) ────────────────── */
+.mx .im-acta.es-observada { border-left: 4px solid var(--cv-amber); }
+
+@media (max-width: 640px) {
+  .mx .es-opciones { grid-template-columns: 1fr; }
+  .mx .es-opcion input { width: 80px; }
+}

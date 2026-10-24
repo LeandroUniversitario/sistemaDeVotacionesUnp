@@ -24,6 +24,7 @@ import VerificarCredencialPanel from './credenciales/VerificarCredencialPanel';
 import MiPaseQRPage from './MiPaseQRPage';
 import InstalacionMesaPage from './instalacion/InstalacionMesaPage';
 import PantallaCierreSufragio from './cierre/PantallaCierreSufragio';
+import PantallaEscrutinio from './escrutinio/PantallaEscrutinio';
 
 // ─── Mapas de iconos por sección ─────────────────────────────────────────
 const MENU_ICONS = {
@@ -61,6 +62,7 @@ const MENU_POR_ROL = {
     { key: 'instalacion', label: 'Instalación de mesas', icon: 'shield', color: '#14b8a6' },
     { key: 'verificar-elector', label: 'Verificación de electores', icon: 'scan', color: '#14b8a6' },
     { key: 'cierre', label: 'Cierre del sufragio', icon: 'lock', color: '#f43f5e' },
+    { key: 'escrutinio', label: 'Escrutinio y conciliación', icon: 'table', color: '#2563eb' },
     { group: 'RESULTADOS' },
     { key: 'computo', label: 'Cómputo y Proclamación', icon: 'trophy', color: '#6366f1' },
     { key: 'impugnaciones', label: 'Impugnaciones y Nulidades', icon: 'alert', color: '#ef4444' },
@@ -73,6 +75,7 @@ const MENU_POR_ROL = {
     { key: 'verificar-elector', label: 'Verificar elector', icon: 'scan', color: '#0ea5e9' },
     { key: 'terminal', label: 'Terminal de votación', icon: 'vote', color: '#6366f1' },
     { key: 'cierre', label: 'Cerrar sufragio', icon: 'lock', color: '#f43f5e' },
+    { key: 'escrutinio', label: 'Realizar escrutinio', icon: 'table', color: '#2563eb' },
     { key: 'fotocheck', label: 'Fotocheck QR (RF56)', icon: 'qr', color: '#f59e0b' },
     { key: 'verificar-qr', label: 'Verificar credencial QR', icon: 'scan', color: '#10b981' },
   ],
@@ -118,6 +121,7 @@ const SECTION_TITLES = {
   instalacion: 'Instalación de mesa de sufragio',
   'verificar-elector': 'Verificar elector (CUS09)',
   cierre: 'Cerrar sufragio (CUS11)',
+  escrutinio: 'Realizar escrutinio y conciliar (CUS12)',
 };
 
 /**
@@ -480,7 +484,7 @@ export default function DashboardPage({ session, onLogout }) {
 
         {/* Mesa */}
         {section === 'mesa' && (
-          <MiembroMesaPage onIrInstalacion={() => setSection('instalacion')} onIrCierre={() => setSection('cierre')} />
+          <MiembroMesaPage onIrInstalacion={() => setSection('instalacion')} onIrCierre={() => setSection('cierre')} onIrEscrutinio={() => setSection('escrutinio')} />
         )}
 
         {/* CUS08 · Instalar mesa (miembros de mesa y CEUNP; ADMIN solo consulta) */}
@@ -493,7 +497,12 @@ export default function DashboardPage({ session, onLogout }) {
 
         {/* CUS11 · Cerrar sufragio (Presidente de mesa; el CEUNP supervisa y el ADMIN consulta) */}
         {section === 'cierre' && ['MIEMBRO_MESA', 'CEUNP', 'ADMIN'].includes(session.rol) && (
-          <PantallaCierreSufragio session={session} onSessionExpired={onLogout} />
+          <PantallaCierreSufragio session={session} onSessionExpired={onLogout} onIrEscrutinio={() => setSection('escrutinio')} />
+        )}
+
+        {/* CUS12 · Realizar escrutinio y conciliar (Presidente y secretario de mesa; el CEUNP supervisa y el ADMIN consulta) */}
+        {section === 'escrutinio' && ['MIEMBRO_MESA', 'CEUNP', 'ADMIN'].includes(session.rol) && (
+          <PantallaEscrutinio session={session} onSessionExpired={onLogout} />
         )}
 
         {/* CUS09 · Verificar elector con QR (Secretario de mesa; CEUNP supervisa) */}
