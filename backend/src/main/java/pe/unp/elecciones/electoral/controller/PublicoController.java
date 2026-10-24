@@ -59,4 +59,16 @@ public class PublicoController {
     public Map<String, Object> resultados(@PathVariable Integer idProceso) {
         return procesoService.resultadosPublicos(idProceso);
     }
+
+    /** RF102: resoluciones de nulidad publicadas por el CEUNP (CUS15). */
+    @GetMapping("/nulidades")
+    public List<Map<String, Object>> nulidadesPublicadas() {
+        return procesoService.nulidadesPublicadas();
+    }
+
+    /** Destino del QR de una resolución de nulidad: recalcula el SHA-256 de su contenido. */
+    @GetMapping("/nulidad/{token}")
+    public Map<String, Object> verificarResolucionNulidad(@PathVariable String token) {
+        return procesoService.verificarResolucionNulidad(token);
+    }
 }

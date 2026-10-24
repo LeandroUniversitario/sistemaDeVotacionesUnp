@@ -844,6 +844,9 @@ export default function PantallaComputo({ session, onSessionExpired }) {
           </div>
           {!computado && <p className="empty-state">Realice primero el cómputo oficial.</p>}
           {computado && anulado && <p className="empty-state">La elección fue declarada nula (A1): no hay resultados que proclamar. Publique el acta general.</p>}
+          {acciones.motivoNoProclama && (
+            <div className="mx-mensaje peligro" role="note"><MenuIcon name="alert" size={18} /><div><p>{acciones.motivoNoProclama}</p></div></div>
+          )}
           {acciones.proclamar && (
             <form className="ig-form" onSubmit={(e) => { e.preventDefault(); setAccion('PROCLAMAR'); setConfirmando(true); }}>
               <h4>16 · Acreditar a la lista ganadora</h4>

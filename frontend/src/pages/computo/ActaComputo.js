@@ -8,7 +8,7 @@ import { svgQR, fecha } from '../credenciales/LectorQR';
  * SHA-256 del contenido.
  */
 
-const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+export const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const urlVerificacionComputo = (token) => `${window.location.origin}/api/publico/computo/${token}`;
 const pct = (v) => `${Number(v ?? 0).toFixed(2)} %`;
 
@@ -64,7 +64,7 @@ const ESTILOS = `
   footer { margin-top: 8mm; font-size: 7pt; color: #64748b; word-break: break-all; }
 `;
 
-function imprimir(titulo, cuerpo) {
+export function imprimir(titulo, cuerpo) {
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(titulo)}</title><style>${ESTILOS}</style></head><body>${cuerpo}</body></html>`;
   const iframe = document.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
@@ -92,7 +92,7 @@ const encabezado = (titulo, subtitulo, sello, token) => `
     ${token ? `<div class="qr">${svgQR(urlVerificacionComputo(token))}Verificación del documento</div>` : ''}
   </header>`;
 
-const firmasPleno = (presidente) => `
+export const firmasPleno = (presidente) => `
   <div class="firmas">
     <div class="firma"><div class="linea"></div><strong>${esc(presidente || 'Presidente del CEUNP')}</strong><span>Presidente del CEUNP</span></div>
     <div class="firma"><div class="linea"></div><strong>Secretario del CEUNP</strong><span>Secretario</span></div>
