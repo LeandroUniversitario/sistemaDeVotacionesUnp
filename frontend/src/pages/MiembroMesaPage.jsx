@@ -16,7 +16,7 @@ const ESTADO_MESA = {
   ANULADA: { clase: 'anulado', texto: 'Anulada' },
 };
 
-export default function MiembroMesaPage({ onIrInstalacion, onIrCierre, onIrEscrutinio }) {
+export default function MiembroMesaPage({ onIrImpugnaciones, onIrInstalacion, onIrCierre, onIrEscrutinio }) {
   const [mesas, setMesas] = useState([]);
   const [selectedMesa, setSelectedMesa] = useState(null);
   const [dniElector, setDniElector] = useState('');
@@ -190,6 +190,15 @@ export default function MiembroMesaPage({ onIrInstalacion, onIrCierre, onIrEscru
               </div>
               <button type="button" className="cv-btn cv-btn-primary" style={{ marginLeft: 'auto', flex: 'none' }} onClick={onIrEscrutinio} disabled={loading || !onIrEscrutinio}>
                 <MenuIcon name="table" size={15} /> Ir al escrutinio
+              </button>
+            </div>
+          )}
+
+          {/* CUS13 · impugnaciones de votos del escrutinio */}
+          {selectedMesa.estado === 'CERRADA' && onIrImpugnaciones && (
+            <div className="cv-actions">
+              <button type="button" className="cv-btn cv-btn-ghost" onClick={onIrImpugnaciones} disabled={loading}>
+                <MenuIcon name="scale" size={15} /> Impugnaciones del escrutinio
               </button>
             </div>
           )}
