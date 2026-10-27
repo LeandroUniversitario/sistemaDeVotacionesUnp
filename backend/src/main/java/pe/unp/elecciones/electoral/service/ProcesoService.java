@@ -237,6 +237,18 @@ public class ProcesoService {
                 "La resolución no existe o el código no es válido.");
     }
 
+    /** Destino del QR de la resolución de multas (CUS16). */
+    public Map<String, Object> verificarResolucionMultas(String token) {
+        if (dao.entero("""
+                SELECT COUNT(*) FROM information_schema.routines
+                 WHERE routine_schema = DATABASE() AND routine_name = 'sp_verificar_resolucion_multas'
+                """) == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "La resolución no existe o el código no es válido.");
+        }
+        return primeraFila(dao.llamar("sp_verificar_resolucion_multas", ProcedimientoDao.SIN_SALIDA, tokenValido(token)),
+                "La resolución no existe o el código no es válido.");
+    }
+
     private boolean nulidadesCus15Instaladas() {
         return dao.entero("""
                 SELECT COUNT(*) FROM information_schema.routines
@@ -313,9 +325,14 @@ public class ProcesoService {
                 "SELECT * FROM v_multas_detalle WHERE id_proceso = ? ORDER BY docente, motivo", idProceso);
     }
 
+    /** CUS16: el docente ve sus multas cuando el Pleno ya las determinó (las generadas sin resolución aún pueden cambiar). */
     public List<Map<String, Object>> multasDeDocente(Integer idDocente) {
         return dao.consultar(
-                "SELECT * FROM v_multas_detalle WHERE id_docente = ? ORDER BY fecha_generacion DESC", idDocente);
+                """
+                SELECT * FROM v_multas_detalle
+                 WHERE id_docente = ? AND (estado_reporte IS NULL OR estado_reporte = 'RESUELTO')
+                 ORDER BY fecha_generacion DESC
+                """, idDocente);
     }
 
     public List<Map<String, Object>> actualizarMulta(Integer idMulta, String estadoPago,

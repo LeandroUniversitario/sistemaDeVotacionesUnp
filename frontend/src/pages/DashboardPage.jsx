@@ -27,6 +27,8 @@ import PantallaCierreSufragio from './cierre/PantallaCierreSufragio';
 import PantallaImpugnaciones from './impugnaciones/PantallaImpugnaciones';
 import PantallaComputo from './computo/PantallaComputo';
 import PantallaNulidades from './nulidades/PantallaNulidades';
+import PantallaMultas from './multas/PantallaMultas';
+import MisMultas from './multas/MisMultas';
 import PantallaEscrutinio from './escrutinio/PantallaEscrutinio';
 
 // ─── Mapas de iconos por sección ─────────────────────────────────────────
@@ -70,7 +72,7 @@ const MENU_POR_ROL = {
     { key: 'computo', label: 'Cómputo y proclamación', icon: 'trophy', color: '#6366f1' },
     { key: 'nulidades', label: 'Nulidades y segunda vuelta', icon: 'scale', color: '#e11d48' },
     { key: 'impugnaciones', label: 'Impugnaciones y apelaciones', icon: 'scale', color: '#ef4444' },
-    { key: 'multas', label: 'Gestión Multas', icon: 'coins', color: '#f97316' },
+    { key: 'multas', label: 'Omisos y multas', icon: 'coins', color: '#f97316' },
   ],
   MIEMBRO_MESA: [
     { group: 'WORKSPACE' },
@@ -96,6 +98,7 @@ const MENU_POR_ROL = {
     { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6' },
     { key: 'pase', label: 'Mi pase de votación QR', icon: 'qr', color: '#8b5cf6' },
     { key: 'tachas', label: 'Presentar tacha', icon: 'scale', color: '#f97316' },
+    { key: 'mis-multas', label: 'Mis multas', icon: 'coins', color: '#d97706' },
   ],
 };
 
@@ -120,7 +123,8 @@ const SECTION_TITLES = {
   parametros: 'Parámetros globales',
   'cargos-excluidos': 'Excepciones de Sorteo (RN20)',
   bitacora: 'Bitácora de auditoría',
-  multas: 'Gestión de Multas',
+  multas: 'Reportar omisos y multas (CUS16)',
+  'mis-multas': 'Mis multas electorales',
   fotocheck: 'Mi fotocheck digital',
   'verificar-qr': 'Verificar credenciales QR',
   credencial: 'Mi credencial de personero',
@@ -543,9 +547,11 @@ export default function DashboardPage({ session, onLogout }) {
           <PantallaImpugnaciones session={session} onSessionExpired={onLogout} />
         )}
 
-        {section === 'multas' && (
-          <section className="panel"><div className="panel-heading"><h2>Módulo de Multas (RN35)</h2></div><p style={{ padding: '1rem' }}>Generación y cálculo automático del 2.5% UIT (Omisos a sufragio) y 3% UIT (Omisos a mesa) cruzando la tabla `padron_electoral`.</p></section>
+        {/* CUS16 · Reportar omisos y multas (el CEUNP genera, determina y resuelve descargos; el docente consulta) */}
+        {section === 'multas' && ['CEUNP', 'ADMIN'].includes(session.rol) && (
+          <PantallaMultas session={session} onSessionExpired={onLogout} />
         )}
+        {section === 'mis-multas' && session.rol === 'DOCENTE' && <MisMultas onSessionExpired={onLogout} />}
         {/* CUS07 · Credenciales propias (QR generado en el navegador, sin servicios externos) */}
         {section === 'fotocheck' && <MisCredencialesPage foco="MIEMBRO_MESA" onSessionExpired={onLogout} />}
         {section === 'credencial' && <MisCredencialesPage foco="PERSONERO" onSessionExpired={onLogout} />}
