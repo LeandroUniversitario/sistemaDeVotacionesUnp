@@ -46,6 +46,8 @@ TRUNCATE TABLE computo_proceso;        -- CUS14
 TRUNCATE TABLE nulidad_comunicacion;   -- CUS15 (nulidades y segunda vuelta)
 TRUNCATE TABLE nulidad_electoral;      -- CUS15
 TRUNCATE TABLE dirimencia_empate;      -- CUS15
+TRUNCATE TABLE cotejo_acta;            -- CUS17 (resultados y verificación de actas)
+TRUNCATE TABLE verificacion_documento; -- CUS17
 TRUNCATE TABLE firma_acta;
 TRUNCATE TABLE acta_electoral;
 

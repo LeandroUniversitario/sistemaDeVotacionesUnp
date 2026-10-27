@@ -5,11 +5,11 @@ import { esc, firmasPleno, imprimir } from '../computo/ActaComputo';
  * CUS15 · Impresiones de nulidades y segunda vuelta: cargo de recepción del recurso,
  * resolución del Pleno con QR (RF100, RF101), oficios a SUNEDU, la Asamblea y el Consejo
  * Universitario (RF102), acta del sorteo que dirime un empate y convocatoria de la segunda
- * vuelta (RN33). El QR de la resolución apunta a /api/publico/nulidad/{token}, que recalcula
+ * vuelta (RN33). El QR de la resolución apunta a /verificar/{token} (portal del CUS17), que recalcula
  * el SHA-256 de su contenido. Usa el mismo formato de hoja que las actas del CUS14.
  */
 
-export const urlVerificacionNulidad = (token) => `${window.location.origin}/api/publico/nulidad/${token}`;
+export const urlVerificacionNulidad = (token) => `${window.location.origin}/verificar/${token}`;
 const pct = (v) => `${Number(v ?? 0).toFixed(2)} %`;
 
 export const CAUSAL = {

@@ -2,7 +2,7 @@ import { svgQR, fecha } from '../credenciales/LectorQR';
 
 /**
  * CUS08 · Impresión del Acta de Instalación (RN28).
- * El QR apunta a la verificación pública del acta (/api/publico/actas/{token}),
+ * El QR apunta a la verificación pública del acta (/verificar/{token}, portal del CUS17),
  * que recalcula el SHA-256 del contenido y lo compara con la huella guardada.
  */
 
@@ -18,7 +18,7 @@ const MATERIAL = {
 };
 const ESTADO = { CONFORME: 'Conforme', OBSERVADO: 'Observado', NO_RECIBIDO: 'No recibido' };
 
-export const urlVerificacionActa = (token) => `${window.location.origin}/api/publico/actas/${token}`;
+export const urlVerificacionActa = (token) => `${window.location.origin}/verificar/${token}`;
 
 export function imprimirActaInstalacion(acta, mesa, token) {
   const c = acta.contenido ?? {};

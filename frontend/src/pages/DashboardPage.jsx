@@ -30,6 +30,7 @@ import PantallaNulidades from './nulidades/PantallaNulidades';
 import PantallaMultas from './multas/PantallaMultas';
 import MisMultas from './multas/MisMultas';
 import PantallaEscrutinio from './escrutinio/PantallaEscrutinio';
+import PantallaResultados from './resultados/PantallaResultados';
 
 // ─── Mapas de iconos por sección ─────────────────────────────────────────
 const MENU_ICONS = {
@@ -49,6 +50,7 @@ const MENU_POR_ROL = {
     { key: 'parametros', label: 'Parámetros', icon: 'settings', color: '#6366f1' },
     { key: 'cargos-excluidos', label: 'Excepciones Sorteo', icon: 'shield', color: '#f43f5e' },
     { key: 'bitacora', label: 'Bitácora', icon: 'eye', color: '#14b8a6' },
+    { key: 'resultados', label: 'Resultados y actas', icon: 'trophy', color: '#059669' },
   ],
   CEUNP: [
     { group: 'WORKSPACE' },
@@ -73,6 +75,7 @@ const MENU_POR_ROL = {
     { key: 'nulidades', label: 'Nulidades y segunda vuelta', icon: 'scale', color: '#e11d48' },
     { key: 'impugnaciones', label: 'Impugnaciones y apelaciones', icon: 'scale', color: '#ef4444' },
     { key: 'multas', label: 'Omisos y multas', icon: 'coins', color: '#f97316' },
+    { key: 'resultados', label: 'Resultados y verificación de actas', icon: 'qr', color: '#059669' },
   ],
   MIEMBRO_MESA: [
     { group: 'WORKSPACE' },
@@ -85,6 +88,7 @@ const MENU_POR_ROL = {
     { key: 'impugnaciones', label: 'Impugnaciones', icon: 'scale', color: '#ef4444' },
     { key: 'fotocheck', label: 'Fotocheck QR (RF56)', icon: 'qr', color: '#f59e0b' },
     { key: 'verificar-qr', label: 'Verificar credencial QR', icon: 'scan', color: '#10b981' },
+    { key: 'resultados', label: 'Resultados y verificar actas', icon: 'trophy', color: '#059669' },
   ],
   PERSONERO: [
     { group: 'WORKSPACE' },
@@ -92,6 +96,7 @@ const MENU_POR_ROL = {
     { key: 'credencial', label: 'Credencial QR (RF51)', icon: 'qr', color: '#10b981' },
     { key: 'tachas', label: 'Tachas', icon: 'scale', color: '#f97316' },
     { key: 'impugnaciones', label: 'Impugnar votos y apelar', icon: 'scale', color: '#ef4444' },
+    { key: 'resultados', label: 'Resultados y verificar actas', icon: 'qr', color: '#059669' },
   ],
   DOCENTE: [
     { group: 'WORKSPACE' },
@@ -99,6 +104,7 @@ const MENU_POR_ROL = {
     { key: 'pase', label: 'Mi pase de votación QR', icon: 'qr', color: '#8b5cf6' },
     { key: 'tachas', label: 'Presentar tacha', icon: 'scale', color: '#f97316' },
     { key: 'mis-multas', label: 'Mis multas', icon: 'coins', color: '#d97706' },
+    { key: 'resultados', label: 'Resultados y actas', icon: 'trophy', color: '#059669' },
   ],
 };
 
@@ -124,6 +130,7 @@ const SECTION_TITLES = {
   'cargos-excluidos': 'Excepciones de Sorteo (RN20)',
   bitacora: 'Bitácora de auditoría',
   multas: 'Reportar omisos y multas (CUS16)',
+  resultados: 'Consultar resultados y verificar actas (CUS17)',
   'mis-multas': 'Mis multas electorales',
   fotocheck: 'Mi fotocheck digital',
   'verificar-qr': 'Verificar credenciales QR',
@@ -552,6 +559,8 @@ export default function DashboardPage({ session, onLogout }) {
           <PantallaMultas session={session} onSessionExpired={onLogout} />
         )}
         {section === 'mis-multas' && session.rol === 'DOCENTE' && <MisMultas onSessionExpired={onLogout} />}
+        {/* CUS17 · Consultar resultados y verificar actas (docente y personero; también mesa, CEUNP y ADMIN) */}
+        {section === 'resultados' && <PantallaResultados session={session} onSessionExpired={onLogout} />}
         {/* CUS07 · Credenciales propias (QR generado en el navegador, sin servicios externos) */}
         {section === 'fotocheck' && <MisCredencialesPage foco="MIEMBRO_MESA" onSessionExpired={onLogout} />}
         {section === 'credencial' && <MisCredencialesPage foco="PERSONERO" onSessionExpired={onLogout} />}
