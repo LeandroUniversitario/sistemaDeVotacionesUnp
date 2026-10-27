@@ -1,0 +1,82 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CUS16 · Reportar omisos y multas (PantallaMultas, MisMultas)
+   Reutiliza .cv-*, .pd-*, .in-*, .cq-*, .cs-*, .ig-*, .cp-*, .nl-* y el
+   estilo ejecutivo .mx (mesa-ejecutivo.css). Misma paleta: azul #2563eb,
+   verde #059669, rojo #e11d48, ámbar #d97706 y grises pizarra.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.mu-shell .mu-pasos { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.mu-shell .mu-monto { font-variant-numeric: tabular-nums; }
+
+/* Parámetros y cifras del proceso (3 obtenerUIT, RF105) */
+.mu-shell .mu-parametros {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; margin: 4px 0 14px;
+  border: 1px solid var(--mx-line, #e2e8f0); border-radius: 10px; overflow: hidden; background: var(--mx-line, #e2e8f0);
+}
+.mu-shell .mu-parametros > div { display: grid; gap: 3px; padding: 12px 14px; background: #fff; }
+.mu-shell .mu-parametros span { font-size: .7rem; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--mx-muted, #64748b); }
+.mu-shell .mu-parametros strong { font-size: 1.15rem; font-weight: 700; color: var(--mx-ink, #0f172a); font-variant-numeric: tabular-nums; }
+.mu-shell .mu-parametros small { font-size: .76rem; color: var(--mx-muted, #64748b); }
+
+/* Filtros de la relación */
+.mu-shell .mu-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 12px; }
+.mu-shell .mu-filtros .cq-chips { margin: 0; }
+.mu-shell td.n { white-space: nowrap; }
+.mu-shell .mu-buscar {
+  display: flex; align-items: center; gap: 6px; flex: 0 1 260px; min-width: 180px; height: 34px; margin: 0 0 0 auto; padding: 0 10px;
+  border: 1px solid var(--mx-line, #e2e8f0); border-radius: 8px; background: #fff; color: var(--mx-muted, #64748b);
+}
+.mu-shell .mu-buscar input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: .84rem; color: var(--mx-ink, #0f172a); }
+.mu-shell .mu-buscar:focus-within { border-color: var(--cv-blue, #2563eb); box-shadow: 0 0 0 3px rgb(37 99 235 / .12); }
+
+/* Motivo de la multa */
+.mu-shell .mu-motivo {
+  display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; font-weight: 600; color: var(--mx-ink, #0f172a);
+}
+.mu-shell .mu-motivo::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--cv-blue, #2563eb); }
+.mu-shell .mu-motivo.mesa::before { background: var(--cv-red, #e11d48); }
+.mu-shell .mu-nota { color: #92400e; }
+
+/* Formularios del Pleno, notificación, descargo y pago */
+.mu-shell .mu-form { border-left-color: var(--cv-blue, #2563eb); }
+.mu-shell .mu-pago { border-left-color: var(--cv-green, #059669); }
+.mu-shell .mu-form > .cq-chips { margin-bottom: 2px; }
+
+/* Totales por estado (Descargos y pagos) */
+.mu-shell .mu-estados { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.mu-shell .mu-estado {
+  display: grid; gap: 2px; padding: 12px 14px; text-align: left; cursor: pointer; font: inherit;
+  border: 1px solid var(--mx-line, #e2e8f0); border-top: 3px solid var(--mu-color); border-radius: 10px; background: #fff;
+  transition: box-shadow .15s, border-color .15s;
+}
+.mu-shell .mu-estado span { font-size: .72rem; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--mx-muted, #64748b); }
+.mu-shell .mu-estado strong { font-size: 1.35rem; color: var(--mx-ink, #0f172a); }
+.mu-shell .mu-estado small { font-size: .78rem; color: var(--mu-color); font-weight: 600; }
+.mu-shell .mu-estado:hover { box-shadow: 0 2px 8px rgb(15 23 42 / .06); }
+.mu-shell .mu-estado.on { border-color: var(--mu-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mu-color) 14%, transparent); }
+
+/* Reportes de gestión (RF107) */
+.mu-shell .mu-barra { width: 90px; --cq-color: var(--cv-blue, #2563eb); }
+.mu-shell .mu-dos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.mu-shell .mu-barras { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.mu-shell .mu-barras li { display: grid; grid-template-columns: 150px 1fr 40px; align-items: center; gap: 10px; font-size: .84rem; --mu-color: var(--cv-blue, #2563eb); }
+.mu-shell .mu-barras li > span { text-transform: capitalize; color: var(--mx-ink, #0f172a); }
+.mu-shell .mu-barras li > i { height: 8px; border-radius: 999px; background: var(--mx-line-soft, #f1f5f9); overflow: hidden; }
+.mu-shell .mu-barras li > i b { display: block; height: 100%; border-radius: inherit; background: var(--mu-color); }
+.mu-shell .mu-barras li > strong { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Mis multas (docente) */
+.mu-shell .mu-mias { display: grid; gap: 14px; }
+.mu-shell .mu-mia { border-left: 4px solid var(--mu-color, #d97706); }
+.mu-shell .mu-mia .mx-ficha-top h3 { font-size: 1rem; }
+.mu-shell .mu-total { display: flex; flex-wrap: wrap; gap: 12px; }
+
+@media (max-width: 1100px) {
+  .mu-shell .mu-parametros { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .mu-shell .mu-pasos, .mu-shell .mu-dos { grid-template-columns: 1fr; }
+  .mu-shell .mu-estados, .mu-shell .mu-parametros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mu-shell .mu-buscar { margin-left: 0; width: 100%; }
+  .mu-shell .mu-barras li { grid-template-columns: 110px 1fr 32px; }
+}

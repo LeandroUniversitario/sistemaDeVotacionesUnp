@@ -71,4 +71,10 @@ public class PublicoController {
     public Map<String, Object> verificarResolucionNulidad(@PathVariable String token) {
         return procesoService.verificarResolucionNulidad(token);
     }
+
+    /** Destino del QR de la resolución que determina las multas (CUS16): totales y huella, sin la relación de docentes. */
+    @GetMapping("/multas/{token}")
+    public Map<String, Object> verificarResolucionMultas(@PathVariable String token) {
+        return procesoService.verificarResolucionMultas(token);
+    }
 }

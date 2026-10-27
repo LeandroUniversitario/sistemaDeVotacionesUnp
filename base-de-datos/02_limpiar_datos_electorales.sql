@@ -51,6 +51,8 @@ TRUNCATE TABLE acta_electoral;
 
 -- 2. Vaciar resultados oficiales y multas generadas
 TRUNCATE TABLE resultado_electoral;
+TRUNCATE TABLE multa_justificacion;    -- CUS16 (omisos y multas)
+TRUNCATE TABLE reporte_multas;         -- CUS16
 TRUNCATE TABLE multa;
 
 -- 3. Vaciar observaciones e impugnaciones
