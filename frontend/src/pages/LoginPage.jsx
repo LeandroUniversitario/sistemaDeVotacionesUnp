@@ -106,6 +106,10 @@ export default function LoginPage({ onLogin }) {
             {loading ? 'Validando...' : 'Ingresar al Sistema'}
           </button>
         </form>
+        {/* CUS17 · Consultar resultados y verificar actas sin iniciar sesión */}
+        <button type="button" className="auth-portal-link" onClick={() => { window.location.href = '/resultados'; }}>
+          <MenuIcon name="qr" size={16} /> Consultar resultados y verificar actas
+        </button>
       </section>
     </main>
   );

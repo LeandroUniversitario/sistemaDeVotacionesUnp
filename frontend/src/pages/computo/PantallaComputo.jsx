@@ -968,7 +968,7 @@ export default function PantallaComputo({ session, onSessionExpired }) {
                 </div>
               </div>
               <div className="cv-actions cp-izq">
-                <a className="cv-btn cv-btn-ghost" href={`/api/publico/procesos/${proceso.id}/resultados`} target="_blank" rel="noreferrer">
+                <a className="cv-btn cv-btn-ghost" href={`/resultados?proceso=${proceso.id}`} target="_blank" rel="noreferrer">
                   <MenuIcon name="external" size={15} /> Ver en el portal
                 </a>
               </div>

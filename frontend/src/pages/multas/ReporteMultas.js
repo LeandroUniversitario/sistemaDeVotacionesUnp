@@ -5,11 +5,11 @@ import { esc, firmasPleno, imprimir } from '../computo/ActaComputo';
  * CUS16 · Impresiones de omisos y multas: reporte de omisos (RF103, RF104), resolución del
  * Pleno que determina las multas con QR (RN35, RN36), cédulas de notificación a cada docente,
  * resolución del descargo (RF106) y reporte de gestión por mesa (RF107). El QR de la resolución
- * apunta a /api/publico/multas/{token}, que recalcula el SHA-256 de su contenido. Usa el mismo
+ * apunta a /verificar/{token} (portal del CUS17), que recalcula el SHA-256 de su contenido. Usa el mismo
  * formato de hoja que las actas del CUS14 y las resoluciones del CUS15.
  */
 
-export const urlVerificacionMultas = (token) => `${window.location.origin}/api/publico/multas/${token}`;
+export const urlVerificacionMultas = (token) => `${window.location.origin}/verificar/${token}`;
 export const soles = (v) => `S/ ${Number(v ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const pct = (v) => `${Number(v ?? 0).toFixed(2)} %`;
 

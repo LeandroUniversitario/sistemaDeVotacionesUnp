@@ -5,7 +5,7 @@ import { urlVerificacionActa } from '../instalacion/ActaInstalacion';
  * CUS12 · Impresión del Acta de Escrutinio (RF85, RN28): los tres ejemplares para el CEUNP,
  * la ONPE y el local de votación (RF86), la copia simple para los personeros y el cargo de
  * entrega al CEUNP (RF87). El QR apunta a la verificación pública del acta
- * (/api/publico/actas/{token}), que recalcula el SHA-256 del contenido.
+ * (/verificar/{token}, portal del CUS17), que recalcula el SHA-256 del contenido.
  */
 
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

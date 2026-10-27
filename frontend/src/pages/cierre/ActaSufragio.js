@@ -3,7 +3,7 @@ import { urlVerificacionActa } from '../instalacion/ActaInstalacion';
 
 /**
  * CUS11 · Impresión del Acta de Sufragio (RF76, RN28) y de la lista NO VOTÓ (RF75).
- * El QR apunta a la verificación pública del acta (/api/publico/actas/{token}),
+ * El QR apunta a la verificación pública del acta (/verificar/{token}, portal del CUS17),
  * que recalcula el SHA-256 del contenido y lo compara con la huella guardada.
  */
 

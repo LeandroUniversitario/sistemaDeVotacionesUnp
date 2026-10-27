@@ -4,6 +4,7 @@ import { apiRequest } from './api/apiClient';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import CambiarPasswordObligatorioPage from './pages/CambiarPasswordObligatorioPage';
+import PortalResultados from './pages/resultados/PortalResultados';
 import './styles.css';
 
 /**
@@ -89,6 +90,9 @@ function App() {
   return <DashboardPage session={session} onLogout={handleLogout} />;
 }
 
+// CUS17 · Portal público (sin sesión): destino de los QR (/verificar/{token}) y resultados publicados (/resultados)
+const portalPublico = /^\/(verificar|resultados)(\/|$)/.test(window.location.pathname);
+
 createRoot(document.getElementById('root')).render(
-  <StrictMode><App /></StrictMode>,
+  <StrictMode>{portalPublico ? <PortalResultados /> : <App />}</StrictMode>,
 );

@@ -4,12 +4,12 @@ import { svgQR, fecha } from '../credenciales/LectorQR';
  * CUS14 · Impresiones del cómputo general: verificación previa de mesas y actas (RF89, RF90),
  * consolidado y resultados por mesa (RF92, RF99), acta general de sufragios con QR (RF92),
  * comunicación de la nulidad total (A1, RN34), resolución de proclamación con QR y credencial
- * de la lista ganadora (RF98). El QR apunta a /api/publico/computo/{token}, que recalcula el
+ * de la lista ganadora (RF98). El QR apunta a /verificar/{token} (portal del CUS17), que recalcula el
  * SHA-256 del contenido.
  */
 
 export const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-export const urlVerificacionComputo = (token) => `${window.location.origin}/api/publico/computo/${token}`;
+export const urlVerificacionComputo = (token) => `${window.location.origin}/verificar/${token}`;
 const pct = (v) => `${Number(v ?? 0).toFixed(2)} %`;
 
 export const ESTADO_RESULTADO = {
