@@ -15,3 +15,7 @@ dist/
 .idea/
 .vscode/
 *.bin
+
+# CUS18 · respaldos de la base (contienen datos personales y contraseñas cifradas)
+respaldos/
+**/respaldos/

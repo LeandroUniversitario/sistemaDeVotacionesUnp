@@ -34,3 +34,6 @@ app:
   security:
     jwt-secret: ${JWT_SECRET:change-this-development-secret-with-at-least-32-bytes}
     jwt-expiration: ${JWT_EXPIRATION:PT2H}
+  # CUS18 · carpeta donde el ADMIN genera los respaldos de la base (relativa a la carpeta del backend)
+  respaldo:
+    directorio: ${RESPALDO_DIR:respaldos}
