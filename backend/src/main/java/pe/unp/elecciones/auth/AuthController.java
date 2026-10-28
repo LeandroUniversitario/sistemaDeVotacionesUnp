@@ -8,10 +8,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -57,7 +55,8 @@ public class AuthController {
             }
             if (usuario.getBloqueadoHasta() != null && usuario.getBloqueadoHasta().isAfter(LocalDateTime.now())) {
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                        "Cuenta bloqueada temporalmente por demasiados intentos fallidos. Intente nuevamente en 15 minutos");
+                        "Cuenta bloqueada temporalmente por demasiados intentos fallidos. Intente nuevamente en "
+                                + usuarioService.parametroEntero("SEGURIDAD_BLOQUEO_MINUTOS", 15) + " minutos");
             }
         }
 
@@ -82,7 +81,9 @@ public class AuthController {
 
         } catch (BadCredentialsException exception) {
             if (usuario != null) {
-                usuario.registrarIntentoFallido();
+                // CUS18: intentos y minutos de bloqueo parametrizados
+                usuario.registrarIntentoFallido(usuarioService.parametroEntero("SEGURIDAD_INTENTOS_MAXIMOS", 5),
+                        usuarioService.parametroEntero("SEGURIDAD_BLOQUEO_MINUTOS", 15));
                 usuarioRepository.save(usuario);
                 auditoriaService.registrar(usuario.getId(), null, "LOGIN_FAILED",
                         requestHttp.getRemoteAddr(), requestHttp.getHeader("User-Agent"), null);
@@ -107,42 +108,14 @@ public class AuthController {
         usuarioService.cambiarPassword(authentication.getName(), request.passwordActual(), request.passwordNueva());
     }
 
+    /**
+     * Listado de cuentas (lo usa el resumen del ADMIN). La administración de las cuentas
+     * está en el CUS18: /api/administracion/usuarios (AdministracionController).
+     */
     @GetMapping("/users")
     @PreAuthorize("hasRole('ADMIN')")
     public List<UserResponse> users() {
         return usuarioService.listar().stream().map(AuthController::toResponse).toList();
-    }
-
-    @PostMapping("/users")
-    @PreAuthorize("hasRole('ADMIN')")
-    public UserResponse createUser(@Valid @RequestBody CreateUserRequest request) {
-        return toResponse(usuarioService.crear(new UsuarioService.CrearUsuarioRequest(
-                request.username(), request.password(), request.rol(), request.idDocente())));
-    }
-
-    @PatchMapping("/users/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
-    public UserResponse updateStatus(@PathVariable Integer id, @Valid @RequestBody StatusRequest request) {
-        return toResponse(usuarioService.cambiarEstado(id, request.activo()));
-    }
-
-    @PatchMapping("/users/{id}/rol")
-    @PreAuthorize("hasRole('ADMIN')")
-    public UserResponse updateRol(@PathVariable Integer id, @Valid @RequestBody RolRequest request,
-            Authentication authentication) {
-        return toResponse(usuarioService.cambiarRol(id, request.rol(), authentication.getName()));
-    }
-
-    @PatchMapping("/users/{id}/password")
-    @PreAuthorize("hasRole('ADMIN')")
-    public void resetPassword(@PathVariable Integer id, @Valid @RequestBody ResetPasswordRequest request) {
-        usuarioService.restablecerPassword(id, request.password());
-    }
-
-    @DeleteMapping("/users/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public void deleteUser(@PathVariable Integer id, Authentication authentication) {
-        usuarioService.eliminar(id, authentication.getName());
     }
 
     private static UserResponse toResponse(Usuario u) {
@@ -158,16 +131,6 @@ public class AuthController {
     public record LoginResponse(String token, String username, String rol, boolean debeCambiarPassword) {}
 
     public record MeResponse(Integer id, String username, String rol, Integer idDocente, boolean debeCambiarPassword) {}
-
-    public record CreateUserRequest(
-            @NotBlank String username,
-            @NotBlank String password,
-            @jakarta.validation.constraints.NotNull Rol rol,
-            Integer idDocente) {}
-
-    public record StatusRequest(boolean activo) {}
-    public record RolRequest(@jakarta.validation.constraints.NotNull Rol rol) {}
-    public record ResetPasswordRequest(@NotBlank String password) {}
 
     public record ChangePasswordRequest(
             @NotBlank String passwordActual,

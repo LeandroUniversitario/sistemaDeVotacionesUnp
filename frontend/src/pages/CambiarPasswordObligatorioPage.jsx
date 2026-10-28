@@ -2,7 +2,8 @@
 import MenuIcon from '../components/MenuIcon';
 
 /**
- * Pantalla de cambio de contraseña OBLIGATORIO para docentes importados masivamente.
+ * Pantalla de cambio de contraseña OBLIGATORIO para docentes importados masivamente y para las
+ * cuentas que el Admin crea o restablece con una contraseña provisional (CUS18).
  *
  * Se muestra ANTES del dashboard cuando debeCambiarPassword === true.
  * El docente no puede saltarse esta pantalla: el backend limpia el flag
@@ -31,7 +32,7 @@ export default function CambiarPasswordObligatorioPage({ token, username, onCamb
       return;
     }
     if (form.passwordActual === form.passwordNueva) {
-      setError('La nueva contraseña no puede ser igual a la anterior (tu DNI).');
+      setError('La nueva contraseña no puede ser igual a la provisional.');
       return;
     }
 
@@ -75,10 +76,10 @@ export default function CambiarPasswordObligatorioPage({ token, username, onCamb
           Bienvenido/a, <strong>{username}</strong>
         </p>
         <p className="auth-university" style={{ fontSize: 13, marginBottom: 20 }}>
-          Tu cuenta fue creada automáticamente. Por seguridad, debes
+          Tu contraseña actual es provisional. Por seguridad, debes
           establecer una contraseña personal antes de continuar.
           <br />
-          <em>Tu contraseña provisional es tu DNI de 8 dígitos.</em>
+          <em>Es la que te entregó el administrador o, si tu cuenta se creó al importar el padrón, tu DNI.</em>
         </p>
 
         {error && (
@@ -90,7 +91,7 @@ export default function CambiarPasswordObligatorioPage({ token, username, onCamb
         <form className="login-form" onSubmit={handleSubmit}>
           {/* Contraseña actual (DNI) */}
           <div className="login-field">
-            <label htmlFor="ocp-actual">Contraseña actual (tu DNI)</label>
+            <label htmlFor="ocp-actual">Contraseña provisional</label>
             <span className="input-with-icon">
               <MenuIcon name="lock" />
               <input
@@ -115,7 +116,7 @@ export default function CambiarPasswordObligatorioPage({ token, username, onCamb
 
           {/* Nueva contraseña */}
           <div className="login-field">
-            <label htmlFor="ocp-nueva">Nueva contraseña (mín. 8 caracteres)</label>
+            <label htmlFor="ocp-nueva">Nueva contraseña (mín. 8 caracteres, letras y números)</label>
             <span className="input-with-icon">
               <MenuIcon name="lock" />
               <input

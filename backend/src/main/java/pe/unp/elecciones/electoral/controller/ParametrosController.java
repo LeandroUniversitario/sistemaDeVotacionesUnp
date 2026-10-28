@@ -1,19 +1,18 @@
 package pe.unp.elecciones.electoral.controller;
 
 import jakarta.annotation.PostConstruct;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 import pe.unp.elecciones.electoral.domain.ParametroGlobal;
 import pe.unp.elecciones.electoral.repository.ParametroGlobalRepository;
-import pe.unp.elecciones.electoral.service.AuditoriaService;
 
-import jakarta.servlet.http.HttpServletRequest;
-import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
+/**
+ * Lista los parámetros globales. Su modificación es del CUS18 (PUT /api/administracion/parametros/{clave},
+ * ActualizarParametros): valida el tipo y el rango, bloquea los de la jornada durante la votación,
+ * exige el motivo y guarda el historial.
+ */
 @RestController
 @RequestMapping("/api/parametros")
 public class ParametrosController {
@@ -23,11 +22,9 @@ public class ParametrosController {
     private static final String MULTA_MIEMBRO    = "MULTA_MIEMBRO_MESA_OMISO_PCT";
 
     private final ParametroGlobalRepository repo;
-    private final AuditoriaService auditoria;
 
-    public ParametrosController(ParametroGlobalRepository repo, AuditoriaService auditoria) {
-        this.repo     = repo;
-        this.auditoria = auditoria;
+    public ParametrosController(ParametroGlobalRepository repo) {
+        this.repo = repo;
     }
 
     /** Inicializa los parámetros con valores por defecto si no existen */
@@ -51,63 +48,6 @@ public class ParametrosController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public List<ParametroGlobal> listar() {
-        return repo.findAll();
-    }
-
-    /** PUT /api/parametros — actualiza uno o más parámetros con trazabilidad */
-    @PutMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public List<ParametroGlobal> actualizar(
-            @RequestBody Map<String, String> cambios,
-            HttpServletRequest httpRequest) {
-
-        for (Map.Entry<String, String> entry : cambios.entrySet()) {
-            String clave = entry.getKey();
-            String valor = entry.getValue();
-
-            ParametroGlobal param = repo.findById(clave)
-                .orElseThrow(() -> new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Parámetro desconocido: " + clave));
-
-            // Validación numérica
-            try {
-                BigDecimal bd = new BigDecimal(valor);
-                if (bd.compareTo(BigDecimal.ZERO) < 0) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "El valor de " + clave + " no puede ser negativo");
-                }
-                // Porcentajes: máximo 100
-                if ((clave.equals(MULTA_ELECTOR) || clave.equals(MULTA_MIEMBRO))
-                        && bd.compareTo(new BigDecimal("100")) > 0) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "El porcentaje de " + clave + " no puede superar 100");
-                }
-                // CUS08 · horario de instalación (horas del día) y control horario (0 o 1)
-                if (clave.startsWith("INSTALACION_HORA_") && bd.compareTo(new BigDecimal("24")) >= 0) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "La hora de " + clave + " debe estar entre 0 y 23.99");
-                }
-                if (clave.equals("INSTALACION_CONTROL_HORARIO")
-                        && bd.compareTo(BigDecimal.ZERO) != 0 && bd.compareTo(BigDecimal.ONE) != 0) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "INSTALACION_CONTROL_HORARIO solo admite 1 (exigir horario) o 0 (sin control)");
-                }
-            } catch (NumberFormatException e) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "El valor de " + clave + " debe ser numérico");
-            }
-
-            String valorAnterior = param.getValor();
-            param.setValor(valor);
-            repo.save(param);
-
-            // Bitácora inmutable del cambio
-            auditoria.registrar(null, null, "CAMBIO_PARAMETRO",
-                httpRequest.getRemoteAddr(), httpRequest.getHeader("User-Agent"),
-                String.format("{\"clave\":\"%s\",\"anterior\":\"%s\",\"nuevo\":\"%s\"}",
-                    clave, valorAnterior, valor));
-        }
-
         return repo.findAll();
     }
 }

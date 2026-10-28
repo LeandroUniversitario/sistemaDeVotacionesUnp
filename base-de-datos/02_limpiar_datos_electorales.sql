@@ -12,6 +12,7 @@
 --   - Padrón maestro de Docentes reales
 --   - Cuentas de Usuarios y sus contraseñas (admin, CEUNP, etc.)
 --   - Parámetros Globales (UIT, porcentajes de multas, etc.)
+--   - Historial de parámetros y registro de respaldos de la base (CUS18)
 --   - Catálogo de Cargos Excluidos de Sorteo (RN20)
 --
 -- USO:
@@ -82,6 +83,9 @@ TRUNCATE TABLE sesion_activa;
 TRUNCATE TABLE log_auditoria;
 
 -- 8. Eliminar docentes temporales de prueba (si se ejecutó sp_demo_flujo_completo con DNIs 9xxxxxxx)
+--    y las cuentas que el administrador les creó (CUS18), para no dejar cuentas sin docente
+DELETE FROM usuario WHERE rol <> 'ADMIN'
+   AND id_docente IN (SELECT id_docente FROM docente WHERE dni REGEXP '^9[0-9]{7}$');
 DELETE FROM docente WHERE dni REGEXP '^9[0-9]{7}$';
 
 -- 9. Normalizar estado de sufragio de los docentes reales (RN03: ACTIVO = 1, otros = 0)

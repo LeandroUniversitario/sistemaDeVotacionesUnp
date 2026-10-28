@@ -64,23 +64,16 @@ public class Usuario {
         this.debeCambiarPassword = false;
     }
 
-    void cambiarEstado(boolean activo) {
-        this.activo = activo;
-    }
-
     void cambiarPassword(String passwordHash) {
         this.passwordHash = passwordHash;
         this.debeCambiarPassword = false; // limpia el flag al cambiar la clave
     }
 
-    void cambiarRol(Rol nuevoRol) {
-        this.rol = nuevoRol;
-    }
-
-    public void registrarIntentoFallido() {
+    /** CUS18: intentos y minutos de bloqueo salen de los parámetros SEGURIDAD_INTENTOS_MAXIMOS y SEGURIDAD_BLOQUEO_MINUTOS. */
+    public void registrarIntentoFallido(int intentosMaximos, int minutosBloqueo) {
         this.intentosFallidos++;
-        if (this.intentosFallidos >= 5) {
-            this.bloqueadoHasta = LocalDateTime.now().plusMinutes(15);
+        if (this.intentosFallidos >= intentosMaximos) {
+            this.bloqueadoHasta = LocalDateTime.now().plusMinutes(minutosBloqueo);
         }
     }
 

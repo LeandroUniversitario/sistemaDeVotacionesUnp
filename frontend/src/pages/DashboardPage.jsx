@@ -3,13 +3,11 @@ import { apiRequest } from '../api/apiClient';
 import MenuIcon from '../components/MenuIcon';
 import ProcessTable from '../components/ProcessTable';
 import DocentesPage from './DocentesPage';
-import UsuariosPage from './UsuariosPage';
 import CuentaPage from './CuentaPage';
 import MiembroMesaPage from './MiembroMesaPage';
 import PantallaVerificacion from './votacion/PantallaVerificacion';
 import TerminalVotacion from './votacion/TerminalVotacion';
 import ImportarDocentesPage from './ImportarDocentesPage';
-import ParametrosPage from './ParametrosPage';
 import BitacoraPage from './BitacoraPage';
 import CargosExcluidosPage from './CargosExcluidosPage';
 import ConvocatoriaPage from './convocatoria/ConvocatoriaPage';
@@ -31,14 +29,15 @@ import PantallaMultas from './multas/PantallaMultas';
 import MisMultas from './multas/MisMultas';
 import PantallaEscrutinio from './escrutinio/PantallaEscrutinio';
 import PantallaResultados from './resultados/PantallaResultados';
+import PantallaAdministrador from './administracion/PantallaAdministrador';
 
 // ─── Mapas de iconos por sección ─────────────────────────────────────────
 const MENU_ICONS = {
   resumen: 'dashboard', procesos: 'calendar', docentes: 'users',
-  candidaturas: 'list', tachas: 'shield', usuarios: 'user',
+  candidaturas: 'list', tachas: 'shield', administracion: 'users',
   nuevo: 'plus', configuracion: 'settings', cuenta: 'user',
   mesa: 'shield', terminal: 'person', sorteos: 'list',
-  parametros: 'settings', bitacora: 'shield',
+  bitacora: 'shield',
 };
 
 // ─── Menú por rol con categorías estilo CampaignHub ───────────────────────
@@ -46,8 +45,7 @@ const MENU_POR_ROL = {
   ADMIN: [
     { group: 'WORKSPACE' },
     { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6' },
-    { key: 'usuarios', label: 'Usuarios', icon: 'users', color: '#ef4444' },
-    { key: 'parametros', label: 'Parámetros', icon: 'settings', color: '#6366f1' },
+    { key: 'administracion', label: 'Usuarios y parámetros', icon: 'users', color: '#ef4444' },
     { key: 'cargos-excluidos', label: 'Excepciones Sorteo', icon: 'shield', color: '#f43f5e' },
     { key: 'bitacora', label: 'Bitácora', icon: 'eye', color: '#14b8a6' },
     { key: 'resultados', label: 'Resultados y actas', icon: 'trophy', color: '#059669' },
@@ -120,13 +118,12 @@ const SECTION_TITLES = {
   computo: 'Computar y proclamar resultados (CUS14)',
   nulidades: 'Gestionar nulidades y segunda vuelta (CUS15)',
   impugnaciones: 'Impugnaciones y apelaciones (CUS13)',
-  usuarios: 'Usuarios del sistema',
+  administracion: 'Administrar usuarios y parámetros (CUS18)',
   cuenta: 'Configuración de mi cuenta',
   mesa: 'Mi Mesa de Sufragio',
   terminal: 'Terminal de votación (CUS10)',
   sorteos: 'Sorteos: miembros de mesa y cédula',
   'importar-docentes': 'Importar Padrón de Docentes',
-  parametros: 'Parámetros globales',
   'cargos-excluidos': 'Excepciones de Sorteo (RN20)',
   bitacora: 'Bitácora de auditoría',
   multas: 'Reportar omisos y multas (CUS16)',
@@ -369,12 +366,12 @@ export default function DashboardPage({ session, onLogout }) {
               <div className="panel-heading">
                 <div>
                   <h2>Panel de administración</h2>
-                  <p className="muted">Gestión de usuarios, roles, parámetros del sistema y auditoría.</p>
+                  <p className="muted">Gestión de usuarios, roles, parámetros del sistema, respaldos y auditoría.</p>
                 </div>
-                <button className="text-button" onClick={() => setSection('usuarios')}>Gestionar usuarios</button>
+                <button className="text-button" onClick={() => setSection('administracion')}>Gestionar usuarios y parámetros</button>
               </div>
               <p style={{ padding: '1.5rem', color: 'var(--text-muted)', fontSize: 14 }}>
-                Desde este panel puedes administrar las cuentas de acceso al sistema, configurar parámetros globales (multas, UIT, plazos) y revisar la bitácora de auditoría con todas las acciones registradas.
+                Desde este panel puedes administrar las cuentas de acceso al sistema, configurar parámetros globales (multas, UIT, plazos), generar respaldos de la base y revisar la bitácora de auditoría con todas las acciones registradas.
               </p>
             </section>
           </>
@@ -477,18 +474,13 @@ export default function DashboardPage({ session, onLogout }) {
         {/* CUS06 · Realizar sorteos (CEUNP) */}
         {section === 'sorteos' && canManage && <SorteoMesaPage onSessionExpired={onLogout} />}
 
-        {/* Usuarios */}
-        {section === 'usuarios' && session.rol === 'ADMIN' && (
-          <UsuariosPage teachers={teachers} onSessionExpired={onLogout} />
+        {/* CUS18 · Administrar usuarios y parámetros (Admin) */}
+        {section === 'administracion' && isAdmin && (
+          <PantallaAdministrador session={session} onSessionExpired={onLogout} />
         )}
 
         {/* Cuenta */}
         {section === 'cuenta' && <CuentaPage onSessionExpired={onLogout} />}
-
-        {/* Parámetros globales — ETAPA 2 */}
-        {section === 'parametros' && session.rol === 'ADMIN' && (
-          <ParametrosPage onSessionExpired={onLogout} />
-        )}
 
         {/* Cargos excluidos */}
         {section === 'cargos-excluidos' && (isAdmin || canManage) && (
