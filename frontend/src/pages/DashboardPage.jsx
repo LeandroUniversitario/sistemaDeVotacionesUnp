@@ -8,7 +8,6 @@ import MiembroMesaPage from './MiembroMesaPage';
 import PantallaVerificacion from './votacion/PantallaVerificacion';
 import TerminalVotacion from './votacion/TerminalVotacion';
 import ImportarDocentesPage from './ImportarDocentesPage';
-import BitacoraPage from './BitacoraPage';
 import CargosExcluidosPage from './CargosExcluidosPage';
 import ConvocatoriaPage from './convocatoria/ConvocatoriaPage';
 import PadronPage from './padron/PadronPage';
@@ -30,6 +29,7 @@ import MisMultas from './multas/MisMultas';
 import PantallaEscrutinio from './escrutinio/PantallaEscrutinio';
 import PantallaResultados from './resultados/PantallaResultados';
 import PantallaAdministrador from './administracion/PantallaAdministrador';
+import PantallaBitacora from './bitacora/PantallaBitacora';
 
 // ─── Mapas de iconos por sección ─────────────────────────────────────────
 const MENU_ICONS = {
@@ -125,7 +125,7 @@ const SECTION_TITLES = {
   sorteos: 'Sorteos: miembros de mesa y cédula',
   'importar-docentes': 'Importar Padrón de Docentes',
   'cargos-excluidos': 'Excepciones de Sorteo (RN20)',
-  bitacora: 'Bitácora de auditoría',
+  bitacora: 'Consultar bitácora (CUS19)',
   multas: 'Reportar omisos y multas (CUS16)',
   resultados: 'Consultar resultados y verificar actas (CUS17)',
   'mis-multas': 'Mis multas electorales',
@@ -487,9 +487,9 @@ export default function DashboardPage({ session, onLogout }) {
           <CargosExcluidosPage canManage={isAdmin || canManage} onSessionExpired={onLogout} />
         )}
 
-        {/* Bitácora / Auditoría */}
-        {section === 'bitacora' && session.rol === 'ADMIN' && (
-          <BitacoraPage onSessionExpired={onLogout} />
+        {/* CUS19 · Consultar bitácora (Admin) */}
+        {section === 'bitacora' && isAdmin && (
+          <PantallaBitacora session={session} onSessionExpired={onLogout} />
         )}
 
         {/* Mesa */}

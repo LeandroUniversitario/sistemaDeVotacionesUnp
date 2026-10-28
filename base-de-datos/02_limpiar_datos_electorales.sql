@@ -13,6 +13,8 @@
 --   - Cuentas de Usuarios y sus contraseñas (admin, CEUNP, etc.)
 --   - Parámetros Globales (UIT, porcentajes de multas, etc.)
 --   - Historial de parámetros y registro de respaldos de la base (CUS18)
+--   - Catálogo de acciones de la bitácora (CUS19). La bitácora se vacía y su cadena de sellos
+--     empieza de nuevo con el registro REINICIAR_BITACORA.
 --   - Catálogo de Cargos Excluidos de Sorteo (RN20)
 --
 -- USO:
@@ -81,6 +83,26 @@ TRUNCATE TABLE proceso_electoral;
 -- 7. Limpiar sesiones activas y bitácora de auditoría
 TRUNCATE TABLE sesion_activa;
 TRUNCATE TABLE log_auditoria;
+
+-- 7b. CUS19: la cadena de sellos de la bitácora vuelve a empezar y el reinicio queda como su primer
+--     registro (REINICIAR_BITACORA), para que la verificación lo distinga de un borrado.
+DROP PROCEDURE IF EXISTS sp_tmp_cus19_reiniciar;
+DELIMITER $$
+CREATE PROCEDURE sp_tmp_cus19_reiniciar()
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables
+              WHERE table_schema = DATABASE() AND table_name = 'bitacora_cadena') THEN
+    DELETE FROM bitacora_cadena;
+    INSERT INTO bitacora_cadena (id_cadena, ultimo_id_log, ultimo_hash, total_registros)
+    VALUES (1, NULL, REPEAT('0', 64), 0);
+  END IF;
+  INSERT INTO log_auditoria (id_usuario, accion, detalle_json)
+  VALUES (NULL, 'REINICIAR_BITACORA',
+          JSON_OBJECT('script', '02_limpiar_datos_electorales.sql', 'usuario_bd', CURRENT_USER()));
+END$$
+DELIMITER ;
+CALL sp_tmp_cus19_reiniciar();
+DROP PROCEDURE IF EXISTS sp_tmp_cus19_reiniciar;
 
 -- 8. Eliminar docentes temporales de prueba (si se ejecutó sp_demo_flujo_completo con DNIs 9xxxxxxx)
 --    y las cuentas que el administrador les creó (CUS18), para no dejar cuentas sin docente
