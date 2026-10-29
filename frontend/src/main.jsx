@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import CambiarPasswordObligatorioPage from './pages/CambiarPasswordObligatorioPage';
 import PortalResultados from './pages/resultados/PortalResultados';
+import CredencialPublica from './pages/credenciales/CredencialPublica';
 import './styles.css';
 
 /**
@@ -92,7 +93,9 @@ function App() {
 
 // CUS17 · Portal público (sin sesión): destino de los QR (/verificar/{token}) y resultados publicados (/resultados)
 const portalPublico = /^\/(verificar|resultados)(\/|$)/.test(window.location.pathname);
+// CUS07 · Destino del QR de una credencial (/credencial/{código}): datos del titular, sin sesión
+const credencialPublica = window.location.pathname.startsWith('/credencial/');
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>{portalPublico ? <PortalResultados /> : <App />}</StrictMode>,
+  <StrictMode>{credencialPublica ? <CredencialPublica /> : portalPublico ? <PortalResultados /> : <App />}</StrictMode>,
 );

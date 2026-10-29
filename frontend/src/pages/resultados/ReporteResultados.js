@@ -1,5 +1,6 @@
 import { svgQR, fecha } from '../credenciales/LectorQR';
 import { esc, imprimir, ESTADO_RESULTADO } from '../computo/ActaComputo';
+import { urlPublica } from '../../lib/urlPublica';
 
 /**
  * CUS17 · Impresiones de la consulta de resultados y de la verificación de actas: resultados
@@ -11,8 +12,8 @@ import { esc, imprimir, ESTADO_RESULTADO } from '../computo/ActaComputo';
  * consulta /api/publico/verificacion/{token} y recalcula el SHA-256 del documento.
  */
 
-export const urlVerificacion = (codigo) => `${window.location.origin}/verificar/${codigo}`;
-export const urlResultados = (idProceso) => `${window.location.origin}/resultados${idProceso ? `?proceso=${idProceso}` : ''}`;
+export const urlVerificacion = (codigo) => urlPublica(`/verificar/${codigo}`);
+export const urlResultados = (idProceso) => urlPublica(`/resultados${idProceso ? `?proceso=${idProceso}` : ''}`);
 export const pct = (v) => `${Number(v ?? 0).toFixed(2)} %`;
 
 export const TIPO_DOCUMENTO = {

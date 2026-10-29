@@ -69,3 +69,22 @@ Los menús «Mi pase de votación QR» (DOCENTE), «Fotocheck QR» (MIEMBRO_MESA
 3. Pestaña «Verificar QR»: escanear un pase (o pegar su contenido) → «Credencial válida».
 4. «Reemitir» a ese docente y volver a leer el QR anterior → «Credencial revocada».
 5. Entrar como docente → «Mi pase de votación QR» → muestra la credencial vigente y permite generar otra.
+
+## Verificación pública al escanear el QR
+
+Desde esta versión el QR de cada credencial (pase de votación, fotocheck de miembro de mesa y
+credencial de personero) contiene una URL: `http://<servidor>/credencial/SICEUNP-<letra>-<token>`.
+
+- **Con la cámara de cualquier celular** se abre la página pública `CredencialPublica.jsx`, que consulta
+  `GET /api/publico/credenciales/{código}` (sin inicio de sesión) y muestra si la credencial es válida,
+  revocada o vencida, el nombre del titular, su DNI parcial (solo los 3 últimos dígitos), categoría,
+  facultad, su función (cargo en la mesa, lista y cargo del personero), la mesa y el local, el proceso,
+  su etapa y las fechas de emisión y vencimiento.
+- La consulta pública **no cuenta como uso** de la credencial ni revela si el elector ya votó; queda en la
+  bitácora con la acción `CONSULTA_PUBLICA_CREDENCIAL`.
+- **La pistola lectora y el lector del sistema** siguen funcionando: el servidor extrae el código
+  `SICEUNP…` de la URL (y sigue aceptando los QR antiguos `SICEUNP|E|<token>`).
+- Para que el celular pueda abrir la página, el QR no puede apuntar a `localhost`: en desarrollo Vite
+  escucha en la red local y los QR usan la IP de la PC; en un despliegue se fija la dirección con
+  `VITE_URL_PUBLICA` en `frontend/.env.local` (ver `frontend/.env.example`). Esto aplica también a los QR
+  de actas y resoluciones.

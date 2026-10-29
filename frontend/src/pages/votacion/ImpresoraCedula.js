@@ -1,4 +1,5 @@
 import { svgQR } from '../credenciales/LectorQR';
+import { urlPublica } from '../../lib/urlPublica';
 
 /**
  * CUS10 · «ImpresoraCedula» (boundary).
@@ -54,7 +55,7 @@ export function imprimirCedula({ proceso, mesa, cedula }) {
 
 /** Constancia de participación (la entrega la mesa; no dice por quién votó). */
 export function imprimirConstancia(constancia) {
-  const url = (token) => `${window.location.origin}/verificar/${token}`;
+  const url = (token) => urlPublica(`/verificar/${token}`);
   const qrs = constancia.cargos.map((c) => `
     <div class="qr"><strong>${esc(c.cargo)}</strong>${svgQR(url(c.token), { title: `Constancia de ${c.cargo}` })}</div>`).join('');
   return imprimirHtml('Constancia de sufragio', `

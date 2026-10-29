@@ -9,7 +9,7 @@
 -- No hace falta importar ningún otro script después de este.
 --
 -- Contenido: 56 tablas, 10 funciones, 79 triggers, 35 vistas, 79 procedimientos
--- (+ sp_demo_flujo_completo opcional), 17 parámetros con su catálogo, 96 acciones
+-- (+ sp_demo_flujo_completo opcional), 17 parámetros con su catálogo, 97 acciones
 -- de bitácora, usuario admin, 14 facultades y 44 departamentos académicos.
 --
 -- Cada tabla se crea una sola vez con todas sus columnas, claves e índices, y cada
@@ -9571,6 +9571,7 @@ INSERT INTO bitacora_accion (codigo, etiqueta, descripcion, modulo, caso_uso, cr
   ('EMITIR_CREDENCIAL',              'Credencial QR emitida',                 'Emisión de una credencial con código QR.', 'PREPARACION', 'CUS07', 'BAJA', 240),
   ('REVOCAR_CREDENCIAL',             'Credencial QR revocada',                'La credencial deja de ser válida.', 'PREPARACION', 'CUS07', 'ALTA', 250),
   ('VERIFICAR_CREDENCIAL',           'Credencial QR verificada',              'Lectura y comprobación de una credencial.', 'PREPARACION', 'CUS07', 'BAJA', 260),
+  ('CONSULTA_PUBLICA_CREDENCIAL',    'Credencial QR consultada (pública)',    'Apertura de la página pública de una credencial al escanear su QR.', 'PREPARACION', 'CUS07', 'BAJA', 261),
   ('RECIBIR_CREDENCIAL_PERSONERO',   'Credencial de personero recibida',      'El personero recibió su credencial.', 'PREPARACION', 'CUS07', 'BAJA', 270),
   -- Jornada electoral (CUS08-CUS11)
   ('REGISTRAR_LLEGADA_MIEMBRO',      'Llegada de miembro de mesa',            'Registro de la hora de llegada del miembro.', 'JORNADA', 'CUS08', 'BAJA', 10),

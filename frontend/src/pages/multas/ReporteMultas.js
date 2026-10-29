@@ -1,5 +1,6 @@
 import { svgQR, fecha } from '../credenciales/LectorQR';
 import { esc, firmasPleno, imprimir } from '../computo/ActaComputo';
+import { urlPublica } from '../../lib/urlPublica';
 
 /**
  * CUS16 · Impresiones de omisos y multas: reporte de omisos (RF103, RF104), resolución del
@@ -9,7 +10,7 @@ import { esc, firmasPleno, imprimir } from '../computo/ActaComputo';
  * formato de hoja que las actas del CUS14 y las resoluciones del CUS15.
  */
 
-export const urlVerificacionMultas = (token) => `${window.location.origin}/verificar/${token}`;
+export const urlVerificacionMultas = (token) => urlPublica(`/verificar/${token}`);
 export const soles = (v) => `S/ ${Number(v ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const pct = (v) => `${Number(v ?? 0).toFixed(2)} %`;
 

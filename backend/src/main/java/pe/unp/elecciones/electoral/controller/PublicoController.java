@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import pe.unp.elecciones.electoral.credenciales.VerificarCredencial;
 import pe.unp.elecciones.electoral.resultados.ConsultarResultados;
 import pe.unp.elecciones.electoral.resultados.VerificarActa;
 import pe.unp.elecciones.electoral.service.ProcesoService;
@@ -26,12 +27,14 @@ public class PublicoController {
     private final ProcesoService procesoService;
     private final ConsultarResultados consultarResultados;
     private final VerificarActa verificarActa;
+    private final VerificarCredencial verificarCredencial;
 
     public PublicoController(ProcesoService procesoService, ConsultarResultados consultarResultados,
-            VerificarActa verificarActa) {
+            VerificarActa verificarActa, VerificarCredencial verificarCredencial) {
         this.procesoService = procesoService;
         this.consultarResultados = consultarResultados;
         this.verificarActa = verificarActa;
+        this.verificarCredencial = verificarCredencial;
     }
 
     /** Destino del QR de la constancia de voto. */
@@ -105,5 +108,11 @@ public class PublicoController {
     @GetMapping("/verificacion/{codigo}")
     public Map<String, Object> verificarDocumento(@PathVariable String codigo, HttpServletRequest request) {
         return verificarActa.verificar(codigo, "PORTAL", null, request.getRemoteAddr());
+    }
+
+    /** CUS07 · Destino del QR de una credencial (pase, fotocheck, personero): titular y vigencia. */
+    @GetMapping("/credenciales/{codigo}")
+    public Map<String, Object> verificarCredencial(@PathVariable String codigo) {
+        return verificarCredencial.consultarPublica(codigo);
     }
 }

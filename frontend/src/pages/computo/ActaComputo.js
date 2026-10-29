@@ -1,4 +1,5 @@
 import { svgQR, fecha } from '../credenciales/LectorQR';
+import { urlPublica } from '../../lib/urlPublica';
 
 /**
  * CUS14 · Impresiones del cómputo general: verificación previa de mesas y actas (RF89, RF90),
@@ -9,7 +10,7 @@ import { svgQR, fecha } from '../credenciales/LectorQR';
  */
 
 export const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-export const urlVerificacionComputo = (token) => `${window.location.origin}/verificar/${token}`;
+export const urlVerificacionComputo = (token) => urlPublica(`/verificar/${token}`);
 const pct = (v) => `${Number(v ?? 0).toFixed(2)} %`;
 
 export const ESTADO_RESULTADO = {

@@ -1,4 +1,5 @@
 import { svgQR, fecha } from '../credenciales/LectorQR';
+import { urlPublica } from '../../lib/urlPublica';
 
 /**
  * CUS08 · Impresión del Acta de Instalación (RN28).
@@ -18,7 +19,7 @@ const MATERIAL = {
 };
 const ESTADO = { CONFORME: 'Conforme', OBSERVADO: 'Observado', NO_RECIBIDO: 'No recibido' };
 
-export const urlVerificacionActa = (token) => `${window.location.origin}/verificar/${token}`;
+export const urlVerificacionActa = (token) => urlPublica(`/verificar/${token}`);
 
 export function imprimirActaInstalacion(acta, mesa, token) {
   const c = acta.contenido ?? {};

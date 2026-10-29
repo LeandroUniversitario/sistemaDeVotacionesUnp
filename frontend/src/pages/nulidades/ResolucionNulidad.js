@@ -1,5 +1,6 @@
 import { svgQR, fecha } from '../credenciales/LectorQR';
 import { esc, firmasPleno, imprimir } from '../computo/ActaComputo';
+import { urlPublica } from '../../lib/urlPublica';
 
 /**
  * CUS15 · Impresiones de nulidades y segunda vuelta: cargo de recepción del recurso,
@@ -9,7 +10,7 @@ import { esc, firmasPleno, imprimir } from '../computo/ActaComputo';
  * el SHA-256 de su contenido. Usa el mismo formato de hoja que las actas del CUS14.
  */
 
-export const urlVerificacionNulidad = (token) => `${window.location.origin}/verificar/${token}`;
+export const urlVerificacionNulidad = (token) => urlPublica(`/verificar/${token}`);
 const pct = (v) => `${Number(v ?? 0).toFixed(2)} %`;
 
 export const CAUSAL = {

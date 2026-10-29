@@ -31,9 +31,15 @@ public class VerificarCredencial {
      * Formato {@code SICEUNP|E|<64 hex>}. Las pistolas lectoras escriben como un teclado y,
      * según la distribución del teclado, el separador "|" puede llegar cambiado o perderse:
      * por eso se acepta cualquier carácter (o ninguno) como separador y sin distinguir mayúsculas.
+     * Los QR nuevos llevan ese código dentro de una URL ({@code https://.../credencial/SICEUNP-E-<token>})
+     * para que un celular abra la página pública; se acepta cualquier prefijo antes de SICEUNP.
      */
     private static final Pattern FORMATO = Pattern.compile(
-            "^\\s*SICEUNP.?([EMP]).?([0-9A-F]{64})\\s*$", Pattern.CASE_INSENSITIVE);
+            "^.*?SICEUNP.?([EMP]).?([0-9A-F]{64})[/?#]?\\s*$", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+
+    /** Datos del titular que puede ver cualquiera que escanee el QR (sin el estado de su voto). */
+    private static final List<String> CAMPOS_PUBLICOS = List.of("nombre", "categoria", "facultad", "funcion",
+            "rol", "numeroMesa", "ubicacion", "tipoPersonero", "lista", "cargo");
 
     private final ProcedimientoDao dao;
     private final CredencialesConsulta consulta;
@@ -45,11 +51,50 @@ public class VerificarCredencial {
         this.bitacora = bitacora;
     }
 
+    /** Lectura en la jornada (CEUNP o miembro de mesa): cuenta la lectura válida como uso. */
     public Map<String, Object> verificar(String codigo, Integer idUsuario) {
+        return comprobar(codigo, idUsuario, true, "VERIFICAR_CREDENCIAL");
+    }
+
+    /**
+     * Página pública que abre el celular al escanear el QR: muestra quién es el titular, su función
+     * en el proceso y si la credencial sigue siendo válida. No cuenta como uso, no revela el DNI
+     * completo ni si el elector ya votó, y queda en la bitácora como consulta pública.
+     */
+    public Map<String, Object> consultarPublica(String codigo) {
+        Map<String, Object> respuesta = comprobar(codigo, null, false, "CONSULTA_PUBLICA_CREDENCIAL");
+        Map<String, Object> publica = new LinkedHashMap<>();
+        publica.put("valida", respuesta.get("valida"));
+        publica.put("resultado", respuesta.get("resultado"));
+        publica.put("mensaje", respuesta.get("mensaje"));
+        if (respuesta.get("credencial") instanceof Map<?, ?> credencial) {
+            Map<String, Object> datos = new LinkedHashMap<>();
+            for (String campo : List.of("id", "tipo", "titulo", "estado", "fechaEmision", "fechaExpiracion")) {
+                datos.put(campo, credencial.get(campo));
+            }
+            publica.put("credencial", datos);
+        }
+        if (respuesta.get("proceso") != null) {
+            publica.put("proceso", respuesta.get("proceso"));
+        }
+        if (respuesta.get("titular") instanceof Map<?, ?> titular) {
+            Map<String, Object> datos = new LinkedHashMap<>();
+            for (String campo : CAMPOS_PUBLICOS) {
+                if (titular.get(campo) != null) {
+                    datos.put(campo, titular.get(campo));
+                }
+            }
+            datos.put("dni", ocultarDni(titular.get("dni")));
+            publica.put("titular", datos);
+        }
+        return publica;
+    }
+
+    private Map<String, Object> comprobar(String codigo, Integer idUsuario, boolean contarUso, String accion) {
         consulta.verificarInstalacion();
         Matcher matcher = FORMATO.matcher(codigo == null ? "" : codigo);
         if (!matcher.matches()) {
-            return registrar(idUsuario, null, null, resultado("FORMATO_INVALIDO",
+            return registrar(idUsuario, null, null, accion, resultado("FORMATO_INVALIDO",
                     "El código leído no es una credencial del sistema electoral."));
         }
         TipoCredencial tipoLeido = TipoCredencial.desdeLetra(matcher.group(1).charAt(0));
@@ -63,7 +108,7 @@ public class VerificarCredencial {
                  WHERE cq.token_qr_hash = ?
                 """, hash);
         if (filas.isEmpty()) {
-            return registrar(idUsuario, null, null, resultado("NO_REGISTRADA",
+            return registrar(idUsuario, null, null, accion, resultado("NO_REGISTRADA",
                     "Credencial no registrada: el QR es falso, fue alterado o pertenece a otro sistema."));
         }
         Map<String, Object> cq = filas.get(0);
@@ -72,6 +117,8 @@ public class VerificarCredencial {
         TipoCredencial tipo = TipoCredencial.desdeTexto(String.valueOf(cq.get("tipo")));
 
         Map<String, Object> titular = datosTitular(cq, tipo);
+        // ya no figura (p. ej. retirado del padrón): para la página pública basta con quién es
+        Map<String, Object> titularMostrado = titular != null || contarUso ? titular : datosDocente(cq);
         Map<String, Object> respuesta;
         if (tipo != tipoLeido) {
             respuesta = resultado("NO_REGISTRADA", "El tipo impreso en el QR no coincide con la credencial registrada.");
@@ -91,10 +138,12 @@ public class VerificarCredencial {
         } else if (!Boolean.TRUE.equals(titular.get("apto"))) {
             respuesta = resultado("SIN_DERECHO", String.valueOf(titular.get("motivo")));
         } else {
-            respuesta = resultado("VALIDA", tipo.titulo() + " válida.");
-            dao.ejecutar("UPDATE credencial_qr SET usos = usos + 1, ultimo_uso = NOW() WHERE id_credencial = ?",
-                    idCredencial);
-            cq.put("usos", ((Number) cq.get("usos")).intValue() + 1);
+            respuesta = resultado("VALIDA", tipo.titulo() + (tipo == TipoCredencial.PERSONERO ? " válida." : " válido."));
+            if (contarUso) {
+                dao.ejecutar("UPDATE credencial_qr SET usos = usos + 1, ultimo_uso = NOW() WHERE id_credencial = ?",
+                        idCredencial);
+                cq.put("usos", ((Number) cq.get("usos")).intValue() + 1);
+            }
         }
 
         Map<String, Object> credencial = new LinkedHashMap<>();
@@ -108,10 +157,29 @@ public class VerificarCredencial {
         credencial.put("ultimoUsoAnterior", cq.get("ultimoUso"));
         respuesta.put("credencial", credencial);
         respuesta.put("proceso", Map.of("id", idProceso, "nombre", cq.get("proceso"), "estado", cq.get("estadoProceso")));
-        if (titular != null) {
-            respuesta.put("titular", titular);
+        if (titularMostrado != null) {
+            respuesta.put("titular", titularMostrado);
         }
-        return registrar(idUsuario, idProceso, idCredencial, respuesta);
+        return registrar(idUsuario, idProceso, idCredencial, accion, respuesta);
+    }
+
+    /** Nombre, categoría y facultad del docente de la credencial (cuando ya no figura como titular). */
+    private Map<String, Object> datosDocente(Map<String, Object> cq) {
+        List<Map<String, Object>> filas = dao.consultar("""
+                SELECT d.dni, CONCAT(d.apellidos, ', ', d.nombres) AS nombre, d.categoria, f.nombre AS facultad
+                  FROM docente d LEFT JOIN facultad f ON f.id_facultad = d.id_facultad
+                 WHERE d.id_docente = ?
+                """, cq.get("idDocente"));
+        return filas.isEmpty() ? null : new LinkedHashMap<>(filas.get(0));
+    }
+
+    /** DNI con solo los 3 últimos dígitos visibles: identifica sin exponerlo completo. */
+    static String ocultarDni(Object dni) {
+        String valor = dni == null ? "" : String.valueOf(dni).trim();
+        if (valor.length() <= 3) {
+            return valor.isEmpty() ? null : "***";
+        }
+        return "*".repeat(valor.length() - 3) + valor.substring(valor.length() - 3);
     }
 
     /** Datos actuales del titular (null si ya no figura) y observaciones para quien verifica. */
@@ -147,12 +215,12 @@ public class VerificarCredencial {
         return titular;
     }
 
-    private Map<String, Object> registrar(Integer idUsuario, Integer idProceso, Long idCredencial,
+    private Map<String, Object> registrar(Integer idUsuario, Integer idProceso, Long idCredencial, String accion,
             Map<String, Object> respuesta) {
         Map<String, Object> detalle = new LinkedHashMap<>();
         detalle.put("resultado", respuesta.get("resultado"));
         detalle.put("id_credencial", idCredencial);
-        bitacora.registrar(idUsuario, idProceso, "VERIFICAR_CREDENCIAL", detalle);
+        bitacora.registrar(idUsuario, idProceso, accion, detalle);
         return respuesta;
     }
 

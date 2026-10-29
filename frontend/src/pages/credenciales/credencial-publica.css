@@ -1,0 +1,33 @@
+/* CUS07 · Página pública de una credencial QR (CredencialPublica). Pensada para el celular. */
+.cp-main { max-width: 640px; margin: 0 auto; padding: 20px 16px 40px; display: grid; gap: 14px; }
+.cp-cargando { display: flex; align-items: center; gap: 10px; justify-content: center; padding: 40px 0; color: #64748b; }
+
+.cp-estado { display: flex; gap: 12px; align-items: center; padding: 14px; border-radius: 12px; border: 1.5px solid; }
+.cp-estado > div { display: grid; gap: 2px; }
+.cp-estado strong { font-size: 1.05rem; color: #0f172a; }
+.cp-estado span { font-size: .86rem; color: #334155; }
+.cp-estado-icono { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: #fff; }
+.cp-estado.ok { border-color: #6ee7b7; background: #ecfdf5; } .cp-estado.ok .cp-estado-icono { background: #059669; }
+.cp-estado.mal { border-color: #fda4af; background: #fff1f2; } .cp-estado.mal .cp-estado-icono { background: #e11d48; }
+.cp-estado.aviso { border-color: #fcd34d; background: #fffbeb; } .cp-estado.aviso .cp-estado-icono { background: #d97706; }
+
+.cp-tarjeta { border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 1px 3px rgb(15 23 42 / .06); }
+.cp-tarjeta > header { display: flex; justify-content: space-between; gap: 10px; padding: 10px 16px; background: var(--cp-color); color: #fff; font-size: .82rem; }
+.cp-tarjeta > header strong { font-variant-numeric: tabular-nums; }
+.cp-persona { display: flex; gap: 14px; align-items: center; padding: 16px; border-bottom: 1px solid #f1f5f9; }
+.cp-persona h1 { margin: 0 0 2px; font-size: 1.2rem; line-height: 1.25; color: #0f172a; }
+.cp-persona p { margin: 0; font-size: .86rem; color: #475569; }
+.cp-avatar { flex: none; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--cp-color); color: #fff; font-size: 1.4rem; font-weight: 700; }
+
+.cp-datos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin: 0; padding: 16px; }
+.cp-datos dt { font-size: .7rem; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: #64748b; }
+.cp-datos dd { margin: 2px 0 0; font-size: .92rem; font-weight: 600; color: #0f172a; overflow-wrap: anywhere; }
+
+.cp-panel { border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }
+.cp-panel h2 { margin: 0; padding: 14px 16px 0; font-size: .95rem; color: #0f172a; }
+.cp-nota { display: flex; gap: 6px; align-items: flex-start; margin: 0; font-size: .76rem; line-height: 1.5; color: #64748b; }
+.cp-nota svg { flex: none; margin-top: 2px; }
+
+@media (max-width: 420px) {
+  .cp-datos { grid-template-columns: 1fr; }
+}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { encodeQR, qrToSvg } from '../../lib/qrcode';
+import { qrSoloEnEstaPC, urlPublica } from '../../lib/urlPublica';
 import MenuIcon from '../../components/MenuIcon';
 
 /**
@@ -10,6 +11,9 @@ import MenuIcon from '../../components/MenuIcon';
  *   7 mostrarCredencialLista()   → ListaCredencialesQR muestra en PantallaCredenciales lo emitido
  *
  * El QR se genera aquí mismo (lib/qrcode.js): el token nunca se envía a servicios externos.
+ * Lleva la URL de la página pública /credencial/{código}: al escanearlo con un celular se ven
+ * los datos del titular y si la credencial sigue vigente. La pistola lectora lee la misma URL
+ * y el servidor extrae el código SICEUNP-…
  * También incluye la lectura de credenciales (pistola lectora o cámara) para verificarlas.
  */
 
@@ -22,6 +26,9 @@ export const TIPOS_CREDENCIAL = {
 const fmtFecha = new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 export const fecha = (v) => (v ? fmtFecha.format(new Date(v)) : '—');
 export const numeroCredencial = (id) => `N.º ${String(id).padStart(6, '0')}`;
+
+/** Contenido del QR: URL pública con el código SICEUNP (el «|» se cambia por «-» para la URL). */
+export const urlCredencial = (qr) => urlPublica(`/credencial/${String(qr).replace(/\|/g, '-')}`);
 
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -48,7 +55,7 @@ export function TarjetaCredencial({ credencial, proceso, size = 168 }) {
         <span>Universidad Nacional de Piura · CEUNP</span>
         <strong>{tipo.titulo}</strong>
       </header>
-      <CodigoQR valor={credencial.qr} size={size} titulo={`${tipo.titulo} de ${credencial.nombre}`} />
+      <CodigoQR valor={urlCredencial(credencial.qr)} size={size} titulo={`${tipo.titulo} de ${credencial.nombre}`} />
       <div className="cq-card-body">
         <strong>{credencial.nombre}</strong>
         <span>DNI {credencial.dni} · {credencial.funcion}</span>
@@ -65,7 +72,7 @@ export function TarjetaCredencial({ credencial, proceso, size = 168 }) {
 
 /** PNG del QR (para guardar en el celular o enviar a imprimir). */
 export function descargarPNG(credencial, escala = 10) {
-  const qr = encodeQR(credencial.qr, 'M');
+  const qr = encodeQR(urlCredencial(credencial.qr), 'M');
   const margen = 4;
   const lado = (qr.size + margen * 2) * escala;
   const canvas = document.createElement('canvas');
@@ -92,7 +99,7 @@ export function imprimirCredenciales(credenciales, proceso) {
     const tipo = TIPOS_CREDENCIAL[c.tipo];
     return `<article style="--c:${tipo.color}">
       <header><span>Universidad Nacional de Piura · CEUNP</span><strong>${esc(tipo.titulo)}</strong></header>
-      <div class="qr">${svgQR(c.qr)}</div>
+      <div class="qr">${svgQR(urlCredencial(c.qr))}</div>
       <div class="body"><strong>${esc(c.nombre)}</strong><span>DNI ${esc(c.dni)} · ${esc(c.funcion)}</span>
       ${c.numeroMesa ? `<span>Mesa ${esc(c.numeroMesa)} · ${esc(c.ubicacion)}</span>` : c.ubicacion ? `<span>${esc(c.ubicacion)}</span>` : ''}</div>
       <footer><span>${esc(proceso?.nombre)}</span><span>${numeroCredencial(c.idCredencial)} · vence ${esc(fecha(c.fechaExpiracion))}</span></footer>
@@ -162,6 +169,9 @@ export function ListaCredencialesQR({ resultado, proceso, onCerrar }) {
           <div>
             <h3 id="cq-emitidas-titulo">{resultado.mensaje}</h3>
             <p className="muted">Imprima o descargue ahora: por seguridad los códigos QR no se vuelven a mostrar. Si se pierde uno, vuelva a emitirlo (el anterior queda revocado).</p>
+            {qrSoloEnEstaPC() && (
+              <p className="cv-error"><MenuIcon name="alert" size={14} /> Estos QR apuntan a {new URL(urlPublica('/')).host}: un celular no podrá abrirlos. Configure VITE_URL_PUBLICA en frontend/.env.local (vea .env.example).</p>
+            )}
           </div>
           <button type="button" ref={cerrarRef} className="cv-icon-btn" aria-label="Cerrar" onClick={cerrar}><MenuIcon name="close" size={18} /></button>
         </div>
