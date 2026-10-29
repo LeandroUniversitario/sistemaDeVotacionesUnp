@@ -1,122 +1,117 @@
 # CUS00 · Iniciar sesión
 
-**Actor:** Usuario del sistema (`ADMIN`, `CEUNP`, `MIEMBRO_MESA`, `PERSONERO`, `DOCENTE`) · **Pantalla:** `PantallaLogin` (`LoginPage.jsx`, ruta raíz `/login` o `/` sin sesión activa)
-**Módulo:** M01 Seguridad y autenticación · **Requisitos:** RF de autenticación por credenciales institucionales, generación de Token JWT, verificación de sesión previa, control de intentos fallidos con bloqueo temporal y cambio de contraseña provisional obligatorio.
-**Reglas:** RN28 (auditoría obligatoria de accesos y fallos en bitácora), seguridad parametrizada (`SEGURIDAD_INTENTOS_MAXIMOS` y `SEGURIDAD_BLOQUEO_MINUTOS` de CUS18), contraseñas cifradas en BCrypt.
+**Actor:** Usuario del sistema (`ADMIN`, `CEUNP`, `MIEMBRO_MESA`, `PERSONERO`, `DOCENTE` y público en general)
+**Pantalla:** `PantallaLogin` (`LoginPage.jsx`, ruta raíz `/login` o `/` sin sesión activa) y `PantallaPortalResultados` (`PortalResultados.jsx` / ruta `/resultados`)
+**Módulo:** M01 Seguridad y autenticación / M12 Portal de transparencia
+**Metodología:** RUP (Fase de Elaboración · Análisis y Diseño) según estándar UNP (Dr. Iván Iman Agurto).
+**Requisitos:** RF de autenticación institucional mediante credenciales, generación de Token JWT, verificación de sesión previa persistente, control de intentos fallidos con bloqueo temporal y enlace de transparencia pública sin autenticación.
+**Reglas:** RN28 (auditoría obligatoria de accesos y fallos en bitácora), seguridad parametrizada (`SEGURIDAD_INTENTOS_MAXIMOS` y `SEGURIDAD_BLOQUEO_MINUTOS` de CUS18), contraseñas cifradas en BCrypt, RF99 (resultados públicos solo si el cómputo fue publicado).
 
 ---
 
 ## 🖥️ Botones y Elementos de la Interfaz (`PantallaLogin`)
 
-En la pantalla `LoginPage.jsx` existen las siguientes acciones/botones del usuario:
-1. **Botón [ Ingresar al Sistema ] (`type="submit"`):** Inicia la autenticación con usuario y contraseña (validación de credenciales, hash BCrypt, auditoría y emisión de token).
-2. **Botón [ Consultar resultados y verificar actas ] (`auth-portal-link`):** Enlace directo de navegación hacia la pantalla del portal público de transparencia electoral (`PortalResultados` / ruta `/resultados`), que pertenece al **CUS17**.
-
-> **Nota metodológica según la teoría de RUP (Dr. Iván Iman Agurto):**  
-> Cuando un botón en una pantalla tiene como único fin **navegar o abrir otro caso de uso** (en este caso, abrir el portal de resultados públicos), en el estándar RUP representa un enlace/navegación hacia otra interfaz (`Boundary`). Quien realmente consulta las entidades `ProcesoElectoral` y `ResultadoElectoral` es el controlador `: ConsultarResultados` dentro del propio **CUS17: Consultar resultados y verificar actas**.  
-> Por tanto, en el diagrama de colaboraciones de `CUS00` se documenta la navegación hacia la pantalla de destino, manteniendo cada caso de uso delimitado en su objetivo.
+En la pantalla `LoginPage.jsx` se encuentran las siguientes acciones/botones del usuario:
+1. **Verificación de sesión guardada (Automática al abrir):** Si el navegador cuenta con un token en `sessionStorage`, comprueba la vigencia de la sesión sin pedir credenciales.
+2. **Botón [ Ingresar al Sistema ] (`type="submit"`):** Envía usuario y contraseña al controlador `: ValidarCredenciales` para validar el hash BCrypt, actualizar el último acceso, registrar auditoría y emitir el token de sesión.
+3. **Botón [ Consultar resultados y verificar actas ] (`auth-portal-link`):** Deriva a la interfaz `: PantallaPortalResultados` para que el público o personeros puedan consultar los procesos concluidos a través del controlador `: consultarResultados` consultando la entidad `: ProcesoElectoral`.
 
 ---
 
-## Correspondencia con el diagrama de colaboración («colaboracion - Iniciar Sesion», `diagramas/Sistema De Elecciones.mdl`)
+## Correspondencia con el Diagrama de Colaboración («colaboracion - Iniciar Sesion», `diagramas/Sistema De Elecciones.mdl`)
+
+A continuación se detalla la equivalencia exacta de los **15 mensajes** del diagrama de colaboración diseñado en **Rational Rose** con los componentes reales del sistema:
 
 | N.° | Mensaje del diagrama | Origen | Destino | Explicación en el Sistema |
 |:---:|---|---|---|---|
-| **1** | `abrirSistema()` | `: Usuario del sistema` | `: PantallaLogin` | El usuario ingresa a la aplicación web. `main.jsx` inicializa la SPA. |
-| **2** | `verificarSesionGuardada(token)` | `: PantallaLogin` | `: VerificarSesion` | Si existe token en `sessionStorage`, consulta `/api/auth/me`. |
-| **3** | `buscarPorUsername(username)` | `: VerificarSesion` | `: Usuario` | Valida el usuario en la BD contra la tabla `usuario`. |
-| **4** | `mostrarResultadoSesion(username, rol)` | `: VerificarSesion` | `: PantallaLogin` | Si es válido, carga el `DashboardPage` según su rol. |
-| **5** | `ingresarCredenciales` | `: Usuario del sistema` | `: PantallaLogin` | El usuario llena los campos de usuario y contraseña. |
-| **6** | `validarCredenciales` | `: PantallaLogin` | `: ValidarCredenciales` | Se activa al hacer clic en el botón **[ Ingresar al Sistema ]** (`POST /api/auth/login`). |
-| **7** | `buscarPorUsername(username)` | `: ValidarCredenciales` | `: Usuario` | Obtiene el hash BCrypt y valida estado `activo` e intentos. |
-| **8** | `registrarAcceso` | `: ValidarCredenciales` | `: RegistrarAcceso` | Determina si el acceso fue exitoso o fallido. |
-| **9** | `actualizarAcceso` | `: RegistrarAcceso` | `: Usuario` | Actualiza `ultimo_acceso`, reinicia intentos o bloquea. |
-| **10** | `registraAuditoria` | `: RegistrarAcceso` | `: LogAuditoria` | Inserta en `log_auditoria` con IP y navegador. |
-| **11** | `mostrarResultado(token, rol, mensaje)` | `: ValidarCredenciales` | `: PantallaLogin` | Emite el token y redirige, o muestra el mensaje de error. |
-| **12** | `consultarResultados()` | `: Usuario del sistema` | `: PantallaLogin` | El usuario hace clic en el botón inferior **[ Consultar resultados y verificar actas ]**. |
-| **13** | `abrirPortalResultados()` | `: PantallaLogin` | `: PantallaPortalResultados` | Redirige al navegador hacia la vista pública `/resultados`, iniciando el flujo del **CUS17**. |
+| **1** | `abrirSistema()` | `: Usuario del sistema` | `: PantallaLogin` | El usuario accede a la URL base de la aplicación web. `main.jsx` inicializa la SPA. |
+| **2** | `verificarSesionGuardada(token)` | `: PantallaLogin` | `: VerificarSesion` | `useEffect` en `main.jsx` lee `sessionStorage.getItem('accessToken')` y consulta `GET /api/auth/me`. |
+| **3** | `buscarPorUsername(username)` | `: VerificarSesion` | `: Usuario` | Verifica la existencia y vigencia de la cuenta en la tabla `usuario`. |
+| **4** | `mostrarResultadoSesion(username, rol)` | `: VerificarSesion` | `: PantallaLogin` | Si el token es válido, responde HTTP 200 con `MeResponse` y renderiza el `DashboardPage` según su rol. |
+| **5** | `ingresarCredenciales` | `: Usuario del sistema` | `: PantallaLogin` | El usuario digita su nombre de usuario y contraseña en las cajas de texto correspondientes. |
+| **6** | `validarCredenciales` | `: PantallaLogin` | `: ValidarCredenciales` | Se dispara al pulsar el botón **[ Ingresar al Sistema ]** realizando una petición HTTP `POST /api/auth/login`. *(Etiquetado en el diagrama como `validarCredendales`).* |
+| **7** | `buscarPorUsername(username)` | `: ValidarCredenciales` | `: Usuario` | Consulta en la tabla `usuario` el `password_hash`, estado `activo` e intentos fallidos. |
+| **8** | `registrarAcceso` | `: ValidarCredenciales` | `: RegistrarAcceso` | Delega el resultado: si fue exitoso invoca `registrarAccesoExitoso()`; si falló invoca `registrarIntentoFallido(...)`. |
+| **9** | `actualizarAcceso` | `: RegistrarAcceso` | `: Usuario` | Actualiza en la tabla `usuario` las columnas `ultimo_acceso`, reinicia `intentos_fallidos = 0` (o incrementa y define `bloqueado_hasta`). |
+| **10** | `registrarAuditoria` | `: RegistrarAcceso` | `: LogAuditoria` | Inserta en la tabla `log_auditoria` la acción `LOGIN_SUCCESS` o `LOGIN_FAILED` con la IP remota y el User-Agent. |
+| **11** | `mostrarResultado(token, rol, mensaje)` | `: ValidarCredenciales` | `: PantallaLogin` | Si es exitoso, entrega el token JWT y enruta al dashboard; si falla, resalta los campos de error con el mensaje devuelto por el backend. |
+| **12** | `consultarResultadosPublicos` | `: Usuario del sistema` | `: PantallaLogin` | El usuario hace clic en el botón secundario **[ Consultar resultados y verificar actas ]**. |
+| **13** | `obtenerResultadosPublicos()` | `: PantallaPortalResultados` | `: consultarResultados` | La pantalla del portal público invoca a su controlador para cargar el catálogo de elecciones. |
+| **14** | `leerProcesosConcluidos()` | `: consultarResultados` | `: ProcesoElectoral` | Consulta en la tabla `proceso_electoral` los procesos que tienen estado `CERRADO` o con cómputo `PUBLICADO` (`fn_resultados_disponibles`). |
+| **15** | `mostrarResultados()` | `: consultarResultados` | `: PantallaPortalResultados` | Devuelve la lista de procesos con resultados disponibles para desplegarlos al ciudadano. |
 
 ---
 
-## 🔎 Verificación del Diagrama de Rational Rose frente al Sistema
+## 🏛️ Objetos del Diagrama en Rational Rose (Arquitectura BCE)
 
-El diagrama documentado en Rational Rose se encuentra **muy bien modelado y guarda coherencia con la arquitectura del sistema**:
+### 1. Actor:
+* `: Usuario del sistema` (Representa a cualquier usuario: Administrador, CEUNP, Miembro de Mesa, Personero, Docente o ciudadano).
 
-1. **Separación de responsabilidades:**
-   - **Boundary:** `PantallaLogin` concentra la interacción visual con el usuario (formulario, mensajes de alerta y botones).
-   - **Controles:**
-     - `VerificarSesion`: Administra la validación pasiva de tokens JWT existentes (`/api/auth/me`).
-     - `ValidarCredenciales`: Gestiona la autenticación activa con usuario y contraseña (`/api/auth/login`).
-     - `RegistrarAcceso`: Encapsula la actualización del estado de seguridad del usuario y el registro en auditoría.
-   - **Entidades:** `Usuario` (tabla `usuario`) y `LogAuditoria` (tabla `log_auditoria`).
-2. **Observaciones menores del diagrama:**
-   - **Mensaje 6 (`validarCredendales`):** En el diagrama original de Rational Rose se observa una errata tipográfica en la etiqueta (`Credendales` en lugar de `Credenciales`). En el código y la documentación se normaliza a `validarCredenciales`.
-   - **Parámetros configurables de seguridad (CUS18):** El bloqueo temporal por intentos fallidos (mensaje 8) ya no utiliza valores fijos quemados en código; ahora lee los parámetros institucionales `SEGURIDAD_INTENTOS_MAXIMOS` (por defecto 5) y `SEGURIDAD_BLOQUEO_MINUTOS` (por defecto 15 minutos).
-   - **Separación de responsabilidades:** El cambio obligatorio de contraseña provisional para cuentas recién creadas es un caso de uso posterior e independiente (`CUS21: Cambiar contraseña`), que se ejecuta únicamente tras completar con éxito este inicio de sesión.
+### 2. Boundaries (Fronteras / Pantallas):
+* `: PantallaLogin` (Interfaz de acceso institucional `LoginPage.jsx`).
+* `: PantallaPortalResultados` (Interfaz pública de consulta de resultados y actas `PortalResultados.jsx`).
+
+### 3. Controls (Controladores de lógica):
+* `: VerificarSesion` (Servicio de validación de token JWT activo).
+* `: ValidarCredenciales` (Servicio de autenticación contra hash BCrypt).
+* `: RegistrarAcceso` (Servicio de actualización de accesos, intentos fallidos y bitácora).
+* `: consultarResultados` (Servicio de consulta de procesos y actas públicas).
+
+### 4. Entities (Entidades de Base de Datos):
+* `: Usuario` (Tabla `usuario`).
+* `: LogAuditoria` (Tabla `log_auditoria`).
+* `: ProcesoElectoral` (Tabla `proceso_electoral`).
 
 ---
 
 ## Flujos de Ejecución
 
-### Flujo 1: Ingreso de usuario nuevo (Mensajes 5 al 11)
-1. El usuario ingresa su nombre de usuario y contraseña y hace clic en **«Iniciar Sesión»**.
-2. El sistema envía las credenciales mediante `POST /api/auth/login`.
-3. El backend busca el usuario:
-   * Si la cuenta tiene `activo = FALSE`, rechaza con HTTP 403: *"Acceso denegado. Su cuenta se encuentra inactiva. Contacte con el Administrador o CEUNP"*.
-   * Si la cuenta está temporalmente bloqueada (`bloqueado_hasta > NOW()`), rechaza con HTTP 401 informando los minutos restantes de bloqueo.
-4. El backend valida el hash BCrypt:
-   * **Credenciales incorrectas:** Incrementa `intentos_fallidos`, registra `LOGIN_FAILED` en la bitácora y responde HTTP 401. Si alcanza el límite de intentos, establece `bloqueado_hasta = NOW() + minutos`.
-   * **Credenciales correctas:** Reinicia `intentos_fallidos = 0`, actualiza `ultimo_acceso = NOW()`, registra `LOGIN_SUCCESS` en la bitácora y genera el Token JWT firmado.
-5. El frontend recibe el token y enruta al actor según su rol y estado de contraseña.
+### Flujo 1: Ingreso interactivo con credenciales (Mensajes 5 al 11)
+1. El usuario ingresa su `username` y `password` y pulsa **[ Ingresar al Sistema ]**.
+2. `PantallaLogin` envía `POST /api/auth/login` al controlador `: ValidarCredenciales`.
+3. El controlador consulta la entidad `: Usuario`:
+   * Si la cuenta no está activa, rechaza con HTTP 403 (*Cuenta inactiva*).
+   * Si la cuenta está temporalmente bloqueada (`bloqueado_hasta > NOW()`), rechaza con HTTP 401 indicando el tiempo de espera restante.
+4. Se verifica el hash BCrypt:
+   * **Contraseña errónea:** Incrementa `intentos_fallidos`, registra `LOGIN_FAILED` en `: LogAuditoria` y rechaza con HTTP 401. Si alcanza el tope, bloquea la cuenta.
+   * **Contraseña correcta:** Restablece `intentos_fallidos = 0`, actualiza `ultimo_acceso`, registra `LOGIN_SUCCESS` en `: LogAuditoria` y genera el token JWT.
+5. El usuario es redirigido a su panel de control según su rol.
 
-### Flujo 2: Restauración de sesión activa (Mensajes 1 al 4)
-1. El usuario abre la página o presiona F5 (recarga del navegador).
-2. `main.jsx` detecta que existe un token en el almacenamiento de sesión (`sessionStorage`).
-3. Envía una petición `GET /api/auth/me` enviando el token en la cabecera `Authorization: Bearer <token>`.
-4. El backend valida criptográficamente el token y busca al usuario en la base de datos.
-5. Si es válido, retorna los datos del perfil y el frontend entra directamente al panel sin pedir credenciales nuevamente. Si es inválido o caducó, se limpia el almacenamiento y se muestra la pantalla de Login.
+### Flujo 2: Restauración de sesión previa (Mensajes 1 al 4)
+1. El usuario abre el sistema en el navegador o recarga la página ($F5$).
+2. `PantallaLogin` lee el token guardado en `sessionStorage` y consulta `GET /api/auth/me`.
+3. `: VerificarSesion` comprueba la firma del token y busca la cuenta en `: Usuario`.
+4. Si sigue vigente, retorna los datos de la sesión y entra de inmediato al sistema sin solicitar credenciales.
+
+### Flujo 3: Consulta pública de resultados sin sesión (Mensajes 12 al 15)
+1. En la pantalla de inicio de sesión, el usuario presiona el botón **[ Consultar resultados y verificar actas ]**.
+2. El sistema navega hacia la pantalla `: PantallaPortalResultados` (ruta `/resultados`).
+3. La pantalla llama al controlador `: consultarResultados` (`GET /api/publico/consulta/procesos`).
+4. El controlador lee de la entidad `: ProcesoElectoral` los procesos que cuentan con resultados oficiales publicados.
+5. Se muestra el catálogo de procesos electorales en pantalla para su consulta y verificación mediante código QR.
 
 ---
 
-## Endpoints del Caso de Uso
+## Endpoints REST del Caso de Uso
 
-| Método | Ruta | Acceso | Descripción |
+| Método | Endpoint | Acceso | Función |
 |---|---|---|---|
-| `POST` | `/api/auth/login` | Público | Autentica al usuario, genera el JWT y registra auditoría. |
-| `GET` | `/api/auth/me` | Autenticado | Verifica el token activo y obtiene el perfil del usuario actual. |
-| `PATCH` | `/api/auth/password` | Autenticado | Permite al usuario cambiar su propia contraseña. |
+| `POST` | `/api/auth/login` | Público | Autentica usuario, valida hash BCrypt, genera JWT y audita. |
+| `GET` | `/api/auth/me` | Autenticado | Verifica token activo y recupera perfil y rol del usuario. |
+| `GET` | `/api/publico/consulta/procesos` | Público | Obtiene los procesos electorales con resultados publicados. |
 
 ---
 
 ## Archivos del Código Fuente
 
-- **Backend:**
-  - `backend/src/main/java/pe/unp/elecciones/auth/AuthController.java` (Endpoints REST `/api/auth/login` y `/api/auth/me`).
-  - `backend/src/main/java/pe/unp/elecciones/auth/UsuarioService.java` (Lógica de autenticación, verificación de parámetros de seguridad y contraseñas).
-  - `backend/src/main/java/pe/unp/elecciones/auth/Usuario.java` (Entidad de dominio con métodos de acceso exitoso, intentos fallidos y bloqueo).
-  - `backend/src/main/java/pe/unp/elecciones/auth/UsuarioRepository.java` (Acceso a datos JPA para la tabla `usuario`).
-  - `backend/src/main/java/pe/unp/elecciones/auth/JwtService.java` y `JwtAuthenticationFilter.java` (Generación y validación de tokens JWT).
-  - `backend/src/main/java/pe/unp/elecciones/electoral/service/AuditoriaService.java` (Registro inmutable en `log_auditoria`).
-- **Frontend:**
-  - `frontend/src/main.jsx` (Componente raíz, verificación de sesión previa y enrutamiento principal).
-  - `frontend/src/pages/LoginPage.jsx` (Pantalla de login con formulario de usuario, contraseña, alternador de visibilidad y manejo de errores).
-  - `frontend/src/api/apiClient.js` (Interceptor de peticiones HTTP con inyección de cabecera Bearer).
-  - `frontend/src/pages/CambiarPasswordObligatorioPage.jsx` (Pantalla obligatoria para docentes con primer ingreso).
-  - `frontend/src/pages/DashboardPage.jsx` (Bandeja principal según la matriz de roles).
-
----
-
-## Estructura en Base de Datos
-
-* **Tabla `usuario`:**
-  * `username` (único, hasta 80 caracteres).
-  * `password_hash` (hash criptográfico generado con algoritmo BCrypt).
-  * `rol` (`ADMIN`, `CEUNP`, `DOCENTE`, `PERSONERO`, `MIEMBRO_MESA`).
-  * `activo` (booleano, control de vigencia de la cuenta).
-  * `intentos_fallidos` (contador acumulado de intentos fallidos consecutivos).
-  * `bloqueado_hasta` (`DATETIME`, timestamp de expiración del bloqueo preventivo).
-  * `ultimo_acceso` (`DATETIME`, fecha y hora del último login exitoso).
-  * `debe_cambiar_password` (booleano, indica si la clave es provisional).
-* **Tabla `log_auditoria`:**
-  * Registro de eventos `LOGIN_SUCCESS` y `LOGIN_FAILED` con `id_usuario`, `ip_origen`, `user_agent` y encadenamiento hash SHA-256 (CUS19).
-
+* **Frontend:**
+  * `frontend/src/pages/LoginPage.jsx` (Pantalla de inicio de sesión con ambos botones).
+  * `frontend/src/main.jsx` (Detección de sesión activa y rutas públicas).
+  * `frontend/src/pages/resultados/PortalResultados.jsx` (Pantalla pública de resultados).
+* **Backend:**
+  * `backend/src/main/java/pe/unp/elecciones/auth/AuthController.java` (Endpoints de autenticación).
+  * `backend/src/main/java/pe/unp/elecciones/auth/UsuarioService.java` (Lógica de validación).
+  * `backend/src/main/java/pe/unp/elecciones/auth/Usuario.java` (Entidad de dominio de cuentas).
+  * `backend/src/main/java/pe/unp/elecciones/electoral/controller/PublicoController.java` (Endpoint público de resultados).
+  * `backend/src/main/java/pe/unp/elecciones/electoral/resultados/ConsultarResultados.java` (Servicio de consulta de procesos).
+  * `backend/src/main/java/pe/unp/elecciones/electoral/service/AuditoriaService.java` (Registro en `log_auditoria`).
