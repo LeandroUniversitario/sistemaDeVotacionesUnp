@@ -1,40 +1,39 @@
 -- =====================================================================
 -- SISTEMA DE ELECCIONES DOCENTES UNP  ·  BASE DE DATOS
--- 00_script_unico_elecciones_unp.sql  ·  Script único de creación
+-- 00_script_unico_elecciones_unp.sql  ·  Script único de creación (versión final)
 -- Motor: MariaDB 10.4+ (XAMPP / phpMyAdmin)
 --
--- Crea la base elecciones_unp desde cero con la versión final de cada
--- objeto (incluye CUS07 a CUS19). No hace falta
--- importar ningún otro script después de este.
+-- Crea la base elecciones_unp desde cero con la versión final de cada objeto,
+-- CUS01 a CUS19 incluidos (firmas de actas, escrutinio, impugnaciones, cómputo,
+-- nulidades, multas, verificación de actas, administración y bitácora).
+-- No hace falta importar ningún otro script después de este.
 --
---   1. Base de datos
---   2. Tablas, claves e índices (37 tablas)
---      + 2 tablas del escrutinio (5b)
---   3. Funciones (4) y triggers (29)
---   4. Vistas (14)
---   5. Procedimientos almacenados (34)
---   5b. CUS12 · Escrutinio y conciliación: 2 tablas, 5 triggers y
---       5 procedimientos (mismo contenido que 11_escrutinio_conciliacion.sql)
---   5c. CUS13 · Impugnaciones y apelaciones: columnas de impugnacion_electoral,
---       2 triggers, 3 procedimientos y 2 vistas (mismo contenido que
---       12_impugnaciones_apelaciones.sql)
---   5d. CUS14 · Computar y proclamar: 5 tablas, 9 triggers, 5 vistas y
---       10 procedimientos (mismo contenido que 13_computo_proclamacion.sql)
---   5e. CUS15 · Nulidades y segunda vuelta: 3 tablas, 1 función, 11 triggers,
---       3 vistas y 6 procedimientos (mismo contenido que 14_nulidades_segunda_vuelta.sql)
---   5f. CUS16 · Omisos y multas: 2 tablas, 10 triggers, 3 vistas y 7 procedimientos
---       (mismo contenido que 15_omisos_multas.sql)
---   5g. CUS17 · Resultados y verificación de actas: 2 tablas, 1 función, 4 triggers,
---       4 vistas y 4 procedimientos (mismo contenido que 16_resultados_verificacion.sql)
---   5h. CUS18 · Usuarios y parámetros: 3 columnas de usuario, 3 tablas, 3 funciones,
---       8 triggers, 4 vistas y 10 procedimientos (mismo contenido que
---       17_administracion_usuarios_parametros.sql)
---   5i. CUS19 · Consultar bitácora: 2 columnas e índices de log_auditoria, 2 tablas,
---       1 función, 2 triggers, 1 vista y 3 procedimientos (mismo contenido que
---       18_consultar_bitacora.sql)
---   6. Datos iniciales: parámetros, catálogo de cargos, usuario admin,
---      14 facultades y 44 departamentos académicos
---   7. OPCIONAL · Demo de punta a punta (solo crea sp_demo_flujo_completo)
+-- Contenido: 56 tablas, 10 funciones, 79 triggers, 35 vistas, 79 procedimientos
+-- (+ sp_demo_flujo_completo opcional), 17 parámetros con su catálogo, 96 acciones
+-- de bitácora, usuario admin, 14 facultades y 44 departamentos académicos.
+--
+-- Cada tabla se crea una sola vez con todas sus columnas, claves e índices, y cada
+-- función, trigger, vista y procedimiento aparece una sola vez, en su versión final.
+--
+--   1.  Base de datos
+--   2.  Tablas base (módulos 1 a 10), con las columnas que agregaron CUS12 a CUS19
+--   3.  Funciones y triggers base
+--   4.  Vistas base
+--   5.  Procedimientos base (A. utilitarios … J. cierre del sufragio)
+--   5b. CUS12 · Escrutinio y conciliación
+--   5c. CUS13 · Impugnaciones y apelaciones
+--   5d. CUS14 · Cómputo y proclamación
+--   5e. CUS15 · Nulidades y segunda vuelta
+--   5f. CUS16 · Omisos y multas
+--   5g. CUS17 · Resultados y verificación de actas
+--   5h. CUS18 · Usuarios y parámetros
+--   5i. CUS19 · Consultar bitácora
+--   6.  Datos iniciales: parámetros y su catálogo, cargos, usuario admin,
+--       facultades y departamentos
+--   7.  OPCIONAL · Demo de punta a punta (solo crea sp_demo_flujo_completo)
+--
+-- Los scripts 11 a 18 quedan solo para actualizar una base ya instalada sin ese
+-- CUS; en una instalación nueva basta con este archivo.
 --
 -- ATENCIÓN: ELIMINA la base elecciones_unp si ya existe y la vuelve a crear.
 -- Exporta tu base actual desde phpMyAdmin antes de importarlo.
@@ -157,9 +156,13 @@ CREATE TABLE usuario (
   bloqueado_hasta       DATETIME NULL,
   ultimo_acceso         DATETIME NULL,
   fecha_creacion        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id_usuario_creador    INT NULL COMMENT 'CUS18: administrador que creó la cuenta',
+  fecha_actualizacion   DATETIME NULL COMMENT 'CUS18: último cambio de rol, docente, estado o contraseña',
+  motivo_estado         VARCHAR(300) NULL COMMENT 'CUS18: motivo de la última desactivación o reactivación',
   debe_cambiar_password BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE: docente importado, debe cambiar clave en 1er login
   UNIQUE KEY uq_usuario_username (username),
-  CONSTRAINT fk_usuario_docente FOREIGN KEY (id_docente) REFERENCES docente(id_docente)
+  CONSTRAINT fk_usuario_docente FOREIGN KEY (id_docente) REFERENCES docente(id_docente),
+  CONSTRAINT fk_usuario_creador FOREIGN KEY (id_usuario_creador) REFERENCES usuario(id_usuario) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE sesion_activa (
@@ -468,13 +471,22 @@ CREATE TABLE multa (
   id_docente       INT NOT NULL,
   id_proceso       INT NOT NULL,
   motivo           ENUM('OMISO_VOTACION','OMISO_MESA') NOT NULL,
+  id_mesa          INT NULL COMMENT 'CUS16: mesa del elector (OMISO_VOTACION) o de la que era miembro (OMISO_MESA)',
+  rol_mesa         VARCHAR(12) NULL COMMENT 'CUS16: cargo del miembro titular que no asistió',
+  asistio_sin_votar BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'CUS16: asistió a la mesa y no votó (CUS10 A3, Disp. Final 5.ª)',
   uit_referencia   DECIMAL(10,2) NOT NULL,
   porcentaje_uit   DECIMAL(5,2)  NOT NULL,
   monto            DECIMAL(10,2) NOT NULL,
-  estado_pago      ENUM('PENDIENTE','PAGADA','EXONERADA') NOT NULL DEFAULT 'PENDIENTE',
+  estado_pago      ENUM('PENDIENTE','PAGADA','EXONERADA','JUSTIFICADA') NOT NULL DEFAULT 'PENDIENTE',  -- JUSTIFICADA: CUS16 (RF106)
   fecha_generacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   fecha_pago       DATETIME NULL,
+  fecha_notificacion     DATETIME NULL COMMENT 'CUS16: notificación de la multa al docente',
+  medio_notificacion     ENUM('CORREO_INSTITUCIONAL','CEDULA_PERSONAL','PORTAL_ELECTORAL') NULL,
+  documento_notificacion VARCHAR(80) NULL COMMENT 'CUS16: N.º de cédula, oficio o correo',
+  numero_recibo          VARCHAR(40) NULL COMMENT 'CUS16: recibo de pago (el sistema no cobra la multa)',
   observacion      VARCHAR(300) NULL,
+  fecha_actualizacion      DATETIME NULL,
+  id_usuario_actualizacion INT NULL,
   UNIQUE KEY uq_multa (id_docente, id_proceso, motivo),
   KEY ix_multa_estado (estado_pago),
   CONSTRAINT chk_multa_monto CHECK (monto >= 0),
@@ -497,8 +509,13 @@ CREATE TABLE log_auditoria (
   user_agent   VARCHAR(500) NULL,
   fecha_hora   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   detalle_json LONGTEXT NULL,
+  hash_anterior CHAR(64) NULL COMMENT 'CUS19: sello del registro anterior (cadena SHA-256)',
+  hash_registro CHAR(64) NULL COMMENT 'CUS19: SHA-256 del registro encadenado al anterior',
   KEY ix_log_fecha (fecha_hora),
   KEY ix_log_accion (accion, fecha_hora),
+  KEY ix_log_usuario_fecha (id_usuario, fecha_hora),   -- CUS19: filtros de la bitácora
+  KEY ix_log_proceso_fecha (id_proceso, fecha_hora),
+  KEY ix_log_ip_fecha (ip_origen, fecha_hora),
   CONSTRAINT chk_log_json CHECK (detalle_json IS NULL OR JSON_VALID(detalle_json)),
   CONSTRAINT fk_log_usuario FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario),
   CONSTRAINT fk_log_docente FOREIGN KEY (id_docente) REFERENCES docente(id_docente),
@@ -528,17 +545,51 @@ CREATE TABLE impugnacion_electoral (
   id_personero       INT NOT NULL,
   id_proceso         INT NOT NULL,
   id_mesa            INT NOT NULL,
+  id_cargo           INT NULL COMMENT 'CUS12: cargo de la cédula impugnada durante el escrutinio',
   id_acta            INT NULL,
   motivo             TEXT NOT NULL,
   decision_mesa      ENUM('PENDIENTE','ACEPTADA','RECHAZADA') NOT NULL DEFAULT 'PENDIENTE',
+  -- CUS13 · decisión de la mesa en primera instancia (RN23)
+  votos_mesa_favor     TINYINT NULL COMMENT 'CUS13: miembros de mesa a favor de la impugnación',
+  votos_mesa_contra    TINYINT NULL COMMENT 'CUS13: miembros de mesa en contra',
+  opcion_mesa          ENUM('LISTA','BLANCO','NULO') NULL COMMENT 'CUS13: opción a la que la mesa asigna la cédula',
+  id_lista_mesa        INT NULL COMMENT 'CUS13: lista, si opcion_mesa = LISTA',
+  fundamento_mesa      VARCHAR(1000) NULL COMMENT 'CUS13: fundamento de la decisión de la mesa',
+  fecha_decision_mesa  DATETIME NULL COMMENT 'CUS13: hora de la decisión de la mesa',
+  id_usuario_mesa      INT NULL COMMENT 'CUS13: presidente que registró la decisión',
+  -- CUS13 · apelación (RF81)
+  id_personero_apela   INT NULL COMMENT 'CUS13: personero que apela',
+  fundamento_apelacion VARCHAR(1000) NULL COMMENT 'CUS13: fundamento de la apelación',
+  fecha_apelacion      DATETIME NULL COMMENT 'CUS13: hora de la apelación',
+  id_usuario_apelacion INT NULL COMMENT 'CUS13: cuenta que registró la apelación',
   decision_ceunp     ENUM('PENDIENTE','CONFIRMADA','MODIFICADA') NOT NULL DEFAULT 'PENDIENTE',
+  -- CUS13 · fallo del CEUNP (RN36)
+  numero_resolucion    VARCHAR(40) NULL COMMENT 'CUS13: número de la resolución del CEUNP',
+  miembros_pleno       TINYINT NULL COMMENT 'CUS13: miembros del Pleno presentes (quórum)',
+  votos_pleno_favor    TINYINT NULL COMMENT 'CUS13: votos a favor de la apelación',
+  votos_pleno_contra   TINYINT NULL COMMENT 'CUS13: votos en contra de la apelación',
+  voto_dirimente       ENUM('FAVOR','CONTRA') NULL COMMENT 'CUS13: voto dirimente del Presidente en empate',
+  opcion_final         ENUM('LISTA','BLANCO','NULO') NULL COMMENT 'CUS13: opción final fijada por el CEUNP',
+  id_lista_final       INT NULL COMMENT 'CUS13: lista, si opcion_final = LISTA',
+  fundamento_ceunp     VARCHAR(1000) NULL COMMENT 'CUS13: fundamento del fallo',
+  fecha_fallo          DATETIME NULL COMMENT 'CUS13: fecha del fallo del CEUNP',
+  id_usuario_ceunp     INT NULL COMMENT 'CUS13: cuenta del CEUNP que registró el fallo',
   estado             ENUM('PRESENTADA','RESUELTA','APELADA') NOT NULL DEFAULT 'PRESENTADA',
   fecha_presentacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   fecha_resolucion   DATETIME NULL,
   CONSTRAINT fk_impugnacion_personero FOREIGN KEY (id_personero) REFERENCES personero(id_personero),
   CONSTRAINT fk_impugnacion_proceso   FOREIGN KEY (id_proceso)   REFERENCES proceso_electoral(id_proceso),
   CONSTRAINT fk_impugnacion_mesa      FOREIGN KEY (id_mesa)      REFERENCES mesa_electoral(id_mesa),
-  CONSTRAINT fk_impugnacion_acta      FOREIGN KEY (id_acta)      REFERENCES acta_electoral(id_acta)
+  UNIQUE KEY uq_impugnacion_resolucion (numero_resolucion),   -- una resolución del CEUNP no se repite
+  KEY ix_impugnacion_estado (id_proceso, estado),
+  CONSTRAINT fk_impugnacion_acta      FOREIGN KEY (id_acta)      REFERENCES acta_electoral(id_acta),
+  CONSTRAINT fk_impugnacion_cargo          FOREIGN KEY (id_cargo)             REFERENCES cargo_electoral(id_cargo),
+  CONSTRAINT fk_impugnacion_lista_mesa     FOREIGN KEY (id_lista_mesa)        REFERENCES lista_electoral(id_lista),
+  CONSTRAINT fk_impugnacion_lista_final    FOREIGN KEY (id_lista_final)       REFERENCES lista_electoral(id_lista),
+  CONSTRAINT fk_impugnacion_usuario_mesa   FOREIGN KEY (id_usuario_mesa)      REFERENCES usuario(id_usuario),
+  CONSTRAINT fk_impugnacion_apelante       FOREIGN KEY (id_personero_apela)   REFERENCES personero(id_personero),
+  CONSTRAINT fk_impugnacion_usuario_apel   FOREIGN KEY (id_usuario_apelacion) REFERENCES usuario(id_usuario),
+  CONSTRAINT fk_impugnacion_usuario_ceunp  FOREIGN KEY (id_usuario_ceunp)     REFERENCES usuario(id_usuario)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================================
@@ -854,18 +905,6 @@ BEGIN
   END IF;
   IF NEW.estado <> 'ACTIVO' THEN
     SET NEW.habilitado_para_votar = 0;
-  END IF;
-END$$
-
--- ---------------------------------------------------------------------
--- PROCESO: FINALIZADO y ANULADO son estados terminales (RN26 / RN34)
--- ---------------------------------------------------------------------
-CREATE TRIGGER trg_proceso_bu BEFORE UPDATE ON proceso_electoral
-FOR EACH ROW
-BEGIN
-  IF OLD.estado IN ('FINALIZADO','ANULADO') AND NEW.estado <> OLD.estado THEN
-    SIGNAL SQLSTATE '45000'
-      SET MESSAGE_TEXT = 'Un proceso FINALIZADO o ANULADO no puede cambiar de estado.';
   END IF;
 END$$
 
@@ -1269,7 +1308,7 @@ DELIMITER ;
 -- =====================================================================
 
 -- Docente con su facultad y departamento
-CREATE OR REPLACE VIEW v_docente_detalle AS
+CREATE VIEW v_docente_detalle AS
 SELECT d.id_docente, d.dni, d.apellidos, d.nombres,
        CONCAT(d.apellidos, ', ', d.nombres) AS nombre_completo,
        d.categoria, d.dedicacion, d.grado_academico, d.estado, d.habilitado_para_votar,
@@ -1281,7 +1320,7 @@ SELECT d.id_docente, d.dni, d.apellidos, d.nombres,
   JOIN facultad f      ON f.id_facultad = dp.id_facultad;
 
 -- Padrón electoral legible (quién vota qué y en qué mesa). No expone el voto.
-CREATE OR REPLACE VIEW v_padron_detalle AS
+CREATE VIEW v_padron_detalle AS
 SELECT pe.id_proceso, pe.id_cargo, c.nombre AS cargo,
        pe.id_docente, d.dni, CONCAT(d.apellidos, ', ', d.nombres) AS docente,
        d.categoria, f.nombre AS facultad,
@@ -1294,7 +1333,7 @@ SELECT pe.id_proceso, pe.id_cargo, c.nombre AS cargo,
   LEFT JOIN mesa_electoral m ON m.id_mesa = pe.id_mesa;
 
 -- RN31: participación y quórum por cargo, en tiempo real
-CREATE OR REPLACE VIEW v_participacion_cargo AS
+CREATE VIEW v_participacion_cargo AS
 SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
        COUNT(pe.id_docente)            AS electores_habiles,
        COALESCE(SUM(pe.ya_voto), 0)    AS votaron,
@@ -1311,7 +1350,7 @@ SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
  GROUP BY c.id_proceso, c.id_cargo, c.nombre, p.quorum_minimo;
 
 -- RN31: participación global del proceso (electores distintos)
-CREATE OR REPLACE VIEW v_quorum_proceso AS
+CREATE VIEW v_quorum_proceso AS
 SELECT p.id_proceso, p.nombre, p.estado, p.tipo, p.quorum_minimo,
        COUNT(x.id_docente)          AS electores_habiles,
        COALESCE(SUM(x.voto), 0)     AS votaron,
@@ -1328,12 +1367,12 @@ SELECT p.id_proceso, p.nombre, p.estado, p.tipo, p.quorum_minimo,
  GROUP BY p.id_proceso, p.nombre, p.estado, p.tipo, p.quorum_minimo;
 
 -- Alias con el nombre que usa tu documentación (diccionario_y_cambios_arquitectura.md)
-CREATE OR REPLACE VIEW vista_quorum AS
+CREATE VIEW vista_quorum AS
 SELECT * FROM v_quorum_proceso;
 
 -- Conteo por lista. Solo muestra procesos CERRADOS o FINALIZADOS:
 -- durante la votación no devuelve filas, así nadie ve resultados parciales.
-CREATE OR REPLACE VIEW v_resultados_cargo AS
+CREATE VIEW v_resultados_cargo AS
 SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
        l.id_lista, l.nombre AS lista, l.orden_cedula,
        COUNT(v.id_voto) AS votos,
@@ -1347,7 +1386,7 @@ SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
           c.estado_resultado, c.id_lista_ganadora;
 
 -- RN18: cédula de votación (listas admitidas en el orden sorteado, con su fórmula)
-CREATE OR REPLACE VIEW v_cedula_votacion AS
+CREATE VIEW v_cedula_votacion AS
 SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
        l.id_lista, l.orden_cedula, l.nombre AS lista, l.simbolo,
        ca.rol_en_lista, CONCAT(d.apellidos, ', ', d.nombres) AS candidato
@@ -1357,7 +1396,7 @@ SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
   JOIN docente d         ON d.id_docente = ca.id_docente;
 
 -- RN15: portal de transparencia (solo candidatos aprobados de listas admitidas)
-CREATE OR REPLACE VIEW v_candidatos_publicos AS
+CREATE VIEW v_candidatos_publicos AS
 SELECT c.id_proceso, c.nombre AS cargo, l.nombre AS lista, l.url_plan_gobierno,
        ca.rol_en_lista, CONCAT(d.nombres, ' ', d.apellidos) AS candidato,
        d.categoria, d.grado_academico, f.nombre AS facultad, ca.url_hoja_vida
@@ -1369,7 +1408,7 @@ SELECT c.id_proceso, c.nombre AS cargo, l.nombre AS lista, l.url_plan_gobierno,
  WHERE ca.estado_validacion = 'APROBADO';
 
 -- RN27: cuadre de votos emitidos contra electores que sufragaron (debe dar diferencia 0)
-CREATE OR REPLACE VIEW v_cuadre_votos AS
+CREATE VIEW v_cuadre_votos AS
 SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
        (SELECT COUNT(*) FROM padron_electoral pe WHERE pe.id_cargo = c.id_cargo AND pe.ya_voto = 1) AS electores_que_votaron,
        (SELECT COUNT(*) FROM voto v WHERE v.id_cargo = c.id_cargo) AS votos_en_urna,
@@ -1378,7 +1417,7 @@ SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
   FROM cargo_electoral c;
 
 -- Estado de las mesas
-CREATE OR REPLACE VIEW v_mesa_detalle AS
+CREATE VIEW v_mesa_detalle AS
 SELECT m.id_proceso, m.id_mesa, m.numero_mesa, m.ubicacion, m.estado,
        m.total_electores, m.hora_instalacion, m.hora_cierre, m.fecha_sorteo, m.semilla_sorteo,
        (SELECT COUNT(*) FROM miembro_mesa mm WHERE mm.id_mesa = m.id_mesa) AS miembros,
@@ -1387,7 +1426,7 @@ SELECT m.id_proceso, m.id_mesa, m.numero_mesa, m.ubicacion, m.estado,
        (SELECT COUNT(*) FROM acta_electoral a WHERE a.id_mesa = m.id_mesa AND a.estado = 'VIGENTE') AS actas_emitidas
   FROM mesa_electoral m;
 
-CREATE OR REPLACE VIEW v_miembros_mesa AS
+CREATE VIEW v_miembros_mesa AS
 SELECT m.id_proceso, m.id_mesa, m.numero_mesa, mm.orden_sorteo, mm.rol, mm.titular, mm.asistio,
        d.id_docente, d.dni, CONCAT(d.apellidos, ', ', d.nombres) AS docente, f.nombre AS facultad
   FROM miembro_mesa mm
@@ -1396,7 +1435,7 @@ SELECT m.id_proceso, m.id_mesa, m.numero_mesa, mm.orden_sorteo, mm.rol, mm.titul
   JOIN facultad f       ON f.id_facultad = d.id_facultad;
 
 -- RN20: docentes que SÍ pueden entrar al sorteo de mesas de cada proceso
-CREATE OR REPLACE VIEW v_elegibles_sorteo AS
+CREATE VIEW v_elegibles_sorteo AS
 SELECT DISTINCT pe.id_proceso, pe.id_mesa, d.id_docente, d.dni,
        CONCAT(d.apellidos, ', ', d.nombres) AS docente
   FROM padron_electoral pe
@@ -1418,19 +1457,8 @@ SELECT DISTINCT pe.id_proceso, pe.id_mesa, d.id_docente, d.dni,
                      JOIN mesa_electoral m ON m.id_mesa = mm.id_mesa
                     WHERE mm.id_docente = d.id_docente AND m.id_proceso = pe.id_proceso);
 
--- RN35: multas con datos del docente
-CREATE OR REPLACE VIEW v_multas_detalle AS
-SELECT mu.id_multa, mu.id_proceso, p.nombre AS proceso,
-       d.id_docente, d.dni, CONCAT(d.apellidos, ', ', d.nombres) AS docente, f.nombre AS facultad,
-       mu.motivo, mu.uit_referencia, mu.porcentaje_uit, mu.monto,
-       mu.estado_pago, mu.fecha_generacion, mu.fecha_pago
-  FROM multa mu
-  JOIN proceso_electoral p ON p.id_proceso = mu.id_proceso
-  JOIN docente d           ON d.id_docente = mu.id_docente
-  JOIN facultad f          ON f.id_facultad = d.id_facultad;
-
 -- Tachas con denunciante, candidato y lista
-CREATE OR REPLACE VIEW v_tachas_detalle AS
+CREATE VIEW v_tachas_detalle AS
 SELECT t.id_tacha, c.id_proceso, c.nombre AS cargo, l.id_lista, l.nombre AS lista,
        ca.id_candidato, ca.rol_en_lista,
        CONCAT(dc.apellidos, ', ', dc.nombres) AS candidato,
@@ -2732,248 +2760,9 @@ BEGIN
    WHERE c.id_proceso = p_id_proceso;
 END$$
 
--- RN33: crea el proceso de segunda vuelta para los cargos en estado SEGUNDA_VUELTA.
--- Clona el cargo, sus categorías, las DOS listas más votadas (con sus candidatos) y el padrón.
--- El nuevo proceso nace en CREADO: faltan mesas, sorteo de miembros y sorteo de cédula.
-CREATE PROCEDURE sp_crear_segunda_vuelta(
-  IN  p_id_proceso_padre INT,
-  IN  p_fecha_inicio     DATETIME,
-  IN  p_fecha_fin        DATETIME,
-  IN  p_id_usuario       INT,
-  OUT p_id_proceso_nuevo INT
-)
-BEGIN
-  DECLARE v_estado   VARCHAR(20) DEFAULT NULL;
-  DECLARE v_tipo     VARCHAR(20) DEFAULT NULL;
-  DECLARE v_nombre   VARCHAR(200);
-  DECLARE v_quorum   DECIMAL(5,2);
-  DECLARE v_fin      INT DEFAULT 0;
-  DECLARE v_cargo    INT;
-  DECLARE v_c_nombre VARCHAR(150);
-  DECLARE v_c_nivel  VARCHAR(20);
-  DECLARE v_c_jur    INT;
-  DECLARE v_c_pct    DECIMAL(5,2);
-  DECLARE v_cargo_nuevo INT;
-  DECLARE v_l1       INT DEFAULT NULL;
-  DECLARE v_l2       INT DEFAULT NULL;
-  DECLARE v_lista_vieja INT;
-  DECLARE v_lista_nueva INT;
-  DECLARE v_i        INT;
-  DECLARE v_n        INT DEFAULT 0;
-  DECLARE cur_cargos CURSOR FOR
-    SELECT id_cargo, nombre, nivel_jurisdiccion, id_jurisdiccion, porcentaje_minimo_victoria
-      FROM cargo_electoral
-     WHERE id_proceso = p_id_proceso_padre AND estado_resultado = 'SEGUNDA_VUELTA'
-     ORDER BY id_cargo;
-  DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_fin = 1;
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION
-  BEGIN
-    ROLLBACK;
-    RESIGNAL;
-  END;
-
-  START TRANSACTION;
-
-  SELECT COUNT(*) INTO v_n FROM proceso_electoral WHERE id_proceso = p_id_proceso_padre;
-  IF v_n = 0 THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El proceso de primera vuelta no existe.';
-  END IF;
-  SELECT estado, tipo, nombre, quorum_minimo INTO v_estado, v_tipo, v_nombre, v_quorum
-    FROM proceso_electoral WHERE id_proceso = p_id_proceso_padre;
-
-  IF v_estado <> 'FINALIZADO' OR v_tipo <> 'PRIMERA_VUELTA' THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RN33: se requiere una primera vuelta FINALIZADA.';
-  END IF;
-  SELECT COUNT(*) INTO v_n FROM cargo_electoral
-   WHERE id_proceso = p_id_proceso_padre AND estado_resultado = 'SEGUNDA_VUELTA';
-  IF v_n = 0 THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RN33: ningun cargo de este proceso requiere segunda vuelta.';
-  END IF;
-  SELECT COUNT(*) INTO v_n FROM proceso_electoral
-   WHERE id_proceso_padre = p_id_proceso_padre AND estado <> 'ANULADO';
-  IF v_n > 0 THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ya existe una segunda vuelta vigente para este proceso.';
-  END IF;
-  IF p_fecha_fin <= p_fecha_inicio THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La fecha de fin debe ser posterior a la de inicio.';
-  END IF;
-
-  INSERT INTO proceso_electoral (nombre, fecha_inicio, fecha_fin, estado, tipo, id_proceso_padre, quorum_minimo)
-  VALUES (LEFT(CONCAT(v_nombre, ' - Segunda vuelta'), 200), p_fecha_inicio, p_fecha_fin,
-          'CREADO', 'SEGUNDA_VUELTA', p_id_proceso_padre, v_quorum);
-  SET p_id_proceso_nuevo = LAST_INSERT_ID();
-
-  DROP TEMPORARY TABLE IF EXISTS tmp_candidato_sv;
-  CREATE TEMPORARY TABLE tmp_candidato_sv (
-    id_docente INT NOT NULL, rol_en_lista VARCHAR(100) NOT NULL, url_hoja_vida VARCHAR(300) NULL);
-
-  SET v_fin = 0;
-  OPEN cur_cargos;
-  bucle: LOOP
-    FETCH cur_cargos INTO v_cargo, v_c_nombre, v_c_nivel, v_c_jur, v_c_pct;
-    IF v_fin = 1 THEN
-      LEAVE bucle;
-    END IF;
-
-    INSERT INTO cargo_electoral (id_proceso, nombre, nivel_jurisdiccion, id_jurisdiccion, porcentaje_minimo_victoria)
-    VALUES (p_id_proceso_nuevo, v_c_nombre, v_c_nivel, v_c_jur, v_c_pct);
-    SET v_cargo_nuevo = LAST_INSERT_ID();
-
-    INSERT INTO cargo_categoria_permitida (id_cargo, categoria, puede_votar, puede_postular)
-    SELECT v_cargo_nuevo, categoria, puede_votar, puede_postular
-      FROM cargo_categoria_permitida WHERE id_cargo = v_cargo;
-
-    -- Las dos listas más votadas (agregados: no disparan el handler NOT FOUND)
-    SELECT MIN(id_lista) INTO v_l1
-      FROM resultado_electoral
-     WHERE id_cargo = v_cargo AND tipo_voto = 'VALIDO' AND posicion = 1;
-    SELECT MIN(id_lista) INTO v_l2
-      FROM resultado_electoral
-     WHERE id_cargo = v_cargo AND tipo_voto = 'VALIDO' AND id_lista <> v_l1
-       AND total_votos = (SELECT MAX(r2.total_votos) FROM resultado_electoral r2
-                           WHERE r2.id_cargo = v_cargo AND r2.tipo_voto = 'VALIDO' AND r2.id_lista <> v_l1);
-
-    SET v_i = 1;
-    WHILE v_i <= 2 DO
-      SET v_lista_vieja = IF(v_i = 1, v_l1, v_l2);
-      IF v_lista_vieja IS NOT NULL THEN
-        INSERT INTO lista_electoral (id_cargo, nombre, simbolo, estado, url_plan_gobierno)
-        SELECT v_cargo_nuevo, nombre, simbolo, 'ADMITIDA', url_plan_gobierno
-          FROM lista_electoral WHERE id_lista = v_lista_vieja;
-        SET v_lista_nueva = LAST_INSERT_ID();
-
-        DELETE FROM tmp_candidato_sv;
-        INSERT INTO tmp_candidato_sv (id_docente, rol_en_lista, url_hoja_vida)
-        SELECT id_docente, rol_en_lista, url_hoja_vida
-          FROM candidato WHERE id_lista = v_lista_vieja AND estado_validacion = 'APROBADO';
-        INSERT INTO candidato (id_lista, id_docente, rol_en_lista, url_hoja_vida, estado_validacion)
-        SELECT v_lista_nueva, id_docente, rol_en_lista, url_hoja_vida, 'APROBADO'
-          FROM tmp_candidato_sv;
-      END IF;
-      SET v_i = v_i + 1;
-    END WHILE;
-
-    -- Mismo padrón de la primera vuelta, sin marcas de voto ni mesa
-    INSERT INTO padron_electoral (id_proceso, id_cargo, id_docente, habilitado_para_votar, motivo_inhabilitacion)
-    SELECT p_id_proceso_nuevo, v_cargo_nuevo, id_docente, habilitado_para_votar, motivo_inhabilitacion
-      FROM padron_electoral WHERE id_cargo = v_cargo;
-
-    SET v_fin = 0;
-  END LOOP;
-  CLOSE cur_cargos;
-  DROP TEMPORARY TABLE IF EXISTS tmp_candidato_sv;
-
-  CALL sp_registrar_auditoria(p_id_usuario, NULL, p_id_proceso_nuevo, 'CREAR_SEGUNDA_VUELTA',
-       JSON_OBJECT('id_proceso_padre', p_id_proceso_padre));
-  COMMIT;
-END$$
-
 -- =====================================================================
--- G. SANCIONES
+-- G. SANCIONES: sp_generar_multas y sp_actualizar_multa están en la sección 5f (CUS16)
 -- =====================================================================
-
--- RN35: genera las multas del proceso (se puede ejecutar más de una vez sin duplicar).
---   OMISO_VOTACION .. habilitado en el padrón que no votó por ningún cargo
---   OMISO_MESA ...... miembro TITULAR con asistio = FALSE
--- Monto = UIT * porcentaje / 100, tomados de parametro_global.
-CREATE PROCEDURE sp_generar_multas(
-  IN p_id_proceso INT,
-  IN p_id_usuario INT
-)
-BEGIN
-  DECLARE v_estado   VARCHAR(20) DEFAULT NULL;
-  DECLARE v_uit      DECIMAL(12,2);
-  DECLARE v_pct_elec DECIMAL(12,2);
-  DECLARE v_pct_mesa DECIMAL(12,2);
-  DECLARE v_n1       INT DEFAULT 0;
-  DECLARE v_n2       INT DEFAULT 0;
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION
-  BEGIN
-    ROLLBACK;
-    RESIGNAL;
-  END;
-
-  START TRANSACTION;
-
-  SELECT estado INTO v_estado FROM proceso_electoral WHERE id_proceso = p_id_proceso;
-  IF v_estado IS NULL THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El proceso electoral no existe.';
-  END IF;
-  IF v_estado NOT IN ('CERRADO','FINALIZADO') THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RN35: las multas se generan con la votacion ya cerrada.';
-  END IF;
-
-  SET v_uit      = fn_parametro_decimal('UIT');
-  SET v_pct_elec = fn_parametro_decimal('MULTA_ELECTOR_OMISO_PCT');
-  SET v_pct_mesa = fn_parametro_decimal('MULTA_MIEMBRO_MESA_OMISO_PCT');
-  IF v_uit IS NULL OR v_pct_elec IS NULL OR v_pct_mesa IS NULL THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Faltan parametros: UIT y porcentajes de multa.';
-  END IF;
-
-  INSERT INTO multa (id_docente, id_proceso, motivo, uit_referencia, porcentaje_uit, monto)
-  SELECT x.id_docente, p_id_proceso, 'OMISO_VOTACION', v_uit, v_pct_elec, ROUND(v_uit * v_pct_elec / 100, 2)
-    FROM (SELECT id_docente
-            FROM padron_electoral
-           WHERE id_proceso = p_id_proceso AND habilitado_para_votar = 1
-           GROUP BY id_docente
-          HAVING MAX(ya_voto) = 0) x
-  ON DUPLICATE KEY UPDATE observacion = multa.observacion;
-  SET v_n1 = ROW_COUNT();
-
-  INSERT INTO multa (id_docente, id_proceso, motivo, uit_referencia, porcentaje_uit, monto)
-  SELECT mm.id_docente, p_id_proceso, 'OMISO_MESA', v_uit, v_pct_mesa, ROUND(v_uit * v_pct_mesa / 100, 2)
-    FROM miembro_mesa mm
-    JOIN mesa_electoral m ON m.id_mesa = mm.id_mesa
-   WHERE m.id_proceso = p_id_proceso AND mm.titular = 1 AND mm.asistio = 0
-  ON DUPLICATE KEY UPDATE observacion = multa.observacion;
-  SET v_n2 = ROW_COUNT();
-
-  CALL sp_registrar_auditoria(p_id_usuario, NULL, p_id_proceso, 'GENERAR_MULTAS',
-       JSON_OBJECT('omisos_votacion', v_n1, 'omisos_mesa', v_n2));
-  COMMIT;
-
-  SELECT motivo, COUNT(*) AS multas, SUM(monto) AS total_soles
-    FROM multa WHERE id_proceso = p_id_proceso GROUP BY motivo;
-END$$
-
--- Registra el pago o la exoneración de una multa.
-CREATE PROCEDURE sp_actualizar_multa(
-  IN p_id_multa    INT,
-  IN p_estado_pago VARCHAR(12),     -- PAGADA / EXONERADA / PENDIENTE
-  IN p_observacion VARCHAR(300),
-  IN p_id_usuario  INT
-)
-BEGIN
-  DECLARE v_proceso INT DEFAULT NULL;
-  DECLARE v_docente INT DEFAULT NULL;
-  DECLARE v_est     VARCHAR(12);
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION
-  BEGIN
-    ROLLBACK;
-    RESIGNAL;
-  END;
-
-  START TRANSACTION;
-  SET v_est = UPPER(p_estado_pago);
-
-  SELECT id_proceso, id_docente INTO v_proceso, v_docente FROM multa WHERE id_multa = p_id_multa FOR UPDATE;
-  IF v_proceso IS NULL THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La multa no existe.';
-  END IF;
-  IF v_est IS NULL OR v_est NOT IN ('PENDIENTE','PAGADA','EXONERADA') THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Estado de pago invalido.';
-  END IF;
-
-  UPDATE multa
-     SET estado_pago = v_est,
-         fecha_pago  = IF(v_est = 'PAGADA', NOW(), NULL),
-         observacion = COALESCE(p_observacion, observacion)
-   WHERE id_multa = p_id_multa;
-
-  CALL sp_registrar_auditoria(p_id_usuario, v_docente, v_proceso, 'ACTUALIZAR_MULTA',
-       JSON_OBJECT('id_multa', p_id_multa, 'estado', v_est));
-  COMMIT;
-END$$
 
 -- =====================================================================
 -- H. VERIFICACIÓN POR QR
@@ -3945,36 +3734,19 @@ DELIMITER ;
 -- =====================================================================
 -- 5b. CUS12 · Realizar escrutinio y conciliar (cédulas, conteo manual vs. digital,
 --     impugnaciones, acta de escrutinio y entrega al CEUNP)
--- (mismo contenido que 11_escrutinio_conciliacion.sql)
+-- (en una base ya instalada sin este CUS se aplica 11_escrutinio_conciliacion.sql)
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- 1. Columna nueva: cargo del voto impugnado (paso 4 y A4; lo resuelve el CUS13)
+-- 1. La columna impugnacion_electoral.id_cargo ya viene en su CREATE TABLE (sección 2)
 -- ---------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS sp_tmp_agregar_columna;
-DELIMITER $$
-CREATE PROCEDURE sp_tmp_agregar_columna(IN p_tabla VARCHAR(64), IN p_columna VARCHAR(64), IN p_definicion VARCHAR(500))
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-                  WHERE table_schema = DATABASE() AND table_name = p_tabla AND column_name = p_columna) THEN
-    SET @sql_cus12 = CONCAT('ALTER TABLE ', p_tabla, ' ADD COLUMN ', p_columna, ' ', p_definicion);
-    PREPARE st_cus12 FROM @sql_cus12;
-    EXECUTE st_cus12;
-    DEALLOCATE PREPARE st_cus12;
-  END IF;
-END$$
-DELIMITER ;
-
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'id_cargo',
-     'INT NULL COMMENT ''CUS12: cargo de la cédula impugnada durante el escrutinio'' AFTER id_mesa');
-DROP PROCEDURE IF EXISTS sp_tmp_agregar_columna;
 
 -- ---------------------------------------------------------------------
 -- 2. Tablas nuevas
 -- ---------------------------------------------------------------------
 -- Escrutinio de cada mesa (relación 1 a 1 con mesa_electoral). Guarda el avance de los
 -- pasos del diagrama, el cuadre de cédulas (RN27), la conciliación y la entrega al CEUNP.
-CREATE TABLE IF NOT EXISTS escrutinio_mesa (
+CREATE TABLE escrutinio_mesa (
   id_mesa              INT PRIMARY KEY,
   estado               ENUM('CEDULAS_CONTADAS','CONTEO_REGISTRADO','ACTA_EMITIDA','ENTREGADA') NOT NULL DEFAULT 'CEDULAS_CONTADAS',
   hora_inicio          DATETIME NOT NULL,          -- RF85: hora de inicio del escrutinio
@@ -4021,7 +3793,7 @@ CREATE TABLE IF NOT EXISTS escrutinio_mesa (
 
 -- Conteo manual por opción (5 ingresarConteoManual) junto al conteo digital (7 contarVotosDigitales).
 -- opcion: LISTA (id_lista), BLANCO, NULO o IMPUGNADO (solo manual: la cédula apartada).
-CREATE TABLE IF NOT EXISTS escrutinio_conteo (
+CREATE TABLE escrutinio_conteo (
   id_conteo     INT AUTO_INCREMENT PRIMARY KEY,
   id_mesa       INT NOT NULL,
   id_cargo      INT NOT NULL,
@@ -4041,16 +3813,6 @@ CREATE TABLE IF NOT EXISTS escrutinio_conteo (
 -- ---------------------------------------------------------------------
 -- 3. Triggers y procedimientos
 -- ---------------------------------------------------------------------
-DROP TRIGGER IF EXISTS trg_escrutinio_bu;
-DROP TRIGGER IF EXISTS trg_escrutinio_bd;
-DROP TRIGGER IF EXISTS trg_conteo_bi;
-DROP TRIGGER IF EXISTS trg_conteo_bu;
-DROP TRIGGER IF EXISTS trg_conteo_bd;
-DROP PROCEDURE IF EXISTS sp_contar_cedulas;
-DROP PROCEDURE IF EXISTS sp_registrar_impugnacion;
-DROP PROCEDURE IF EXISTS sp_registrar_conteo;
-DROP PROCEDURE IF EXISTS sp_generar_acta_escrutinio;
-DROP PROCEDURE IF EXISTS sp_registrar_entrega_actas;
 
 DELIMITER $$
 
@@ -4775,143 +4537,22 @@ DELIMITER ;
 -- =====================================================================
 -- 5c. CUS13 · Gestionar impugnaciones y apelaciones (decisión de la mesa, apelación
 --     y fallo del CEUNP)
--- (mismo contenido que 12_impugnaciones_apelaciones.sql)
+-- (en una base ya instalada sin este CUS se aplica 12_impugnaciones_apelaciones.sql)
 -- =====================================================================
-USE elecciones_unp;
-SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION';
-SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
--- 1. Columnas nuevas de impugnacion_electoral (sin ADD COLUMN IF NOT EXISTS: MariaDB y MySQL)
+-- 1. Columnas, claves foráneas e índices de impugnacion_electoral: ya vienen en su
+--    CREATE TABLE (sección 2)
 -- ---------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS sp_tmp_agregar_columna;
-DROP PROCEDURE IF EXISTS sp_tmp_agregar_fk;
-DELIMITER $$
-CREATE PROCEDURE sp_tmp_agregar_columna(IN p_tabla VARCHAR(64), IN p_columna VARCHAR(64), IN p_definicion VARCHAR(500))
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-                  WHERE table_schema = DATABASE() AND table_name = p_tabla AND column_name = p_columna) THEN
-    SET @sql_cus13 = CONCAT('ALTER TABLE ', p_tabla, ' ADD COLUMN ', p_columna, ' ', p_definicion);
-    PREPARE st_cus13 FROM @sql_cus13;
-    EXECUTE st_cus13;
-    DEALLOCATE PREPARE st_cus13;
-  END IF;
-END$$
--- Agrega la FK solo si la columna aún no tiene ninguna (otro script pudo crearla con otro nombre)
-CREATE PROCEDURE sp_tmp_agregar_fk(IN p_tabla VARCHAR(64), IN p_columna VARCHAR(64), IN p_nombre VARCHAR(64),
-                                   IN p_referencia VARCHAR(200))
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.key_column_usage
-                  WHERE table_schema = DATABASE() AND table_name = p_tabla AND column_name = p_columna
-                    AND referenced_table_name IS NOT NULL) THEN
-    SET @sql_cus13 = CONCAT('ALTER TABLE ', p_tabla, ' ADD CONSTRAINT ', p_nombre,
-                            ' FOREIGN KEY (', p_columna, ') REFERENCES ', p_referencia);
-    PREPARE st_cus13 FROM @sql_cus13;
-    EXECUTE st_cus13;
-    DEALLOCATE PREPARE st_cus13;
-  END IF;
-END$$
-DELIMITER ;
-
--- Cargo de la cédula impugnada (lo crea el CUS12; se repite por si este script se ejecuta solo)
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'id_cargo',
-     'INT NULL COMMENT ''CUS12: cargo de la cédula impugnada'' AFTER id_mesa');
-
--- 6-8 registrarDecisionMesa / actualizarDecisionMesa(decision): primera instancia (RN23)
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'votos_mesa_favor',
-     'TINYINT NULL COMMENT ''CUS13: miembros de mesa a favor de la impugnación'' AFTER decision_mesa');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'votos_mesa_contra',
-     'TINYINT NULL COMMENT ''CUS13: miembros de mesa en contra'' AFTER votos_mesa_favor');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'opcion_mesa',
-     'ENUM(''LISTA'',''BLANCO'',''NULO'') NULL COMMENT ''CUS13: opción a la que la mesa asigna la cédula'' AFTER votos_mesa_contra');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'id_lista_mesa',
-     'INT NULL COMMENT ''CUS13: lista, si opcion_mesa = LISTA'' AFTER opcion_mesa');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'fundamento_mesa',
-     'VARCHAR(1000) NULL COMMENT ''CUS13: fundamento de la decisión de la mesa'' AFTER id_lista_mesa');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'fecha_decision_mesa',
-     'DATETIME NULL COMMENT ''CUS13: hora de la decisión de la mesa'' AFTER fundamento_mesa');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'id_usuario_mesa',
-     'INT NULL COMMENT ''CUS13: presidente que registró la decisión'' AFTER fecha_decision_mesa');
-
--- 10 apelarDecision(id_impugnacion) (RF81)
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'id_personero_apela',
-     'INT NULL COMMENT ''CUS13: personero que apela'' AFTER id_usuario_mesa');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'fundamento_apelacion',
-     'VARCHAR(1000) NULL COMMENT ''CUS13: fundamento de la apelación'' AFTER id_personero_apela');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'fecha_apelacion',
-     'DATETIME NULL COMMENT ''CUS13: hora de la apelación'' AFTER fundamento_apelacion');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'id_usuario_apelacion',
-     'INT NULL COMMENT ''CUS13: cuenta que registró la apelación'' AFTER fecha_apelacion');
-
--- 11-13 registrarFalloCEUNP / actualizarDecisionCEUNP(decision, 'RESUELTA') (RN36)
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'numero_resolucion',
-     'VARCHAR(40) NULL COMMENT ''CUS13: número de la resolución del CEUNP'' AFTER decision_ceunp');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'miembros_pleno',
-     'TINYINT NULL COMMENT ''CUS13: miembros del Pleno presentes (quórum)'' AFTER numero_resolucion');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'votos_pleno_favor',
-     'TINYINT NULL COMMENT ''CUS13: votos a favor de la apelación'' AFTER miembros_pleno');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'votos_pleno_contra',
-     'TINYINT NULL COMMENT ''CUS13: votos en contra de la apelación'' AFTER votos_pleno_favor');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'voto_dirimente',
-     'ENUM(''FAVOR'',''CONTRA'') NULL COMMENT ''CUS13: voto dirimente del Presidente en empate'' AFTER votos_pleno_contra');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'opcion_final',
-     'ENUM(''LISTA'',''BLANCO'',''NULO'') NULL COMMENT ''CUS13: opción final fijada por el CEUNP'' AFTER voto_dirimente');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'id_lista_final',
-     'INT NULL COMMENT ''CUS13: lista, si opcion_final = LISTA'' AFTER opcion_final');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'fundamento_ceunp',
-     'VARCHAR(1000) NULL COMMENT ''CUS13: fundamento del fallo'' AFTER id_lista_final');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'fecha_fallo',
-     'DATETIME NULL COMMENT ''CUS13: fecha del fallo del CEUNP'' AFTER fundamento_ceunp');
-CALL sp_tmp_agregar_columna('impugnacion_electoral', 'id_usuario_ceunp',
-     'INT NULL COMMENT ''CUS13: cuenta del CEUNP que registró el fallo'' AFTER fecha_fallo');
-
-CALL sp_tmp_agregar_fk('impugnacion_electoral', 'id_cargo',             'fk_impugnacion_cargo',        'cargo_electoral(id_cargo)');
-CALL sp_tmp_agregar_fk('impugnacion_electoral', 'id_lista_mesa',        'fk_impugnacion_lista_mesa',   'lista_electoral(id_lista)');
-CALL sp_tmp_agregar_fk('impugnacion_electoral', 'id_lista_final',       'fk_impugnacion_lista_final',  'lista_electoral(id_lista)');
-CALL sp_tmp_agregar_fk('impugnacion_electoral', 'id_usuario_mesa',      'fk_impugnacion_usuario_mesa', 'usuario(id_usuario)');
-CALL sp_tmp_agregar_fk('impugnacion_electoral', 'id_personero_apela',   'fk_impugnacion_apelante',     'personero(id_personero)');
-CALL sp_tmp_agregar_fk('impugnacion_electoral', 'id_usuario_apelacion', 'fk_impugnacion_usuario_apel', 'usuario(id_usuario)');
-CALL sp_tmp_agregar_fk('impugnacion_electoral', 'id_usuario_ceunp',     'fk_impugnacion_usuario_ceunp','usuario(id_usuario)');
-
--- Un número de resolución del CEUNP no se repite
-SET @existe_uq = (SELECT COUNT(*) FROM information_schema.statistics
-                   WHERE table_schema = DATABASE() AND table_name = 'impugnacion_electoral'
-                     AND index_name = 'uq_impugnacion_resolucion');
-SET @sql_cus13 = IF(@existe_uq = 0,
-  'ALTER TABLE impugnacion_electoral ADD UNIQUE KEY uq_impugnacion_resolucion (numero_resolucion)', 'DO 0');
-PREPARE st_cus13 FROM @sql_cus13;
-EXECUTE st_cus13;
-DEALLOCATE PREPARE st_cus13;
-SET @existe_ix = (SELECT COUNT(*) FROM information_schema.statistics
-                   WHERE table_schema = DATABASE() AND table_name = 'impugnacion_electoral'
-                     AND index_name = 'ix_impugnacion_estado');
-SET @sql_cus13 = IF(@existe_ix = 0,
-  'ALTER TABLE impugnacion_electoral ADD KEY ix_impugnacion_estado (id_proceso, estado)', 'DO 0');
-PREPARE st_cus13 FROM @sql_cus13;
-EXECUTE st_cus13;
-DEALLOCATE PREPARE st_cus13;
-
-DROP PROCEDURE IF EXISTS sp_tmp_agregar_columna;
-DROP PROCEDURE IF EXISTS sp_tmp_agregar_fk;
 
 -- ---------------------------------------------------------------------
 -- 2. Parámetros (editables en la pantalla Parámetros)
 -- ---------------------------------------------------------------------
-INSERT INTO parametro_global (clave, valor, descripcion) VALUES
-  ('IMPUGNACION_PLAZO_APELACION_HORAS', '24',
-   'Horas que tiene el personero para apelar la decisión de la mesa ante el CEUNP (RF81); 0 = sin plazo'),
-  ('CEUNP_QUORUM_PLENO', '5',
-   'Miembros del Pleno del CEUNP necesarios para resolver una apelación (RN36)')
-ON DUPLICATE KEY UPDATE descripcion = VALUES(descripcion);
+-- (Se cargan en la sección 6, junto con los demás parámetros.)
 
 -- ---------------------------------------------------------------------
 -- 3. Triggers, procedimientos y vistas
 -- ---------------------------------------------------------------------
-DROP TRIGGER IF EXISTS trg_impugnacion_bu;
-DROP TRIGGER IF EXISTS trg_impugnacion_bd;
-DROP PROCEDURE IF EXISTS sp_resolver_impugnacion_mesa;
-DROP PROCEDURE IF EXISTS sp_apelar_impugnacion;
-DROP PROCEDURE IF EXISTS sp_resolver_apelacion;
 
 DELIMITER $$
 
@@ -5322,7 +4963,7 @@ DELIMITER ;
 --                   vale la decisión de la mesa
 --   EN_APELACION    la resuelve el CEUNP: la cédula sigue como IMPUGNADO
 --   FIRME           decisión de la mesa consentida o fallo del CEUNP (RN36)
-CREATE OR REPLACE VIEW v_impugnacion_efecto AS
+CREATE VIEW v_impugnacion_efecto AS
 SELECT i.id_impugnacion, i.id_proceso, i.id_mesa, i.id_cargo,
        CASE
          WHEN i.decision_ceunp <> 'PENDIENTE' THEN 'FIRME'
@@ -5349,7 +4990,7 @@ SELECT i.id_impugnacion, i.id_proceso, i.id_mesa, i.id_cargo,
   FROM impugnacion_electoral i;
 
 -- Cédulas impugnadas por mesa, cargo y opción vigente (insumo del cómputo, CUS14)
-CREATE OR REPLACE VIEW v_impugnaciones_mesa_cargo AS
+CREATE VIEW v_impugnaciones_mesa_cargo AS
 SELECT e.id_proceso, e.id_mesa, e.id_cargo, e.opcion_vigente, e.id_lista_vigente,
        COUNT(*) AS cedulas, SUM(e.situacion = 'FIRME') AS firmes
   FROM v_impugnacion_efecto e
@@ -5358,11 +4999,8 @@ SELECT e.id_proceso, e.id_mesa, e.id_cargo, e.opcion_vigente, e.id_lista_vigente
 -- =====================================================================
 -- 5d. CUS14 · Computar y proclamar resultados (verificación previa, sesión de cómputo,
 --     consolidación, nulidad o segunda vuelta, proclamación y publicación)
--- (mismo contenido que 13_computo_proclamacion.sql)
+-- (en una base ya instalada sin este CUS se aplica 13_computo_proclamacion.sql)
 -- =====================================================================
-USE elecciones_unp;
-SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION';
-SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
 -- 1. Tablas nuevas
@@ -5371,7 +5009,7 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 -- ComputoGeneral del informe: una fila por proceso. Guarda la sesión de cómputo (RF91), el
 -- cómputo con su acta general (RF92, huella SHA-256 y QR), la proclamación (RF98) y la
 -- publicación en el portal (RF99).
-CREATE TABLE IF NOT EXISTS computo_proceso (
+CREATE TABLE computo_proceso (
   id_proceso              INT PRIMARY KEY,
   estado                  ENUM('SESION_INSTALADA','COMPUTADO','PROCLAMADO','PUBLICADO') NOT NULL DEFAULT 'SESION_INSTALADA',
   -- 4: sesión de cómputo general (RF91)
@@ -5424,7 +5062,7 @@ CREATE TABLE IF NOT EXISTS computo_proceso (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- RF91: personeros acreditados presentes en la sesión de cómputo (asistencia facultativa)
-CREATE TABLE IF NOT EXISTS computo_personero (
+CREATE TABLE computo_personero (
   id_proceso    INT NOT NULL,
   id_personero  INT NOT NULL,
   hora_registro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -5436,7 +5074,7 @@ CREATE TABLE IF NOT EXISTS computo_personero (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- RF90: acta marcada como dudosa y comprobación de su autenticidad (QR y huella SHA-256)
-CREATE TABLE IF NOT EXISTS verificacion_acta (
+CREATE TABLE verificacion_acta (
   id_acta                 INT PRIMARY KEY,
   id_proceso              INT NOT NULL,
   id_mesa                 INT NOT NULL,
@@ -5461,7 +5099,7 @@ CREATE TABLE IF NOT EXISTS verificacion_acta (
 
 -- A3 / RF95 y paso 7: calificación del CEUNP de la mesa cuya acta difiere del consolidado
 -- (VALIDA: se computa con la cédula física) o nulidad de su votación (NULIDAD, RF94 y RF100).
-CREATE TABLE IF NOT EXISTS calificacion_mesa (
+CREATE TABLE calificacion_mesa (
   id_mesa           INT PRIMARY KEY,
   id_proceso        INT NOT NULL,
   calificacion      ENUM('VALIDA','NULIDAD') NOT NULL,
@@ -5478,7 +5116,7 @@ CREATE TABLE IF NOT EXISTS calificacion_mesa (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 16-17 acreditarGanadora(idLista) / listaAcreditada(): una credencial por cargo proclamado (RF98)
-CREATE TABLE IF NOT EXISTS proclamacion_cargo (
+CREATE TABLE proclamacion_cargo (
   id_cargo           INT PRIMARY KEY,
   id_proceso         INT NOT NULL,
   id_lista           INT NOT NULL,
@@ -5494,25 +5132,11 @@ CREATE TABLE IF NOT EXISTS proclamacion_cargo (
 -- ---------------------------------------------------------------------
 -- 2. Parámetros (editables en la pantalla Parámetros)
 -- ---------------------------------------------------------------------
-INSERT INTO parametro_global (clave, valor, descripcion) VALUES
-  ('SEGUNDA_VUELTA_PLAZO_DIAS', '15',
-   'Días desde el cómputo dentro de los que debe realizarse la segunda vuelta (RN33, Art. 63)'),
-  ('CEUNP_QUORUM_PLENO', '5',
-   'Miembros del Pleno del CEUNP necesarios para resolver una apelación (RN36)')
-ON DUPLICATE KEY UPDATE descripcion = descripcion;
+-- (Se cargan en la sección 6, junto con los demás parámetros.)
 
 -- ---------------------------------------------------------------------
 -- 3. Triggers
 -- ---------------------------------------------------------------------
-DROP TRIGGER IF EXISTS trg_computo_bu;
-DROP TRIGGER IF EXISTS trg_computo_bd;
-DROP TRIGGER IF EXISTS trg_verificacion_bu;
-DROP TRIGGER IF EXISTS trg_verificacion_bd;
-DROP TRIGGER IF EXISTS trg_calificacion_bu;
-DROP TRIGGER IF EXISTS trg_calificacion_bd;
-DROP TRIGGER IF EXISTS trg_proclamacion_bu;
-DROP TRIGGER IF EXISTS trg_proclamacion_bd;
-DROP TRIGGER IF EXISTS trg_cpersonero_bi;
 
 DELIMITER $$
 
@@ -5610,7 +5234,7 @@ DELIMITER ;
 -- ---------------------------------------------------------------------
 
 -- 4-5 validarIntegridad(actas): cada acta con su huella recalculada y su verificación (RF90)
-CREATE OR REPLACE VIEW v_computo_actas AS
+CREATE VIEW v_computo_actas AS
 SELECT m.id_proceso, a.id_mesa, m.numero_mesa, a.id_acta, a.tipo, a.estado, a.fecha_emision,
        a.hash_integridad,
        IF(SHA2(a.contenido_json, 256) = a.hash_integridad, 1, 0) AS integra,
@@ -5624,7 +5248,7 @@ SELECT m.id_proceso, a.id_mesa, m.numero_mesa, a.id_acta, a.tipo, a.estado, a.fe
 -- 2-3 verificarActasEntregadas(idProceso) / actasEntregadas(totalMesas) (RF89, RN32).
 -- situacion: por qué una mesa entra o no al cómputo. Solo HABILITADA se computa; NO_INSTALADA y
 -- ANULADA no tienen votos que computar. Las demás impiden el cómputo hasta resolverse.
-CREATE OR REPLACE VIEW v_computo_mesas AS
+CREATE VIEW v_computo_mesas AS
 SELECT x.*,
        CASE
          WHEN x.estado = 'ANULADA' THEN 'ANULADA'
@@ -5667,7 +5291,7 @@ SELECT x.*,
 -- 6-7 consolidarVotos(idCargo) por mesa. Votos de la cédula física (acta de escrutinio, RF84)
 -- más las cédulas impugnadas que la mesa o el CEUNP asignaron a la opción (CUS13). La fila
 -- IMPUGNADO trae las cédulas cuya impugnación aún no tiene opción.
-CREATE OR REPLACE VIEW v_computo_conteo_mesa AS
+CREATE VIEW v_computo_conteo_mesa AS
 SELECT m.id_proceso, k.id_mesa, m.numero_mesa, k.id_cargo, k.opcion, k.id_lista,
        k.votos_manual AS votos_acta,
        (SELECT COUNT(*) FROM v_impugnacion_efecto i
@@ -5694,7 +5318,7 @@ SELECT m.id_proceso, k.id_mesa, m.numero_mesa, k.id_cargo, k.opcion, NULL,
  WHERE k.opcion = 'IMPUGNADO';
 
 -- 7 totalesPorLista(votos): consolidado por cargo y opción de las actas de las mesas no anuladas
-CREATE OR REPLACE VIEW v_computo_resultados AS
+CREATE VIEW v_computo_resultados AS
 SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo, x.opcion, x.id_lista,
        COALESCE(l.nombre, CASE x.opcion WHEN 'BLANCO' THEN 'Votos en blanco' WHEN 'NULO' THEN 'Votos nulos'
                                         ELSE 'Impugnados sin resolver' END) AS lista,
@@ -5711,7 +5335,7 @@ SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo, x.opcion, x.id_lista,
  GROUP BY c.id_proceso, c.id_cargo, c.nombre, x.opcion, x.id_lista, l.nombre, l.orden_cedula;
 
 -- RF99: resultados publicados en el portal (solo después de la publicación)
-CREATE OR REPLACE VIEW v_portal_resultados AS
+CREATE VIEW v_portal_resultados AS
 SELECT p.id_proceso, p.nombre AS proceso, p.tipo, p.estado AS estado_proceso,
        cp.resultado, cp.participacion_pct, cp.electores_habiles, cp.votaron,
        cp.numero_resolucion, cp.fecha_computo, cp.fecha_proclamacion, cp.fecha_publicacion
@@ -5722,16 +5346,6 @@ SELECT p.id_proceso, p.nombre AS proceso, p.tipo, p.estado AS estado_proceso,
 -- ---------------------------------------------------------------------
 -- 5. Procedimientos
 -- ---------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS sp_instalar_sesion_computo;
-DROP PROCEDURE IF EXISTS sp_registrar_personero_computo;
-DROP PROCEDURE IF EXISTS sp_marcar_acta_dudosa;
-DROP PROCEDURE IF EXISTS sp_comprobar_acta;
-DROP PROCEDURE IF EXISTS sp_calificar_mesa;
-DROP PROCEDURE IF EXISTS sp_ejecutar_computo;
-DROP PROCEDURE IF EXISTS sp_proclamar_resultados;
-DROP PROCEDURE IF EXISTS sp_publicar_resultados;
-DROP PROCEDURE IF EXISTS sp_convocar_segunda_vuelta;
-DROP PROCEDURE IF EXISTS sp_verificar_acta_computo;
 
 DELIMITER $$
 
@@ -6592,11 +6206,8 @@ DELIMITER ;
 -- =====================================================================
 -- 5e. CUS15 · Gestionar nulidades y segunda vuelta (recursos de nulidad parcial y total,
 --     resolución del Pleno, comunicaciones, empates por sorteo y segunda vuelta)
--- (mismo contenido que 14_nulidades_segunda_vuelta.sql)
+-- (en una base ya instalada sin este CUS se aplica 14_nulidades_segunda_vuelta.sql)
 -- =====================================================================
-USE elecciones_unp;
-SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION';
-SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
 -- 1. Tablas nuevas
@@ -6604,7 +6215,7 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Recurso de nulidad y su resolución por el CEUNP (RF94, RF100, RF101). Una fila por recurso.
 -- PARCIAL: votación de una mesa (Art. 64). TOTAL: toda la elección (Art. 65).
-CREATE TABLE IF NOT EXISTS nulidad_electoral (
+CREATE TABLE nulidad_electoral (
   id_nulidad            INT AUTO_INCREMENT PRIMARY KEY,
   id_proceso            INT NOT NULL,
   alcance               ENUM('PARCIAL','TOTAL') NOT NULL,
@@ -6652,7 +6263,7 @@ CREATE TABLE IF NOT EXISTS nulidad_electoral (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 8 registrarComunicacion('SUNEDU, AU, CU') y publicación (RF102, Art. 66): una por destinatario
-CREATE TABLE IF NOT EXISTS nulidad_comunicacion (
+CREATE TABLE nulidad_comunicacion (
   id_nulidad     INT NOT NULL,
   destinatario   ENUM('SUNEDU','ASAMBLEA_UNIVERSITARIA','CONSEJO_UNIVERSITARIO','PORTAL','EL_PERUANO') NOT NULL,
   documento      VARCHAR(80) NOT NULL,                -- N.º de oficio, edición de El Peruano o «Portal electoral»
@@ -6670,7 +6281,7 @@ CREATE TABLE IF NOT EXISTS nulidad_comunicacion (
 --   PASE_A_SEGUNDA_VUELTA: en la primera vuelta varias listas empatan por un cupo de la segunda
 --                          (RN33: pasan las dos más votadas).
 --   EMPATE_SEGUNDA_VUELTA: en la segunda vuelta las dos listas empatan (EMPATE del CUS14, RF97).
-CREATE TABLE IF NOT EXISTS dirimencia_empate (
+CREATE TABLE dirimencia_empate (
   id_cargo          INT PRIMARY KEY,
   id_proceso        INT NOT NULL,
   motivo            ENUM('PASE_A_SEGUNDA_VUELTA','EMPATE_SEGUNDA_VUELTA') NOT NULL,
@@ -6691,42 +6302,8 @@ CREATE TABLE IF NOT EXISTS dirimencia_empate (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
--- 2. Función: número de resolución ya usado en cualquier caso de uso (RN36)
+-- 2. Triggers
 -- ---------------------------------------------------------------------
-DROP FUNCTION IF EXISTS fn_resolucion_en_uso;
-
-DELIMITER $$
-
-CREATE FUNCTION fn_resolucion_en_uso(p_numero VARCHAR(40))
-RETURNS BOOLEAN
-READS SQL DATA
-BEGIN
-  IF p_numero IS NULL OR TRIM(p_numero) = '' THEN
-    RETURN FALSE;
-  END IF;
-  RETURN EXISTS (SELECT 1 FROM nulidad_electoral     WHERE numero_resolucion = p_numero)
-      OR EXISTS (SELECT 1 FROM dirimencia_empate     WHERE numero_resolucion = p_numero)
-      OR EXISTS (SELECT 1 FROM calificacion_mesa     WHERE numero_resolucion = p_numero)
-      OR EXISTS (SELECT 1 FROM computo_proceso       WHERE numero_resolucion = p_numero)
-      OR EXISTS (SELECT 1 FROM impugnacion_electoral WHERE numero_resolucion = p_numero);
-END$$
-
-DELIMITER ;
-
--- ---------------------------------------------------------------------
--- 3. Triggers
--- ---------------------------------------------------------------------
-DROP TRIGGER IF EXISTS trg_proceso_bu;
-DROP TRIGGER IF EXISTS trg_proceso_bi_cus15;
-DROP TRIGGER IF EXISTS trg_nulidad_bu;
-DROP TRIGGER IF EXISTS trg_nulidad_bd;
-DROP TRIGGER IF EXISTS trg_ncom_bu;
-DROP TRIGGER IF EXISTS trg_ncom_bd;
-DROP TRIGGER IF EXISTS trg_dirimencia_bu;
-DROP TRIGGER IF EXISTS trg_dirimencia_bd;
-DROP TRIGGER IF EXISTS trg_computo_bu_cus15;
-DROP TRIGGER IF EXISTS trg_calificacion_bi_cus15;
-DROP TRIGGER IF EXISTS trg_impugnacion_bu_cus15;
 
 DELIMITER $$
 
@@ -6843,12 +6420,12 @@ END$$
 DELIMITER ;
 
 -- ---------------------------------------------------------------------
--- 4. Vistas
+-- 3. Vistas
 -- ---------------------------------------------------------------------
 
 -- 4 mostrarMesaExcluida() / 9 mostrarResolucionNulidad(): recursos con su mesa, personero,
 -- resolución y comunicaciones registradas (RF102).
-CREATE OR REPLACE VIEW v_nulidades AS
+CREATE VIEW v_nulidades AS
 SELECT n.id_nulidad, n.id_proceso, p.nombre AS proceso, p.estado AS estado_proceso, p.tipo AS tipo_proceso,
        n.alcance, n.id_mesa, m.numero_mesa, m.ubicacion, m.estado AS estado_mesa, n.causal, n.origen,
        n.id_personero, CONCAT(d.apellidos, ', ', d.nombres) AS personero, l.nombre AS lista_personero,
@@ -6872,7 +6449,7 @@ SELECT n.id_nulidad, n.id_proceso, p.nombre AS proceso, p.estado AS estado_proce
   LEFT JOIN usuario us        ON us.id_usuario = n.id_usuario_resolucion;
 
 -- RF102 / RF99: resoluciones de nulidad publicadas en el portal electoral
-CREATE OR REPLACE VIEW v_portal_nulidades AS
+CREATE VIEW v_portal_nulidades AS
 SELECT n.id_nulidad, n.id_proceso, p.nombre AS proceso, p.tipo, p.estado AS estado_proceso, n.alcance,
        m.numero_mesa, n.causal, n.numero_resolucion, n.fundamento_resolucion, n.fecha_resolucion,
        c.fecha_envio AS fecha_publicacion, n.hash_integridad,
@@ -6885,7 +6462,7 @@ SELECT n.id_nulidad, n.id_proceso, p.nombre AS proceso, p.tipo, p.estado AS esta
  WHERE n.estado = 'FUNDADA';
 
 -- 15 mostrarSegundaVuelta(): segunda vuelta de cada proceso con su plazo (RN33) y su avance
-CREATE OR REPLACE VIEW v_segunda_vuelta_procesos AS
+CREATE VIEW v_segunda_vuelta_procesos AS
 SELECT h.id_proceso, h.nombre, h.estado, h.fecha_inicio, h.fecha_fin, h.fecha_creacion, h.motivo_anulacion,
        h.id_proceso_padre, p.nombre AS proceso_padre, cp.fecha_computo AS fecha_computo_padre,
        (SELECT COUNT(*) FROM cargo_electoral c WHERE c.id_proceso = h.id_proceso) AS cargos,
@@ -6901,14 +6478,8 @@ SELECT h.id_proceso, h.nombre, h.estado, h.fecha_inicio, h.fecha_fin, h.fecha_cr
  WHERE h.tipo = 'SEGUNDA_VUELTA';
 
 -- ---------------------------------------------------------------------
--- 5. Procedimientos
+-- 4. Procedimientos
 -- ---------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS sp_registrar_nulidad;
-DROP PROCEDURE IF EXISTS sp_resolver_nulidad;
-DROP PROCEDURE IF EXISTS sp_registrar_comunicacion_nulidad;
-DROP PROCEDURE IF EXISTS sp_dirimir_empate;
-DROP PROCEDURE IF EXISTS sp_crear_segunda_vuelta;
-DROP PROCEDURE IF EXISTS sp_verificar_resolucion_nulidad;
 
 DELIMITER $$
 
@@ -7657,8 +7228,6 @@ BEGIN
   COMMIT;
 END$$
 
-
-
 -- Destino del QR de la resolución de nulidad: recalcula el SHA-256 del contenido.
 CREATE PROCEDURE sp_verificar_resolucion_nulidad(IN p_token CHAR(64))
 BEGIN
@@ -7674,52 +7243,12 @@ DELIMITER ;
 -- =====================================================================
 -- 5f. CUS16 · Reportar omisos y multas (reporte de omisos, multas al 2.5 % y 3 % de la UIT,
 --     resolución del Pleno con QR, notificación, justificación, exoneración, pago y RF107)
--- (mismo contenido que 15_omisos_multas.sql)
+-- (en una base ya instalada sin este CUS se aplica 15_omisos_multas.sql)
 -- =====================================================================
-USE elecciones_unp;
-SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION';
-SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
--- 1. Columnas nuevas de multa (sin ADD COLUMN IF NOT EXISTS: MariaDB y MySQL)
+-- 1. Estado JUSTIFICADA y columnas nuevas de multa: ya vienen en su CREATE TABLE (sección 2)
 -- ---------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS sp_tmp_agregar_columna;
-DELIMITER $$
-CREATE PROCEDURE sp_tmp_agregar_columna(IN p_tabla VARCHAR(64), IN p_columna VARCHAR(64), IN p_definicion VARCHAR(500))
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-                  WHERE table_schema = DATABASE() AND table_name = p_tabla AND column_name = p_columna) THEN
-    SET @sql_cus16 = CONCAT('ALTER TABLE ', p_tabla, ' ADD COLUMN ', p_columna, ' ', p_definicion);
-    PREPARE st_cus16 FROM @sql_cus16;
-    EXECUTE st_cus16;
-    DEALLOCATE PREPARE st_cus16;
-  END IF;
-END$$
-DELIMITER ;
-
--- 10 actualizarEstado(): la justificación admitida deja la multa JUSTIFICADA (RF106)
-ALTER TABLE multa
-  MODIFY COLUMN estado_pago ENUM('PENDIENTE','PAGADA','EXONERADA','JUSTIFICADA') NOT NULL DEFAULT 'PENDIENTE';
-
-CALL sp_tmp_agregar_columna('multa', 'id_mesa',
-     'INT NULL COMMENT ''CUS16: mesa del elector (OMISO_VOTACION) o de la que era miembro (OMISO_MESA)'' AFTER motivo');
-CALL sp_tmp_agregar_columna('multa', 'rol_mesa',
-     'VARCHAR(12) NULL COMMENT ''CUS16: cargo del miembro titular que no asistió'' AFTER id_mesa');
-CALL sp_tmp_agregar_columna('multa', 'asistio_sin_votar',
-     'BOOLEAN NOT NULL DEFAULT FALSE COMMENT ''CUS16: asistió a la mesa y no votó (CUS10 A3, Disp. Final 5.ª)'' AFTER rol_mesa');
-CALL sp_tmp_agregar_columna('multa', 'fecha_notificacion',
-     'DATETIME NULL COMMENT ''CUS16: notificación de la multa al docente'' AFTER fecha_pago');
-CALL sp_tmp_agregar_columna('multa', 'medio_notificacion',
-     'ENUM(''CORREO_INSTITUCIONAL'',''CEDULA_PERSONAL'',''PORTAL_ELECTORAL'') NULL AFTER fecha_notificacion');
-CALL sp_tmp_agregar_columna('multa', 'documento_notificacion',
-     'VARCHAR(80) NULL COMMENT ''CUS16: N.º de cédula, oficio o correo'' AFTER medio_notificacion');
-CALL sp_tmp_agregar_columna('multa', 'numero_recibo',
-     'VARCHAR(40) NULL COMMENT ''CUS16: recibo de pago (el sistema no cobra la multa)'' AFTER documento_notificacion');
-CALL sp_tmp_agregar_columna('multa', 'fecha_actualizacion',
-     'DATETIME NULL AFTER observacion');
-CALL sp_tmp_agregar_columna('multa', 'id_usuario_actualizacion',
-     'INT NULL AFTER fecha_actualizacion');
-DROP PROCEDURE IF EXISTS sp_tmp_agregar_columna;
 
 -- ---------------------------------------------------------------------
 -- 2. Tablas nuevas
@@ -7727,7 +7256,7 @@ DROP PROCEDURE IF EXISTS sp_tmp_agregar_columna;
 
 -- 2 generarMultas() y 7 mostrarReporteMultas(): un reporte por proceso. GENERADO mientras se
 -- puede regenerar; RESUELTO cuando el Pleno emite la resolución que determina las multas.
-CREATE TABLE IF NOT EXISTS reporte_multas (
+CREATE TABLE reporte_multas (
   id_reporte            INT AUTO_INCREMENT PRIMARY KEY,
   id_proceso            INT NOT NULL,
   estado                ENUM('GENERADO','RESUELTO') NOT NULL DEFAULT 'GENERADO',
@@ -7763,7 +7292,7 @@ CREATE TABLE IF NOT EXISTS reporte_multas (
 
 -- 9 justificar() (RF106): justificación del docente que el CEUNP admite o deniega, o
 -- exoneración de oficio por lo no previsto en el reglamento (RN40). Una justificación por multa.
-CREATE TABLE IF NOT EXISTS multa_justificacion (
+CREATE TABLE multa_justificacion (
   id_justificacion   INT AUTO_INCREMENT PRIMARY KEY,
   id_multa           INT NOT NULL,
   tipo               ENUM('JUSTIFICACION','EXONERACION') NOT NULL,
@@ -7791,18 +7320,12 @@ CREATE TABLE IF NOT EXISTS multa_justificacion (
 -- ---------------------------------------------------------------------
 -- 3. Parámetros (editables en la pantalla Parámetros, RF105)
 -- ---------------------------------------------------------------------
-INSERT INTO parametro_global (clave, valor, descripcion) VALUES
-  ('MULTA_PLAZO_JUSTIFICACION_DIAS', '10',
-   'Días desde la notificación de la multa para presentar la justificación ante el CEUNP (RF106); 0 = sin plazo'),
-  ('CEUNP_QUORUM_PLENO', '5',
-   'Miembros del Pleno del CEUNP necesarios para resolver una apelación (RN36)')
-ON DUPLICATE KEY UPDATE descripcion = descripcion;
+-- (Se cargan en la sección 6, junto con los demás parámetros.)
 
 -- ---------------------------------------------------------------------
 -- 4. Función: número de resolución ya usado en cualquier caso de uso (RN36)
---    Redefine la del CUS15 agregando las resoluciones de multas y de descargos.
+--    Incluye las resoluciones de nulidad, empate, calificación, cómputo, impugnación, multas y descargos.
 -- ---------------------------------------------------------------------
-DROP FUNCTION IF EXISTS fn_resolucion_en_uso;
 
 DELIMITER $$
 
@@ -7827,16 +7350,6 @@ DELIMITER ;
 -- ---------------------------------------------------------------------
 -- 5. Triggers
 -- ---------------------------------------------------------------------
-DROP TRIGGER IF EXISTS trg_multa_bi_cus16;
-DROP TRIGGER IF EXISTS trg_multa_bu_cus16;
-DROP TRIGGER IF EXISTS trg_multa_bd_cus16;
-DROP TRIGGER IF EXISTS trg_rmultas_bu;
-DROP TRIGGER IF EXISTS trg_rmultas_bd;
-DROP TRIGGER IF EXISTS trg_mjust_bu;
-DROP TRIGGER IF EXISTS trg_mjust_bd;
-DROP TRIGGER IF EXISTS trg_computo_bu_cus16;
-DROP TRIGGER IF EXISTS trg_calificacion_bi_cus16;
-DROP TRIGGER IF EXISTS trg_impugnacion_bu_cus16;
 
 DELIMITER $$
 
@@ -7959,7 +7472,7 @@ DELIMITER ;
 --   4 consultarNoVotaron(): elector hábil que no votó por ningún cargo, con mesa que se
 --     instaló (la mesa NO INSTALADA no permitió votar: RF58). Marca a quien asistió sin votar.
 --   5 consultarInasistentes(): miembro TITULAR sorteado que no se presentó (CUS08).
-CREATE OR REPLACE VIEW v_omisos_proceso AS
+CREATE VIEW v_omisos_proceso AS
 SELECT x.id_proceso, x.id_docente, _utf8mb4'OMISO_VOTACION' COLLATE utf8mb4_unicode_ci AS motivo, x.id_mesa,
        CAST(NULL AS CHAR(12) CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS rol_mesa,
        IF(EXISTS (SELECT 1 FROM asistencia_elector a WHERE a.id_proceso = x.id_proceso AND a.id_docente = x.id_docente), 1, 0) AS asistio_sin_votar
@@ -7978,7 +7491,7 @@ SELECT m.id_proceso, mm.id_docente, _utf8mb4'OMISO_MESA' COLLATE utf8mb4_unicode
 
 -- RN35: multas con datos del docente. Conserva las columnas anteriores (ProcesoService) y agrega
 -- la mesa, la notificación, el pago, el último descargo y el plazo para justificar (CUS16).
-CREATE OR REPLACE VIEW v_multas_detalle AS
+CREATE VIEW v_multas_detalle AS
 SELECT mu.id_multa, mu.id_proceso, p.nombre AS proceso,
        d.id_docente, d.dni, CONCAT(d.apellidos, ', ', d.nombres) AS docente, f.nombre AS facultad,
        mu.motivo, mu.uit_referencia, mu.porcentaje_uit, mu.monto,
@@ -8007,7 +7520,7 @@ SELECT mu.id_multa, mu.id_proceso, p.nombre AS proceso,
 
 -- RF107: reporte de gestión por mesa (participación, instalación, miembros, incidencias,
 -- tiempo de atención del elector y actas recibidas por el CEUNP).
-CREATE OR REPLACE VIEW v_reporte_gestion_mesas AS
+CREATE VIEW v_reporte_gestion_mesas AS
 SELECT m.id_proceso, m.id_mesa, m.numero_mesa, m.ubicacion, m.estado, m.hora_instalacion, m.hora_cierre,
        (SELECT COUNT(DISTINCT pe.id_docente) FROM padron_electoral pe
          WHERE pe.id_mesa = m.id_mesa AND pe.habilitado_para_votar = 1) AS electores,
@@ -8029,17 +7542,10 @@ SELECT m.id_proceso, m.id_mesa, m.numero_mesa, m.ubicacion, m.estado, m.hora_ins
 -- ---------------------------------------------------------------------
 -- 7. Procedimientos
 -- ---------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS sp_generar_multas;
-DROP PROCEDURE IF EXISTS sp_emitir_resolucion_multas;
-DROP PROCEDURE IF EXISTS sp_notificar_multas;
-DROP PROCEDURE IF EXISTS sp_registrar_justificacion;
-DROP PROCEDURE IF EXISTS sp_registrar_pago_multa;
-DROP PROCEDURE IF EXISTS sp_actualizar_multa;
-DROP PROCEDURE IF EXISTS sp_verificar_resolucion_multas;
 
 DELIMITER $$
 
--- Mensajes 2 a 6 (GenerarMultas). Redefine el de la sección G con la misma firma:
+-- Mensajes 2 a 6 (GenerarMultas):
 --   3 obtenerUIT(): UIT y porcentajes de parametro_global (RF105)
 --   4 consultarNoVotaron() y 5 consultarInasistentes(): v_omisos_proceso (RF103, RF104)
 --   6 insertar(): una multa por docente y motivo con monto = UIT * % / 100 (RN35)
@@ -8561,7 +8067,7 @@ BEGIN
   COMMIT;
 END$$
 
--- Redefine el de la sección G (PATCH /api/multas/{id}) con las reglas del CUS16: PAGADA exige el
+-- PATCH /api/multas/{id}, con las reglas del CUS16: PAGADA exige el
 -- recibo en p_observacion; la justificación y la exoneración van con su resolución (RF106).
 CREATE PROCEDURE sp_actualizar_multa(
   IN p_id_multa    INT,
@@ -8601,11 +8107,8 @@ DELIMITER ;
 -- =====================================================================
 -- 5g. CUS17 · Consultar resultados y verificar actas (verificación única por QR o huella,
 --     registro de verificaciones, cotejo del ejemplar físico y resultados por mesa)
--- (mismo contenido que 16_resultados_verificacion.sql)
+-- (en una base ya instalada sin este CUS se aplica 16_resultados_verificacion.sql)
 -- =====================================================================
-USE elecciones_unp;
-SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION';
-SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
 -- 1. Tablas nuevas
@@ -8613,7 +8116,7 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- 8 verificarActa() · 11 mostrarAutenticidad(): una fila por consulta de autenticidad (RF55).
 -- No guarda el código leído (token o huella), solo su SHA-256.
-CREATE TABLE IF NOT EXISTS verificacion_documento (
+CREATE TABLE verificacion_documento (
   id_verificacion BIGINT AUTO_INCREMENT PRIMARY KEY,
   codigo_hash     CHAR(64) NOT NULL,
   metodo          ENUM('TOKEN','HUELLA') NULL,
@@ -8638,7 +8141,7 @@ CREATE TABLE IF NOT EXISTS verificacion_documento (
 -- Cotejo del ejemplar físico con el documento digital. CONFORME si todas las cifras coinciden y
 -- el contenido está íntegro; OBSERVADO si hay diferencias (discrepancia reportada al CEUNP);
 -- ATENDIDO cuando el CEUNP responde.
-CREATE TABLE IF NOT EXISTS cotejo_acta (
+CREATE TABLE cotejo_acta (
   id_cotejo            INT AUTO_INCREMENT PRIMARY KEY,
   id_verificacion      BIGINT NULL,
   tipo_documento       VARCHAR(30) NOT NULL,
@@ -8682,10 +8185,6 @@ CREATE TABLE IF NOT EXISTS cotejo_acta (
 -- ---------------------------------------------------------------------
 -- 2. Triggers: la bitácora de verificaciones y los cotejos no se alteran
 -- ---------------------------------------------------------------------
-DROP TRIGGER IF EXISTS trg_verificacion_doc_bu;
-DROP TRIGGER IF EXISTS trg_verificacion_doc_bd;
-DROP TRIGGER IF EXISTS trg_cotejo_bu;
-DROP TRIGGER IF EXISTS trg_cotejo_bd;
 
 DELIMITER $$
 
@@ -8726,7 +8225,6 @@ DELIMITER ;
 -- ---------------------------------------------------------------------
 -- 3. Función
 -- ---------------------------------------------------------------------
-DROP FUNCTION IF EXISTS fn_resultados_disponibles;
 
 DELIMITER $$
 
@@ -8757,7 +8255,7 @@ DELIMITER ;
 -- ---------------------------------------------------------------------
 
 -- 1 seleccionarProceso() · 4 consultarResultados(): procesos con resultados que se pueden consultar.
-CREATE OR REPLACE VIEW v_resultados_procesos AS
+CREATE VIEW v_resultados_procesos AS
 SELECT p.id_proceso, p.nombre AS proceso, p.tipo, p.estado AS estado_proceso, p.id_proceso_padre,
        pp.nombre AS proceso_padre,
        IF(cp.id_proceso IS NULL, 'HEREDADO', 'CUS14') AS origen,
@@ -8780,7 +8278,7 @@ SELECT p.id_proceso, p.nombre AS proceso, p.tipo, p.estado AS estado_proceso, p.
 
 -- 5 devolverResultados(): resultados por mesa. Con CUS12 son las cifras del acta de escrutinio con
 -- las impugnaciones asignadas (v_computo_conteo_mesa); con el cierre heredado, el conteo de la urna.
-CREATE OR REPLACE VIEW v_resultados_mesa AS
+CREATE VIEW v_resultados_mesa AS
 SELECT x.id_proceso, x.id_mesa, x.numero_mesa, CONCAT(m.estado, '') AS estado_mesa, x.id_cargo, c.nombre AS cargo,
        CONCAT(x.opcion, '') AS opcion, x.id_lista,
        COALESCE(l.nombre, CASE x.opcion WHEN 'BLANCO' THEN 'Votos en blanco' ELSE 'Votos nulos' END) AS lista,
@@ -8806,7 +8304,7 @@ SELECT m.id_proceso, m.id_mesa, m.numero_mesa, CONCAT(m.estado, ''), v.id_cargo,
 
 -- RF52 · RF55: documentos con QR y huella SHA-256 del proceso, con su integridad recalculada,
 -- firmas, verificaciones y cotejos. La huella se imprime en el documento: no es secreta.
-CREATE OR REPLACE VIEW v_documentos_verificables AS
+CREATE VIEW v_documentos_verificables AS
 SELECT d.*,
        (SELECT COUNT(*) FROM verificacion_documento v
          WHERE v.tipo_documento = d.tipo_documento AND v.id_documento = d.id_documento) AS verificaciones,
@@ -8840,7 +8338,7 @@ SELECT d.*,
   ) d;
 
 -- Cotejos con quién los registró y su atención
-CREATE OR REPLACE VIEW v_cotejos_acta AS
+CREATE VIEW v_cotejos_acta AS
 SELECT k.id_cotejo, k.id_proceso, p.nombre AS proceso, k.tipo_documento, k.id_documento, k.id_mesa, m.numero_mesa,
        k.hash_integridad, k.contenido_integro, k.lineas, k.diferencias, k.observacion, k.estado, k.fecha,
        k.id_usuario, u.username, k.rol, CONCAT(d.apellidos, ', ', d.nombres) AS registrado_por,
@@ -8858,10 +8356,6 @@ SELECT k.id_cotejo, k.id_proceso, p.nombre AS proceso, k.tipo_documento, k.id_do
 -- ---------------------------------------------------------------------
 -- 5. Procedimientos
 -- ---------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS sp_localizar_documento;
-DROP PROCEDURE IF EXISTS sp_verificar_documento;
-DROP PROCEDURE IF EXISTS sp_registrar_cotejo_acta;
-DROP PROCEDURE IF EXISTS sp_atender_cotejo_acta;
 
 DELIMITER $$
 
@@ -9236,54 +8730,12 @@ DELIMITER ;
 -- =====================================================================
 -- 5h. CUS18 · Administrar usuarios y parámetros (cuentas con docente verificado, catálogo e
 --     historial de parámetros, parámetros de seguridad y registro de respaldos de la base)
--- (mismo contenido que 17_administracion_usuarios_parametros.sql)
+-- (en una base ya instalada sin este CUS se aplica 17_administracion_usuarios_parametros.sql)
 -- =====================================================================
-USE elecciones_unp;
-SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION';
-SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
--- 1. Columnas nuevas de usuario (sin ADD COLUMN IF NOT EXISTS: MariaDB y MySQL)
+-- 1. Columnas nuevas de usuario y su clave foránea: ya vienen en su CREATE TABLE (sección 2)
 -- ---------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS sp_tmp_cus18_columna;
-DROP PROCEDURE IF EXISTS sp_tmp_cus18_fk;
-DELIMITER $$
-CREATE PROCEDURE sp_tmp_cus18_columna(IN p_tabla VARCHAR(64), IN p_columna VARCHAR(64), IN p_definicion VARCHAR(500))
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-                  WHERE table_schema = DATABASE() AND table_name = p_tabla AND column_name = p_columna) THEN
-    SET @sql_cus18 = CONCAT('ALTER TABLE ', p_tabla, ' ADD COLUMN ', p_columna, ' ', p_definicion);
-    PREPARE st_cus18 FROM @sql_cus18;
-    EXECUTE st_cus18;
-    DEALLOCATE PREPARE st_cus18;
-  END IF;
-END$$
-CREATE PROCEDURE sp_tmp_cus18_fk(IN p_tabla VARCHAR(64), IN p_columna VARCHAR(64), IN p_nombre VARCHAR(64),
-                                 IN p_referencia VARCHAR(200))
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.key_column_usage
-                  WHERE table_schema = DATABASE() AND table_name = p_tabla AND column_name = p_columna
-                    AND referenced_table_name IS NOT NULL) THEN
-    SET @sql_cus18 = CONCAT('ALTER TABLE ', p_tabla, ' ADD CONSTRAINT ', p_nombre,
-                            ' FOREIGN KEY (', p_columna, ') REFERENCES ', p_referencia);
-    PREPARE st_cus18 FROM @sql_cus18;
-    EXECUTE st_cus18;
-    DEALLOCATE PREPARE st_cus18;
-  END IF;
-END$$
-DELIMITER ;
-
-CALL sp_tmp_cus18_columna('usuario', 'id_usuario_creador',
-     'INT NULL COMMENT ''CUS18: administrador que creó la cuenta'' AFTER fecha_creacion');
-CALL sp_tmp_cus18_columna('usuario', 'fecha_actualizacion',
-     'DATETIME NULL COMMENT ''CUS18: último cambio de rol, docente, estado o contraseña'' AFTER id_usuario_creador');
-CALL sp_tmp_cus18_columna('usuario', 'motivo_estado',
-     'VARCHAR(300) NULL COMMENT ''CUS18: motivo de la última desactivación o reactivación'' AFTER fecha_actualizacion');
-CALL sp_tmp_cus18_fk('usuario', 'id_usuario_creador', 'fk_usuario_creador',
-     'usuario(id_usuario) ON DELETE SET NULL');
-
-DROP PROCEDURE IF EXISTS sp_tmp_cus18_columna;
-DROP PROCEDURE IF EXISTS sp_tmp_cus18_fk;
 
 -- ---------------------------------------------------------------------
 -- 2. Tablas nuevas
@@ -9291,7 +8743,7 @@ DROP PROCEDURE IF EXISTS sp_tmp_cus18_fk;
 
 -- 5 modificarParametro(): catálogo que describe cada parámetro de parametro_global para validarlo
 -- y mostrarlo agrupado. No tiene FK: una definición sin parámetro simplemente no se muestra.
-CREATE TABLE IF NOT EXISTS parametro_definicion (
+CREATE TABLE parametro_definicion (
   clave           VARCHAR(80)  NOT NULL PRIMARY KEY,
   grupo           ENUM('MULTAS','JORNADA','CEUNP','SEGURIDAD') NOT NULL,
   etiqueta        VARCHAR(120) NOT NULL,
@@ -9307,7 +8759,7 @@ CREATE TABLE IF NOT EXISTS parametro_definicion (
 
 -- 8 registrarAuditoria(): historia de cada parámetro. La escribe el trigger de parametro_global,
 -- así queda también el cambio hecho directamente en la base. No se modifica ni se borra.
-CREATE TABLE IF NOT EXISTS parametro_historial (
+CREATE TABLE parametro_historial (
   id_historial   BIGINT AUTO_INCREMENT PRIMARY KEY,
   clave          VARCHAR(80)  NOT NULL,
   valor_anterior VARCHAR(255) NULL,
@@ -9323,7 +8775,7 @@ CREATE TABLE IF NOT EXISTS parametro_historial (
 
 -- 11 generarRespaldo() · 12 registrarAuditoria(): una fila por respaldo generado, con la huella
 -- SHA-256 del archivo para comprobar después que no fue alterado. No se modifica ni se borra.
-CREATE TABLE IF NOT EXISTS respaldo_bd (
+CREATE TABLE respaldo_bd (
   id_respaldo    INT AUTO_INCREMENT PRIMARY KEY,
   nombre_archivo VARCHAR(150) NOT NULL,
   motivo         VARCHAR(300) NULL,
@@ -9348,43 +8800,11 @@ CREATE TABLE IF NOT EXISTS respaldo_bd (
 -- ---------------------------------------------------------------------
 -- 3. Parámetros nuevos y catálogo de parámetros
 -- ---------------------------------------------------------------------
--- Seguridad del inicio de sesión (antes fijos en Usuario.java: 5 intentos, 15 minutos, 8 caracteres)
-INSERT INTO parametro_global (clave, valor, descripcion) VALUES
-  ('SEGURIDAD_INTENTOS_MAXIMOS', '5',
-   'Intentos fallidos de inicio de sesión antes de bloquear la cuenta temporalmente'),
-  ('SEGURIDAD_BLOQUEO_MINUTOS', '15',
-   'Minutos que la cuenta queda bloqueada tras superar los intentos fallidos'),
-  ('SEGURIDAD_PASSWORD_MIN', '8',
-   'Longitud mínima de las contraseñas (debe tener letras y números)')
-ON DUPLICATE KEY UPDATE descripcion = descripcion;
-
-INSERT INTO parametro_definicion (clave, grupo, etiqueta, tipo, minimo, maximo, unidad, referencia, bloqueo_jornada, orden) VALUES
-  ('UIT',                               'MULTAS',    'Unidad Impositiva Tributaria vigente', 'DECIMAL', 1, 100000, 'S/',           'RF105',        FALSE, 10),
-  ('MULTA_ELECTOR_OMISO_PCT',           'MULTAS',    'Multa al elector omiso',               'DECIMAL', 0, 100,    '% de la UIT',  'RN35 · Art. 68', FALSE, 20),
-  ('MULTA_MIEMBRO_MESA_OMISO_PCT',      'MULTAS',    'Multa al miembro de mesa inasistente', 'DECIMAL', 0, 100,    '% de la UIT',  'RN35 · Art. 67', FALSE, 30),
-  ('MULTA_PLAZO_JUSTIFICACION_DIAS',    'MULTAS',    'Plazo para justificar la omisión',     'ENTERO',  0, 90,     'días',         'RF106',        FALSE, 40),
-  ('ELECTORES_POR_MESA',                'JORNADA',   'Electores por mesa de sufragio',       'ENTERO',  10, 500,   'electores',    'RN08',         TRUE,  10),
-  ('UBICACION_SUFRAGIO',                'JORNADA',   'Lugar de sufragio por defecto',        'TEXTO',   3, 150,    NULL,           'RN08',         TRUE,  20),
-  ('INSTALACION_HORA_INICIO',           'JORNADA',   'Inicio de la instalación de mesas',    'HORA',    0, 23.99,  'hora',         'RN07',         TRUE,  30),
-  ('INSTALACION_HORA_LIMITE',           'JORNADA',   'Límite para instalar las mesas',       'HORA',    0, 23.99,  'hora',         'RF58',         TRUE,  40),
-  ('INSTALACION_CONTROL_HORARIO',       'JORNADA',   'Exigir el horario de instalación',     'INDICADOR', 0, 1,    NULL,           'RN07',         TRUE,  50),
-  ('SUFRAGIO_CONTROL_HORARIO',          'JORNADA',   'Exigir el horario de cierre del sufragio', 'INDICADOR', 0, 1, NULL,          'RN06',         TRUE,  60),
-  ('CEUNP_QUORUM_PLENO',                'CEUNP',     'Quórum del Pleno del CEUNP',           'ENTERO',  5, 9,      'miembros',     'RN36',         FALSE, 10),
-  ('IMPUGNACION_PLAZO_APELACION_HORAS', 'CEUNP',     'Plazo para apelar ante el CEUNP',      'ENTERO',  0, 168,    'horas',        'RF81',         FALSE, 20),
-  ('SEGUNDA_VUELTA_PLAZO_DIAS',         'CEUNP',     'Plazo para la segunda vuelta',         'ENTERO',  1, 60,     'días',         'RN33 · Art. 63', FALSE, 30),
-  ('SEGURIDAD_INTENTOS_MAXIMOS',        'SEGURIDAD', 'Intentos fallidos antes del bloqueo',  'ENTERO',  3, 10,     'intentos',     'RNF seguridad', FALSE, 10),
-  ('SEGURIDAD_BLOQUEO_MINUTOS',         'SEGURIDAD', 'Duración del bloqueo de la cuenta',    'ENTERO',  1, 1440,   'minutos',      'RNF seguridad', FALSE, 20),
-  ('SEGURIDAD_PASSWORD_MIN',            'SEGURIDAD', 'Longitud mínima de la contraseña',     'ENTERO',  8, 32,     'caracteres',   'RNF seguridad', FALSE, 30)
-ON DUPLICATE KEY UPDATE grupo = VALUES(grupo), etiqueta = VALUES(etiqueta), tipo = VALUES(tipo),
-  minimo = VALUES(minimo), maximo = VALUES(maximo), unidad = VALUES(unidad), referencia = VALUES(referencia),
-  bloqueo_jornada = VALUES(bloqueo_jornada), orden = VALUES(orden);
+-- (Se cargan en la sección 6, junto con los demás parámetros.)
 
 -- ---------------------------------------------------------------------
 -- 4. Funciones
 -- ---------------------------------------------------------------------
-DROP FUNCTION IF EXISTS fn_jornada_en_curso;
-DROP FUNCTION IF EXISTS fn_validar_parametro;
-DROP FUNCTION IF EXISTS fn_error_docente_usuario;
 
 DELIMITER $$
 
@@ -9508,14 +8928,6 @@ DELIMITER ;
 -- ---------------------------------------------------------------------
 -- 5. Triggers
 -- ---------------------------------------------------------------------
-DROP TRIGGER IF EXISTS trg_usuario_admin_bu;
-DROP TRIGGER IF EXISTS trg_usuario_admin_bd;
-DROP TRIGGER IF EXISTS trg_parametro_global_bu;
-DROP TRIGGER IF EXISTS trg_parametro_global_au;
-DROP TRIGGER IF EXISTS trg_param_hist_bu;
-DROP TRIGGER IF EXISTS trg_param_hist_bd;
-DROP TRIGGER IF EXISTS trg_respaldo_bu;
-DROP TRIGGER IF EXISTS trg_respaldo_bd;
 
 DELIMITER $$
 
@@ -9595,7 +9007,7 @@ DELIMITER ;
 -- ---------------------------------------------------------------------
 
 -- 4 mostrarUsuario(): cuentas con su docente, estado, bloqueo y actividad en la bitácora
-CREATE OR REPLACE VIEW v_usuarios_admin AS
+CREATE VIEW v_usuarios_admin AS
 SELECT u.id_usuario, u.username, CONCAT(u.rol, '') AS rol, u.activo, u.debe_cambiar_password,
        u.intentos_fallidos, u.bloqueado_hasta,
        (u.bloqueado_hasta IS NOT NULL AND u.bloqueado_hasta > NOW()) AS bloqueada,
@@ -9612,7 +9024,7 @@ SELECT u.id_usuario, u.username, CONCAT(u.rol, '') AS rol, u.activo, u.debe_camb
   LEFT JOIN departamento dp ON dp.id_departamento = d.id_departamento;
 
 -- 5 modificarParametro(): parámetros con su definición y su último cambio
-CREATE OR REPLACE VIEW v_parametros_admin AS
+CREATE VIEW v_parametros_admin AS
 SELECT p.clave, p.valor, p.descripcion,
        COALESCE(CONCAT(d.grupo, ''), 'OTROS') AS grupo, COALESCE(d.etiqueta, p.clave) AS etiqueta,
        COALESCE(CONCAT(d.tipo, ''), 'TEXTO') AS tipo, d.minimo, d.maximo, d.unidad, d.referencia,
@@ -9626,7 +9038,7 @@ SELECT p.clave, p.valor, p.descripcion,
   LEFT JOIN parametro_definicion d ON d.clave = p.clave;
 
 -- 8 registrarAuditoria(): historial de parámetros con el usuario
-CREATE OR REPLACE VIEW v_parametro_historial AS
+CREATE VIEW v_parametro_historial AS
 SELECT h.id_historial, h.clave, COALESCE(d.etiqueta, h.clave) AS etiqueta, d.unidad,
        h.valor_anterior, h.valor_nuevo, h.motivo, CONCAT(h.origen, '') AS origen,
        h.id_usuario, u.username, h.ip, h.fecha
@@ -9635,7 +9047,7 @@ SELECT h.id_historial, h.clave, COALESCE(d.etiqueta, h.clave) AS etiqueta, d.uni
   LEFT JOIN usuario u              ON u.id_usuario = h.id_usuario;
 
 -- 13 mostrarRespaldo(): respaldos generados
-CREATE OR REPLACE VIEW v_respaldos AS
+CREATE VIEW v_respaldos AS
 SELECT r.id_respaldo, r.nombre_archivo, r.motivo, r.tablas, r.vistas,
        r.rutinas, r.disparadores, r.filas, r.tamano_bytes, r.hash_sha256, r.id_usuario, u.username,
        r.ip, r.fecha_inicio, r.fecha_fin, TIMESTAMPDIFF(SECOND, r.fecha_inicio, r.fecha_fin) AS duracion_seg
@@ -9645,16 +9057,6 @@ SELECT r.id_respaldo, r.nombre_archivo, r.motivo, r.tablas, r.vistas,
 -- ---------------------------------------------------------------------
 -- 7. Procedimientos
 -- ---------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS sp_validar_admin;
-DROP PROCEDURE IF EXISTS sp_verificar_docente_usuario;
-DROP PROCEDURE IF EXISTS sp_crear_usuario;
-DROP PROCEDURE IF EXISTS sp_actualizar_usuario;
-DROP PROCEDURE IF EXISTS sp_cambiar_estado_usuario;
-DROP PROCEDURE IF EXISTS sp_restablecer_password;
-DROP PROCEDURE IF EXISTS sp_desbloquear_usuario;
-DROP PROCEDURE IF EXISTS sp_eliminar_usuario;
-DROP PROCEDURE IF EXISTS sp_actualizar_parametro;
-DROP PROCEDURE IF EXISTS sp_registrar_respaldo;
 
 DELIMITER $$
 
@@ -10081,51 +9483,12 @@ DELIMITER ;
 -- =====================================================================
 -- 5i. CUS19 · Consultar bitácora (catálogo de acciones, sello SHA-256 encadenado de cada
 --     registro, detalle, verificación de la cadena y registro de exportaciones)
--- (mismo contenido que 18_consultar_bitacora.sql)
+-- (en una base ya instalada sin este CUS se aplica 18_consultar_bitacora.sql)
 -- =====================================================================
-USE elecciones_unp;
-SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION';
-SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
--- 1. Columnas e índices nuevos de log_auditoria (sin ADD COLUMN IF NOT EXISTS: MariaDB y MySQL)
+-- 1. Sello encadenado e índices de log_auditoria: ya vienen en su CREATE TABLE (sección 2)
 -- ---------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS sp_tmp_cus19_columna;
-DROP PROCEDURE IF EXISTS sp_tmp_cus19_indice;
-DELIMITER $$
-CREATE PROCEDURE sp_tmp_cus19_columna(IN p_tabla VARCHAR(64), IN p_columna VARCHAR(64), IN p_definicion VARCHAR(500))
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-                  WHERE table_schema = DATABASE() AND table_name = p_tabla AND column_name = p_columna) THEN
-    SET @sql_cus19 = CONCAT('ALTER TABLE ', p_tabla, ' ADD COLUMN ', p_columna, ' ', p_definicion);
-    PREPARE st_cus19 FROM @sql_cus19;
-    EXECUTE st_cus19;
-    DEALLOCATE PREPARE st_cus19;
-  END IF;
-END$$
-CREATE PROCEDURE sp_tmp_cus19_indice(IN p_tabla VARCHAR(64), IN p_indice VARCHAR(64), IN p_columnas VARCHAR(200))
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.statistics
-                  WHERE table_schema = DATABASE() AND table_name = p_tabla AND index_name = p_indice) THEN
-    SET @sql_cus19 = CONCAT('ALTER TABLE ', p_tabla, ' ADD INDEX ', p_indice, ' (', p_columnas, ')');
-    PREPARE st_cus19 FROM @sql_cus19;
-    EXECUTE st_cus19;
-    DEALLOCATE PREPARE st_cus19;
-  END IF;
-END$$
-DELIMITER ;
-
-CALL sp_tmp_cus19_columna('log_auditoria', 'hash_anterior',
-     'CHAR(64) NULL COMMENT ''CUS19: sello del registro anterior (cadena SHA-256)'' AFTER detalle_json');
-CALL sp_tmp_cus19_columna('log_auditoria', 'hash_registro',
-     'CHAR(64) NULL COMMENT ''CUS19: SHA-256 del registro encadenado al anterior'' AFTER hash_anterior');
--- 4 consultar(filtros): búsquedas por usuario, proceso y dirección de origen dentro de un rango de fechas
-CALL sp_tmp_cus19_indice('log_auditoria', 'ix_log_usuario_fecha', 'id_usuario, fecha_hora');
-CALL sp_tmp_cus19_indice('log_auditoria', 'ix_log_proceso_fecha', 'id_proceso, fecha_hora');
-CALL sp_tmp_cus19_indice('log_auditoria', 'ix_log_ip_fecha', 'ip_origen, fecha_hora');
-
-DROP PROCEDURE IF EXISTS sp_tmp_cus19_columna;
-DROP PROCEDURE IF EXISTS sp_tmp_cus19_indice;
 
 -- ---------------------------------------------------------------------
 -- 2. Tablas nuevas
@@ -10133,7 +9496,7 @@ DROP PROCEDURE IF EXISTS sp_tmp_cus19_indice;
 
 -- 4 consultar() · 5 mostrarRegistros(): catálogo de los códigos de acción de la bitácora. No tiene FK
 -- con log_auditoria: un código nuevo sin catálogo se sigue registrando y se muestra «sin clasificar».
-CREATE TABLE IF NOT EXISTS bitacora_accion (
+CREATE TABLE bitacora_accion (
   codigo      VARCHAR(100) NOT NULL PRIMARY KEY,
   etiqueta    VARCHAR(120) NOT NULL,
   descripcion VARCHAR(300) NULL,
@@ -10148,7 +9511,7 @@ CREATE TABLE IF NOT EXISTS bitacora_accion (
 -- Sello vigente de la cadena: último registro sellado y total desde el último reinicio. Una sola
 -- fila (id_cadena = 1). trg_log_bi la bloquea (FOR UPDATE) para encadenar en orden aunque haya
 -- inserciones simultáneas, y sp_verificar_bitacora la compara con el último registro.
-CREATE TABLE IF NOT EXISTS bitacora_cadena (
+CREATE TABLE bitacora_cadena (
   id_cadena           TINYINT  NOT NULL PRIMARY KEY,
   ultimo_id_log       BIGINT   NULL,
   ultimo_hash         CHAR(64) NOT NULL,
@@ -10266,25 +9629,13 @@ INSERT INTO bitacora_accion (codigo, etiqueta, descripcion, modulo, caso_uso, cr
   ('JUSTIFICAR_MULTA',               'Multa justificada',                     'Se aceptó la justificación de la omisión.', 'MULTAS', 'CUS16', 'MEDIA', 50),
   ('DENEGAR_JUSTIFICACION',          'Justificación denegada',                'Se denegó la justificación.', 'MULTAS', 'CUS16', 'MEDIA', 60),
   ('EXONERAR_MULTA',                 'Multa exonerada',                       'Exoneración de la multa.', 'MULTAS', 'CUS16', 'ALTA', 70),
-  ('REGISTRAR_PAGO_MULTA',           'Pago de multa registrado',              'Registro del recibo de pago.', 'MULTAS', 'CUS16', 'MEDIA', 80)
-ON DUPLICATE KEY UPDATE etiqueta = VALUES(etiqueta), descripcion = VALUES(descripcion), modulo = VALUES(modulo),
-  caso_uso = VALUES(caso_uso), criticidad = VALUES(criticidad), orden = VALUES(orden);
+  ('REGISTRAR_PAGO_MULTA',           'Pago de multa registrado',              'Registro del recibo de pago.', 'MULTAS', 'CUS16', 'MEDIA', 80);
 
--- Máximo de registros por exportación (CSV). Su definición lo valida como los demás parámetros (CUS18).
-INSERT INTO parametro_global (clave, valor, descripcion) VALUES
-  ('BITACORA_EXPORTACION_MAX', '20000', 'Máximo de registros de la bitácora que se descargan en una exportación (CUS19)')
-ON DUPLICATE KEY UPDATE descripcion = descripcion;
-
-INSERT INTO parametro_definicion (clave, grupo, etiqueta, tipo, minimo, maximo, unidad, referencia, bloqueo_jornada, orden) VALUES
-  ('BITACORA_EXPORTACION_MAX', 'SEGURIDAD', 'Registros por exportación de la bitácora', 'ENTERO', 100, 100000, 'registros', 'RN28', FALSE, 40)
-ON DUPLICATE KEY UPDATE grupo = VALUES(grupo), etiqueta = VALUES(etiqueta), tipo = VALUES(tipo),
-  minimo = VALUES(minimo), maximo = VALUES(maximo), unidad = VALUES(unidad), referencia = VALUES(referencia),
-  bloqueo_jornada = VALUES(bloqueo_jornada), orden = VALUES(orden);
+-- (Se cargan en la sección 6, junto con los demás parámetros.)
 
 -- ---------------------------------------------------------------------
 -- 4. Función del sello
 -- ---------------------------------------------------------------------
-DROP FUNCTION IF EXISTS fn_hash_bitacora;
 
 DELIMITER $$
 
@@ -10304,70 +9655,10 @@ END$$
 DELIMITER ;
 
 -- ---------------------------------------------------------------------
--- 5. Sellado de los registros existentes (solo la primera vez) y triggers
+-- 5. Triggers (trg_log_bu, que hace inmutable la bitácora, está en la sección 3)
 -- ---------------------------------------------------------------------
--- trg_log_bu impide modificar la bitácora; se quita un momento para escribir el sello de los
--- registros anteriores al CUS19, en su orden, y se vuelve a crear igual que antes.
-DROP TRIGGER IF EXISTS trg_log_bi;
-DROP TRIGGER IF EXISTS trg_log_bu;
-DROP PROCEDURE IF EXISTS sp_tmp_cus19_sellar;
 
 DELIMITER $$
-CREATE PROCEDURE sp_tmp_cus19_sellar()
-BEGIN
-  DECLARE v_fin TINYINT DEFAULT 0;
-  DECLARE v_id BIGINT;
-  DECLARE v_usuario, v_docente, v_proceso INT;
-  DECLARE v_accion VARCHAR(100);
-  DECLARE v_ip VARCHAR(45);
-  DECLARE v_ua VARCHAR(500);
-  DECLARE v_fecha DATETIME;
-  DECLARE v_detalle LONGTEXT;
-  DECLARE v_prev CHAR(64) DEFAULT REPEAT('0', 64);
-  DECLARE v_hash CHAR(64);
-  DECLARE v_total BIGINT DEFAULT 0;
-  DECLARE c_log CURSOR FOR
-    SELECT id_log, id_usuario, id_docente, id_proceso, accion, ip_origen, user_agent, fecha_hora, detalle_json
-      FROM log_auditoria ORDER BY id_log;
-  DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_fin = 1;
-
-  -- Solo si ningún registro tiene sello: en una reejecución la cadena ya existe y no se toca.
-  IF NOT EXISTS (SELECT 1 FROM log_auditoria WHERE hash_registro IS NOT NULL) THEN
-    START TRANSACTION;
-    OPEN c_log;
-    sellar: LOOP
-      FETCH c_log INTO v_id, v_usuario, v_docente, v_proceso, v_accion, v_ip, v_ua, v_fecha, v_detalle;
-      IF v_fin = 1 THEN
-        LEAVE sellar;
-      END IF;
-      SET v_hash = fn_hash_bitacora(v_prev, v_usuario, v_docente, v_proceso, v_accion, v_ip, v_ua, v_fecha, v_detalle);
-      UPDATE log_auditoria SET hash_anterior = v_prev, hash_registro = v_hash WHERE id_log = v_id;
-      SET v_prev = v_hash;
-      SET v_total = v_total + 1;
-    END LOOP;
-    CLOSE c_log;
-
-    INSERT INTO bitacora_cadena (id_cadena, ultimo_id_log, ultimo_hash, total_registros, fecha_inicio, fecha_actualizacion)
-    VALUES (1, (SELECT MAX(id_log) FROM log_auditoria), v_prev, v_total,
-            COALESCE((SELECT MIN(fecha_hora) FROM log_auditoria), NOW()), NOW())
-    ON DUPLICATE KEY UPDATE ultimo_id_log = VALUES(ultimo_id_log), ultimo_hash = VALUES(ultimo_hash),
-      total_registros = VALUES(total_registros), fecha_inicio = VALUES(fecha_inicio),
-      fecha_actualizacion = VALUES(fecha_actualizacion);
-    COMMIT;
-  END IF;
-END$$
-DELIMITER ;
-
-CALL sp_tmp_cus19_sellar();
-DROP PROCEDURE IF EXISTS sp_tmp_cus19_sellar;
-
-DELIMITER $$
-
-CREATE TRIGGER trg_log_bu BEFORE UPDATE ON log_auditoria
-FOR EACH ROW
-BEGIN
-  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La bitacora de auditoria es inmutable.';
-END$$
 
 -- Sello encadenado de cada registro nuevo. El FOR UPDATE sobre bitacora_cadena ordena las
 -- inserciones simultáneas: cada una se encadena al sello vigente y lo reemplaza. Si la inserción
@@ -10390,7 +9681,6 @@ BEGIN
                           fecha_actualizacion = NOW();
 END$$
 
-DROP TRIGGER IF EXISTS trg_log_ai$$
 CREATE TRIGGER trg_log_ai AFTER INSERT ON log_auditoria
 FOR EACH ROW
 BEGIN
@@ -10400,7 +9690,7 @@ END$$
 DELIMITER ;
 
 -- Cadena vacía (instalación sin registros): sello inicial de ceros.
-INSERT IGNORE INTO bitacora_cadena (id_cadena, ultimo_id_log, ultimo_hash, total_registros)
+INSERT INTO bitacora_cadena (id_cadena, ultimo_id_log, ultimo_hash, total_registros)
 VALUES (1, NULL, REPEAT('0', 64), 0);
 
 -- ---------------------------------------------------------------------
@@ -10410,7 +9700,7 @@ VALUES (1, NULL, REPEAT('0', 64), 0);
 -- 4 consultar(filtros) · 5 mostrarRegistros(lista): cada registro con su autor (cuenta, rol y
 -- docente de la cuenta), el docente al que se refiere (elector, miembro, candidato), el proceso
 -- y la acción catalogada. EMITIR_VOTO solo dice que el docente votó, nunca por quién (RNF05).
-CREATE OR REPLACE VIEW v_bitacora AS
+CREATE VIEW v_bitacora AS
 SELECT l.id_log,
        l.fecha_hora,
        l.accion,
@@ -10444,9 +9734,6 @@ SELECT l.id_log,
 -- ---------------------------------------------------------------------
 -- 7. Procedimientos
 -- ---------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS sp_detalle_bitacora;
-DROP PROCEDURE IF EXISTS sp_verificar_bitacora;
-DROP PROCEDURE IF EXISTS sp_registrar_exportacion_bitacora;
 
 DELIMITER $$
 
@@ -10654,7 +9941,48 @@ INSERT INTO parametro_global (clave, valor, descripcion) VALUES
   ('INSTALACION_CONTROL_HORARIO', '1', '1 = exigir el día y el horario de instalación; 0 = permitir instalar a cualquier hora (pruebas)'),
   -- CUS11
   ('SUFRAGIO_CONTROL_HORARIO', '1',
-   '1 = cerrar el sufragio desde la hora de cierre del proceso (15:00, RN06) o cuando ya votaron todos; 0 = permitir cerrar a cualquier hora (pruebas)')
+   '1 = cerrar el sufragio desde la hora de cierre del proceso (15:00, RN06) o cuando ya votaron todos; 0 = permitir cerrar a cualquier hora (pruebas)'),
+  -- CUS13
+  ('IMPUGNACION_PLAZO_APELACION_HORAS', '24',
+   'Horas que tiene el personero para apelar la decisión de la mesa ante el CEUNP (RF81); 0 = sin plazo'),
+  ('CEUNP_QUORUM_PLENO', '5',
+   'Miembros del Pleno del CEUNP necesarios para resolver una apelación (RN36)'),
+  -- CUS14
+  ('SEGUNDA_VUELTA_PLAZO_DIAS', '15',
+   'Días desde el cómputo dentro de los que debe realizarse la segunda vuelta (RN33, Art. 63)'),
+  -- CUS16
+  ('MULTA_PLAZO_JUSTIFICACION_DIAS', '10',
+   'Días desde la notificación de la multa para presentar la justificación ante el CEUNP (RF106); 0 = sin plazo'),
+  -- CUS18
+  ('SEGURIDAD_INTENTOS_MAXIMOS', '5',
+   'Intentos fallidos de inicio de sesión antes de bloquear la cuenta temporalmente'),
+  ('SEGURIDAD_BLOQUEO_MINUTOS', '15',
+   'Minutos que la cuenta queda bloqueada tras superar los intentos fallidos'),
+  ('SEGURIDAD_PASSWORD_MIN', '8',
+   'Longitud mínima de las contraseñas (debe tener letras y números)'),
+  -- CUS19
+  ('BITACORA_EXPORTACION_MAX', '20000', 'Máximo de registros de la bitácora que se descargan en una exportación (CUS19)')
+;
+
+-- Catálogo de parámetros (CUS18): grupo, tipo, rango, unidad, norma y si se bloquean durante la votación
+INSERT INTO parametro_definicion (clave, grupo, etiqueta, tipo, minimo, maximo, unidad, referencia, bloqueo_jornada, orden) VALUES
+  ('UIT',                               'MULTAS',    'Unidad Impositiva Tributaria vigente', 'DECIMAL', 1, 100000, 'S/',           'RF105',        FALSE, 10),
+  ('MULTA_ELECTOR_OMISO_PCT',           'MULTAS',    'Multa al elector omiso',               'DECIMAL', 0, 100,    '% de la UIT',  'RN35 · Art. 68', FALSE, 20),
+  ('MULTA_MIEMBRO_MESA_OMISO_PCT',      'MULTAS',    'Multa al miembro de mesa inasistente', 'DECIMAL', 0, 100,    '% de la UIT',  'RN35 · Art. 67', FALSE, 30),
+  ('MULTA_PLAZO_JUSTIFICACION_DIAS',    'MULTAS',    'Plazo para justificar la omisión',     'ENTERO',  0, 90,     'días',         'RF106',        FALSE, 40),
+  ('ELECTORES_POR_MESA',                'JORNADA',   'Electores por mesa de sufragio',       'ENTERO',  10, 500,   'electores',    'RN08',         TRUE,  10),
+  ('UBICACION_SUFRAGIO',                'JORNADA',   'Lugar de sufragio por defecto',        'TEXTO',   3, 150,    NULL,           'RN08',         TRUE,  20),
+  ('INSTALACION_HORA_INICIO',           'JORNADA',   'Inicio de la instalación de mesas',    'HORA',    0, 23.99,  'hora',         'RN07',         TRUE,  30),
+  ('INSTALACION_HORA_LIMITE',           'JORNADA',   'Límite para instalar las mesas',       'HORA',    0, 23.99,  'hora',         'RF58',         TRUE,  40),
+  ('INSTALACION_CONTROL_HORARIO',       'JORNADA',   'Exigir el horario de instalación',     'INDICADOR', 0, 1,    NULL,           'RN07',         TRUE,  50),
+  ('SUFRAGIO_CONTROL_HORARIO',          'JORNADA',   'Exigir el horario de cierre del sufragio', 'INDICADOR', 0, 1, NULL,          'RN06',         TRUE,  60),
+  ('CEUNP_QUORUM_PLENO',                'CEUNP',     'Quórum del Pleno del CEUNP',           'ENTERO',  5, 9,      'miembros',     'RN36',         FALSE, 10),
+  ('IMPUGNACION_PLAZO_APELACION_HORAS', 'CEUNP',     'Plazo para apelar ante el CEUNP',      'ENTERO',  0, 168,    'horas',        'RF81',         FALSE, 20),
+  ('SEGUNDA_VUELTA_PLAZO_DIAS',         'CEUNP',     'Plazo para la segunda vuelta',         'ENTERO',  1, 60,     'días',         'RN33 · Art. 63', FALSE, 30),
+  ('SEGURIDAD_INTENTOS_MAXIMOS',        'SEGURIDAD', 'Intentos fallidos antes del bloqueo',  'ENTERO',  3, 10,     'intentos',     'RNF seguridad', FALSE, 10),
+  ('SEGURIDAD_BLOQUEO_MINUTOS',         'SEGURIDAD', 'Duración del bloqueo de la cuenta',    'ENTERO',  1, 1440,   'minutos',      'RNF seguridad', FALSE, 20),
+  ('SEGURIDAD_PASSWORD_MIN',            'SEGURIDAD', 'Longitud mínima de la contraseña',     'ENTERO',  8, 32,     'caracteres',   'RNF seguridad', FALSE, 30),
+  ('BITACORA_EXPORTACION_MAX', 'SEGURIDAD', 'Registros por exportación de la bitácora', 'ENTERO', 100, 100000, 'registros', 'RN28', FALSE, 40)
 ;
 
 -- ---------------------------------------------------------------------
