@@ -6,23 +6,35 @@
 
 ---
 
+## 🖥️ Botones y Elementos de la Interfaz (`PantallaLogin`)
+
+En la pantalla `LoginPage.jsx` existen las siguientes acciones/botones del usuario:
+1. **Botón [ Ingresar al Sistema ] (`type="submit"`):** Inicia la autenticación con usuario y contraseña (validación de credenciales, hash BCrypt, auditoría y emisión de token).
+2. **Botón [ Consultar resultados y verificar actas ] (`auth-portal-link`):** Enlace directo de navegación hacia la pantalla del portal público de transparencia electoral (`PortalResultados` / ruta `/resultados`), que pertenece al **CUS17**.
+
+> **Nota metodológica según la teoría de RUP (Dr. Iván Iman Agurto):**  
+> Cuando un botón en una pantalla tiene como único fin **navegar o abrir otro caso de uso** (en este caso, abrir el portal de resultados públicos), en el estándar RUP representa un enlace/navegación hacia otra interfaz (`Boundary`). Quien realmente consulta las entidades `ProcesoElectoral` y `ResultadoElectoral` es el controlador `: ConsultarResultados` dentro del propio **CUS17: Consultar resultados y verificar actas**.  
+> Por tanto, en el diagrama de colaboraciones de `CUS00` se documenta la navegación hacia la pantalla de destino, manteniendo cada caso de uso delimitado en su objetivo.
+
+---
+
 ## Correspondencia con el diagrama de colaboración («colaboracion - Iniciar Sesion», `diagramas/Sistema De Elecciones.mdl`)
 
-A continuación se detalla la equivalencia exacta entre los 11 mensajes del diagrama de colaboración diseñado en **Rational Rose** y los componentes reales implementados en el frontend, backend y base de datos:
-
-| N.° | Mensaje del diagrama | Frontend (`PantallaLogin` / `App`) | Backend / Base de Datos |
-|---|---|---|---|
-| **1** | `abrirSistema()` | El usuario ingresa a la aplicación web en el navegador. `main.jsx` inicializa el ciclo de vida del componente raíz `App`. | Servidor web sirve los estáticos de la SPA (React + Vite). |
-| **2** | `verificarSesionGuardada(token)` | `useEffect` en `main.jsx` lee `sessionStorage.getItem('accessToken')`. Si existe token, invoca `apiRequest('/api/auth/me')` con cabecera `Authorization: Bearer <token>`. | `JwtAuthenticationFilter` valida la firma del token JWT y autentica la petición en el contexto de Spring Security. |
-| **3** | `buscarPorUsername(username)` | — *(Llamada interna en backend)* | Control `VerificarSesion` → `UsuarioRepository.findByUsername(authentication.getName())` consulta la tabla `usuario`. |
-| **4** | `mostrarResultadoSesion(username, rol)` | `main.jsx` actualiza el estado `setSession(...)`. Si el token es válido y no debe cambiar clave, renderiza de inmediato el `DashboardPage` con el menú según su rol; si expiró, limpia `sessionStorage` y muestra `LoginPage`. | `AuthController.me()` responde HTTP 200 con `MeResponse(id, username, rol, idDocente, debeCambiarPassword)`. |
-| **5** | `ingresarCredenciales` | En `LoginPage.jsx`, el usuario escribe su `username` y `password` en el formulario y pulsa el botón **«Iniciar Sesión»**. | Evento de formulario web capturado en el cliente. |
-| **6** | `validarCredenciales` | `LoginPage.handleSubmit` realiza petición HTTP `POST /api/auth/login` con `{ username, password }`. *(En el diagrama figura como `validarCredendales` por errata tipográfica menor).* | Endpoint `@PostMapping("/login")` en `AuthController`. Valida campos no vacíos (`@NotBlank`). |
-| **7** | `buscarPorUsername(username)` | — *(Llamada interna en backend)* | `usuarioRepository.findByUsername(request.username())` recupera la entidad `Usuario` (hash BCrypt, estado `activo`, intentos y bloqueo). |
-| **8** | `registrarAcceso` | — *(Llamada interna en backend)* | Si la clave es correcta: `usuario.registrarAccesoExitoso()`. Si la clave es incorrecta: `usuario.registrarIntentoFallido(maxIntentos, minutosBloqueo)`. |
-| **9** | `actualizarAcceso` | — *(Persistencia en base de datos)* | `usuarioRepository.save(usuario)`: actualiza las columnas `ultimo_acceso`, reinicia `intentos_fallidos = 0` (o incrementa y define `bloqueado_hasta`). |
-| **10** | `registraAuditoria` | — *(Persistencia en bitácora)* | `auditoriaService.registrar(...)` inserta en `log_auditoria` con acción `LOGIN_SUCCESS` o `LOGIN_FAILED`, registrando IP remota (`getRemoteAddr`) y navegador (`User-Agent`). |
-| **11** | `mostrarResultado(token, rol, mensaje)` | Si éxito: llama a `onLogin(data)`, guarda token en `sessionStorage` y entra al sistema. Si error: resalta campos y muestra mensaje de alerta (401 credenciales incorrectas, 403 cuenta inactiva o bloqueo temporal). | `AuthController.login()` retorna `LoginResponse(token, username, rol, debeCambiarPassword)` o arroja `ResponseStatusException` (HTTP 401 / 403). |
+| N.° | Mensaje del diagrama | Origen | Destino | Explicación en el Sistema |
+|:---:|---|---|---|---|
+| **1** | `abrirSistema()` | `: Usuario del sistema` | `: PantallaLogin` | El usuario ingresa a la aplicación web. `main.jsx` inicializa la SPA. |
+| **2** | `verificarSesionGuardada(token)` | `: PantallaLogin` | `: VerificarSesion` | Si existe token en `sessionStorage`, consulta `/api/auth/me`. |
+| **3** | `buscarPorUsername(username)` | `: VerificarSesion` | `: Usuario` | Valida el usuario en la BD contra la tabla `usuario`. |
+| **4** | `mostrarResultadoSesion(username, rol)` | `: VerificarSesion` | `: PantallaLogin` | Si es válido, carga el `DashboardPage` según su rol. |
+| **5** | `ingresarCredenciales` | `: Usuario del sistema` | `: PantallaLogin` | El usuario llena los campos de usuario y contraseña. |
+| **6** | `validarCredenciales` | `: PantallaLogin` | `: ValidarCredenciales` | Se activa al hacer clic en el botón **[ Ingresar al Sistema ]** (`POST /api/auth/login`). |
+| **7** | `buscarPorUsername(username)` | `: ValidarCredenciales` | `: Usuario` | Obtiene el hash BCrypt y valida estado `activo` e intentos. |
+| **8** | `registrarAcceso` | `: ValidarCredenciales` | `: RegistrarAcceso` | Determina si el acceso fue exitoso o fallido. |
+| **9** | `actualizarAcceso` | `: RegistrarAcceso` | `: Usuario` | Actualiza `ultimo_acceso`, reinicia intentos o bloquea. |
+| **10** | `registraAuditoria` | `: RegistrarAcceso` | `: LogAuditoria` | Inserta en `log_auditoria` con IP y navegador. |
+| **11** | `mostrarResultado(token, rol, mensaje)` | `: ValidarCredenciales` | `: PantallaLogin` | Emite el token y redirige, o muestra el mensaje de error. |
+| **12** | `consultarResultados()` | `: Usuario del sistema` | `: PantallaLogin` | El usuario hace clic en el botón inferior **[ Consultar resultados y verificar actas ]**. |
+| **13** | `abrirPortalResultados()` | `: PantallaLogin` | `: PantallaPortalResultados` | Redirige al navegador hacia la vista pública `/resultados`, iniciando el flujo del **CUS17**. |
 
 ---
 
