@@ -3,8 +3,9 @@
    Reutiliza .cv-* (convocatoria.css) y .pd-shell (padron.css).
    ═══════════════════════════════════════════════════════════════════ */
 
-.in-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; }
-.in-proceso { min-width: 280px; flex: 0 1 380px; }
+.in-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.in-proceso { width: 100%; flex: 1 1 100%; min-width: 0; }
+.in-proceso select { width: 100%; min-width: 0; }
 .in-plazo { display: flex; gap: 10px; align-items: center; padding: 9px 14px; border-radius: var(--r-md); flex: 1 1 260px; }
 .in-plazo strong { display: block; font-size: .85rem; }
 .in-plazo span { display: block; font-size: .78rem; }

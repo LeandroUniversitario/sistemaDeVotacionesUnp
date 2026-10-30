@@ -131,6 +131,8 @@
 
 /* Barra superior: proceso, horario y actualizar */
 .mx .in-head { align-items: stretch; gap: 12px; }
+.mx .in-proceso { width: 100%; flex: 1 1 100%; min-width: 0; }
+.mx .in-proceso select { width: 100%; min-width: 0; }
 .mx .in-head > .cv-btn { align-self: center; }
 .mx .in-plazo { gap: 12px; padding: 10px 16px; border: 1px solid; border-radius: 10px; }
 .mx .in-plazo strong { font-size: .86rem; font-weight: 650; }

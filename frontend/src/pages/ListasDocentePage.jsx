@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../api/apiClient';
+import './inscripcion/inscripcion.css';
 
 /**
  * CUS-DOCENTE — Listas y fórmulas postulantes.
@@ -76,27 +77,24 @@ export default function ListasDocentePage({ onSessionExpired }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-      {/* Selector de proceso (si hay más de uno) */}
-      {procesos.length > 1 && (
-        <div className="panel" style={{ padding: '1rem 1.25rem' }}>
-          <label style={{ fontWeight: 600, fontSize: '0.875rem', color: '#374151', marginBottom: '0.5rem', display: 'block' }}>
-            Proceso electoral
+      {/* Selector de proceso electoral en fila completa */}
+      {procesos.length > 0 && (
+        <section className="in-head">
+          <label className="cv-field in-proceso">
+            <span className="cv-label">Proceso electoral</span>
+            <select
+              value={idProceso ?? ''}
+              onChange={(e) => setIdProceso(Number(e.target.value))}
+              disabled={procesos.length === 1}
+            >
+              {procesos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre} {p.estado === 'VOTACION' ? '· 🗳️ En votación' : '· 📋 Inscripción'}
+                </option>
+              ))}
+            </select>
           </label>
-          <select
-            className="form-control"
-            value={idProceso ?? ''}
-            onChange={(e) => setIdProceso(Number(e.target.value))}
-            style={{ maxWidth: 420 }}
-          >
-            <option value="">— Seleccione un proceso —</option>
-            {procesos.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nombre}
-                {p.estado === 'VOTACION' ? ' 🗳️ (En votación)' : ' 📋 (Inscripción)'}
-              </option>
-            ))}
-          </select>
-        </div>
+        </section>
       )}
 
       {/* Aviso informativo */}
