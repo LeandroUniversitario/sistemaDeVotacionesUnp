@@ -9989,16 +9989,16 @@ INSERT INTO parametro_definicion (clave, grupo, etiqueta, tipo, minimo, maximo, 
 -- ---------------------------------------------------------------------
 -- RN20: catálogo general de cargos y cargos que impiden ser miembro de mesa.
 -- ---------------------------------------------------------------------
-INSERT INTO catalogo_cargo (nombre_cargo, nivel) VALUES
-  ('Rector', 'UNIVERSIDAD'),
-  ('Vicerrector Académico', 'UNIVERSIDAD'),
-  ('Vicerrector de Investigación', 'UNIVERSIDAD'),
-  ('Secretario General', 'UNIVERSIDAD'),
-  ('Director de la Escuela de Posgrado', 'UNIVERSIDAD'),
-  ('Miembro del CEUNP', 'UNIVERSIDAD'),
-  ('Decano', 'FACULTAD'),
-  ('Director de Escuela Profesional', 'FACULTAD'),
-  ('Jefe de Departamento Académico', 'DEPARTAMENTO');
+INSERT INTO catalogo_cargo (nombre_cargo, nivel, activo) VALUES
+  ('Rector y Vicerrectores (Fórmula)', 'UNIVERSIDAD', 1),
+  ('Vicerrector Académico', 'UNIVERSIDAD', 0),
+  ('Vicerrector de Investigación', 'UNIVERSIDAD', 0),
+  ('Secretario General', 'UNIVERSIDAD', 1),
+  ('Director de la Escuela de Posgrado', 'UNIVERSIDAD', 1),
+  ('Miembro del CEUNP', 'UNIVERSIDAD', 1),
+  ('Decano', 'FACULTAD', 1),
+  ('Director de Escuela Profesional', 'FACULTAD', 1),
+  ('Jefe de Departamento Académico', 'DEPARTAMENTO', 1);
 
 INSERT INTO cargo_excluido_sorteo (id_catalogo_cargo)
 SELECT id_catalogo_cargo FROM catalogo_cargo;
