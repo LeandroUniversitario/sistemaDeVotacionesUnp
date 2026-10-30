@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import jsQR from 'jsqr';
 import { createPortal } from 'react-dom';
 import { encodeQR, qrToSvg } from '../../lib/qrcode';
 import { qrSoloEnEstaPC, urlPublica } from '../../lib/urlPublica';
@@ -230,58 +231,204 @@ export function ListaCredencialesQR({ resultado, proceso, onCerrar }) {
 }
 
 /**
- * Lectura de un QR: la pistola lectora «escribe» el contenido y un Enter en el campo;
- * si el navegador tiene BarcodeDetector (Chrome/Edge en Android, macOS, ChromeOS) también
- * se puede usar la cámara.
+ * Emite un breve pitido de confirmación con la Web Audio API al leer un QR con éxito.
+ */
+function emitirPitidoExito() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.12);
+  } catch {
+    /* silencio si el navegador no permite audio */
+  }
+}
+
+/**
+ * CUS07 / CUS09 · Lector y escáner de códigos QR para laptops, PCs y teléfonos móviles.
+ *
+ * Soporta 3 modos de captura compatibles con cualquier dispositivo:
+ *   1. Cámara web / Cámara del teléfono (HTML5 video + canvas + jsQR) a tiempo real.
+ *   2. Carga o captura de archivo de imagen / foto del QR.
+ *   3. Pistola lectora USB/Bluetooth o pegado directo de texto.
  */
 export function EscanerQR({ onCodigo, deshabilitado }) {
   const [codigo, setCodigo] = useState('');
   const [camara, setCamara] = useState(false);
   const [errorCamara, setErrorCamara] = useState('');
+  const [dispositivos, setDispositivos] = useState([]);
+  const [dispositivoActual, setDispositivoActual] = useState('');
+  const [procesandoArchivo, setProcesandoArchivo] = useState(false);
+
   const inputRef = useRef(null);
   const videoRef = useRef(null);
+  const fileInputRef = useRef(null);
   const onCodigoRef = useRef(onCodigo);
   onCodigoRef.current = onCodigo;
-  const soportaCamara = typeof window !== 'undefined' && 'BarcodeDetector' in window && navigator.mediaDevices?.getUserMedia;
+
+  const soportaCamara = typeof window !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
+  // Enumerar cámaras si están disponibles (frontal, trasera, externa)
+  useEffect(() => {
+    if (!camara || !navigator.mediaDevices?.enumerateDevices) return;
+    navigator.mediaDevices.enumerateDevices().then((devs) => {
+      const cams = devs.filter((d) => d.kind === 'videoinput');
+      setDispositivos(cams);
+    }).catch(() => {});
+  }, [camara]);
+
+  // Transmisión de video y escaneo por cuadros
   useEffect(() => {
     if (!camara) return undefined;
     let stream;
-    let timer;
+    let animId;
     let activo = true;
-    (async () => {
+
+    async function abrirStream() {
+      setErrorCamara('');
       try {
-        const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        if (!activo) return;
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        const leer = async () => {
+        let constraints;
+        if (dispositivoActual) {
+          constraints = { video: { deviceId: { exact: dispositivoActual } } };
+        } else {
+          // Prefiere cámara trasera (celulares) o cualquier cámara disponible (laptops)
+          constraints = { video: { facingMode: { ideal: 'environment' } } };
+        }
+
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch {
+          // Fallback universal para webcams de laptops que rechazan facingMode
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
+
+        if (!activo) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        const video = videoRef.current;
+        if (video) {
+          video.srcObject = stream;
+          video.setAttribute('playsinline', 'true');
+          video.setAttribute('muted', 'true');
+          await video.play().catch(() => {});
+        }
+
+        // Canvas auxiliar fuera de pantalla para decodificar con jsQR
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        let ultimoEscaneo = 0;
+        const scanLoop = (timestamp) => {
           if (!activo) return;
-          try {
-            const [hallado] = await detector.detect(videoRef.current);
-            if (hallado?.rawValue) {
-              setCamara(false);
-              onCodigoRef.current(hallado.rawValue);
-              return;
+
+          // Escanear cada ~100ms para balancear respuesta inmediata y bajo uso de CPU
+          if (timestamp - ultimoEscaneo > 100) {
+            ultimoEscaneo = timestamp;
+            if (video && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0) {
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              const qr = jsQR(imgData.data, imgData.width, imgData.height, {
+                inversionAttempts: 'attemptBoth',
+              });
+
+              if (qr && qr.data && qr.data.trim()) {
+                emitirPitidoExito();
+                setCamara(false);
+                onCodigoRef.current(qr.data.trim());
+                return;
+              }
             }
-          } catch { /* cuadro no listo */ }
-          timer = setTimeout(leer, 250);
+          }
+          animId = requestAnimationFrame(scanLoop);
         };
-        leer();
-      } catch (e) {
-        setErrorCamara(e?.name === 'NotAllowedError' ? 'Permiso de cámara denegado.' : 'No se pudo abrir la cámara.');
+        animId = requestAnimationFrame(scanLoop);
+      } catch (err) {
+        if (!activo) return;
+        setErrorCamara(
+          err?.name === 'NotAllowedError'
+            ? 'Permiso de cámara denegado. Conceda permiso en el navegador.'
+            : 'No se pudo iniciar la cámara en este dispositivo.'
+        );
         setCamara(false);
       }
-    })();
+    }
+
+    abrirStream();
+
     return () => {
       activo = false;
-      clearTimeout(timer);
-      stream?.getTracks().forEach((t) => t.stop());
+      if (animId) cancelAnimationFrame(animId);
+      if (stream) stream.getTracks().forEach((t) => t.stop());
     };
-  }, [camara]);
+  }, [camara, dispositivoActual]);
+
+  function alternarCamara() {
+    if (dispositivos.length <= 1) return;
+    const indexActual = dispositivos.findIndex((d) => d.deviceId === dispositivoActual);
+    const siguiente = dispositivos[(indexActual + 1) % dispositivos.length];
+    if (siguiente) setDispositivoActual(siguiente.deviceId);
+  }
+
+  function procesarArchivo(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setProcesandoArchivo(true);
+    setErrorCamara('');
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const qr = jsQR(imgData.data, imgData.width, imgData.height, {
+            inversionAttempts: 'attemptBoth',
+          });
+          setProcesandoArchivo(false);
+          if (qr && qr.data && qr.data.trim()) {
+            emitirPitidoExito();
+            onCodigoRef.current(qr.data.trim());
+          } else {
+            setErrorCamara('No se reconoció ningún código QR en la imagen seleccionada.');
+          }
+        } catch {
+          setProcesandoArchivo(false);
+          setErrorCamara('Error al procesar la imagen seleccionada.');
+        }
+      };
+      img.onerror = () => {
+        setProcesandoArchivo(false);
+        setErrorCamara('No se pudo cargar la imagen seleccionada.');
+      };
+      img.src = e.target.result;
+    };
+    reader.onerror = () => {
+      setProcesandoArchivo(false);
+      setErrorCamara('Error al leer el archivo.');
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  }
 
   function enviar(event) {
     event.preventDefault();
@@ -295,22 +442,43 @@ export function EscanerQR({ onCodigo, deshabilitado }) {
     <div className="cq-escaner">
       <form className="in-search-row" onSubmit={enviar}>
         <input ref={inputRef} value={codigo} autoComplete="off" spellCheck={false} maxLength={300}
-          placeholder="Escanee con la pistola lectora o pegue el contenido del QR"
+          placeholder="Escanee con cámara, pistola lectora o pegue el contenido del QR"
           aria-label="Contenido del código QR" onChange={(e) => setCodigo(e.target.value)} />
         <button type="submit" className="cv-btn cv-btn-primary" disabled={deshabilitado || !codigo.trim()}>
           <MenuIcon name="check" size={15} /> Verificar
         </button>
         {soportaCamara && (
-          <button type="button" className="cv-btn cv-btn-ghost" onClick={() => { setErrorCamara(''); setCamara((v) => !v); }}>
-            <MenuIcon name="scan" size={15} /> {camara ? 'Cerrar cámara' : 'Usar cámara'}
+          <button type="button" className={`cv-btn ${camara ? 'cv-btn-primary' : 'cv-btn-ghost'}`}
+            onClick={() => { setErrorCamara(''); setCamara((v) => !v); }}>
+            <MenuIcon name="scan" size={15} /> {camara ? 'Detener cámara' : 'Usar cámara'}
           </button>
         )}
+        <button type="button" className="cv-btn cv-btn-ghost" disabled={procesandoArchivo}
+          onClick={() => fileInputRef.current?.click()} title="Escanear una imagen o captura de QR">
+          <MenuIcon name="file" size={15} /> {procesandoArchivo ? 'Analizando…' : 'Subir imagen'}
+        </button>
+        <input ref={fileInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={procesarArchivo} />
       </form>
+
       {errorCamara && <p className="cv-error">{errorCamara}</p>}
+
       {camara && (
-        <div className="cq-video">
-          <video ref={videoRef} muted playsInline />
-          <span className="cq-mira" aria-hidden="true" />
+        <div className="cq-video-wrap">
+          <div className="cq-video">
+            <video ref={videoRef} muted playsInline autoPlay />
+            <span className="cq-mira" aria-hidden="true" />
+          </div>
+          <div className="cq-video-controls">
+            <p className="cq-hint">Apunte la cámara de su laptop o teléfono al código QR</p>
+            {dispositivos.length > 1 && (
+              <button type="button" className="cv-btn cv-btn-soft cq-mini" onClick={alternarCamara}>
+                <MenuIcon name="refresh" size={13} /> Cambiar cámara
+              </button>
+            )}
+            <button type="button" className="cv-btn cv-btn-ghost in-danger cq-mini" onClick={() => setCamara(false)}>
+              <MenuIcon name="close" size={13} /> Cerrar
+            </button>
+          </div>
         </div>
       )}
     </div>
