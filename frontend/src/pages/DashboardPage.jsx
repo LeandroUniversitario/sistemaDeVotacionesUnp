@@ -413,7 +413,7 @@ export default function DashboardPage({ session, onLogout }) {
                 </div>
                 <div className="stat-card-body">
                   <span className="stat-card-label">Docentes en padrón</span>
-                  <strong className="stat-card-value">{teachers.length}</strong>
+                  <strong className="stat-card-value">{teachers.filter(t => t.habilitadoParaVotar).length}</strong>
                   <span className="stat-card-sub">habilitados para votar</span>
                 </div>
               </article>

@@ -37,3 +37,4 @@ cAprobar -right- ePadron : 11.2: insertarElectores(id_proceso, id_docente) >
 cAprobar -up- eLog : 12.1: registrarAuditoria('APROBAR_PADRON') >
 
 @enduml
+
