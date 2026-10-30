@@ -1,0 +1,39 @@
+@startuml
+' CUS02 · Gestionar padrón electoral e importación — Diagrama de Colaboración
+' (Guía de referencia para modelado en Rational Rose)
+skinparam style strictuml
+skinparam packageStyle rectangle
+
+actor ": CEUNP" as actor
+boundary ": PantallaPadron" as pantalla
+
+control ": ImportarDocentes" as cImportar
+control ": FiltrarHabilitados" as cFiltrar
+control ": AprobarPadron" as cAprobar
+
+entity ": Docente" as eDocente
+entity ": Usuario" as eUsuario
+entity ": PadronElectoral" as ePadron
+entity ": LogAuditoria" as eLog
+
+' ── Interacciones principales del Actor con la Interfaz ─────────────────────
+actor -right- pantalla : 1: subirArchivo(archivo) >\n5: depurarPadron() >\n9: confirmarAprobacion(id_proceso) >\n< 13: mostrarDocentesRegistrados()
+
+' ── Fase 1: Importación Masiva y Cuentas (Admin / CEUNP) ─────────────────────
+pantalla -up- cImportar : 2: leerDatos(archivo) >\n< 4.3: mostrarImportados()
+cImportar -right- eDocente : 3: registrarMasivo(datosDocente) >
+cImportar -up- eUsuario : 4.1: generarCuentasIniciales(usuarios) >
+cImportar -down- eLog : 4.2: registrarAuditoria('IMPORTAR_DOCENTES') >
+
+' ── Fase 2: Depuración de Habilitados (Reglas RN03, RN05) ────────────────────
+pantalla -down- cFiltrar : 6: procesarReglas() >\n< 8.2: mostrarListaDepurada()
+cFiltrar -right- eDocente : 7: actualizarHabilitacion(estado) >\n< 8.1: consultarDocentesDepurados()
+cFiltrar -left- eLog : 7.1: registrarAuditoria('DEPURAR_PADRON') >
+
+' ── Fase 3: Aprobación Definitiva por Proceso ────────────────────────────────
+pantalla -right- cAprobar : 10: generarDefinitivo(id_proceso) >\n< 12.2: notificarExito()
+cAprobar -down- eDocente : 11.1: obtenerHabilitadosPorCargo(id_proceso) >
+cAprobar -right- ePadron : 11.2: insertarElectores(id_proceso, id_docente) >
+cAprobar -up- eLog : 12.1: registrarAuditoria('APROBAR_PADRON') >
+
+@enduml
