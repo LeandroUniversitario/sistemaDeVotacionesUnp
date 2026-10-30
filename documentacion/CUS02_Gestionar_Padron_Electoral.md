@@ -16,7 +16,7 @@ El caso de uso CUS02 abarca dos fases operativas complementarias según el rol d
 1. **Creación Masiva e Importación de Usuarios Docentes (Rol: Administrador):**
    - Carga masiva de docentes vía archivo Excel (`.xlsx`) o CSV.
    - Creación automática y actualización (UPSERT) de registros en la tabla `docente` y generación de sus cuentas de usuario iniciales con credenciales provisionales en la tabla `usuario`.
-   - Consulta rápida de docentes ya registrados mediante la opción *«Omitir, ya están registrados»*.
+   - Consulta rápida de docentes ya registrados mediante la opción *«Mostrar Docentes Registrados»*.
 
 2. **Depuración y Aprobación del Padrón Electoral (Rol: CEUNP):**
    - Ejecución del motor de reglas electorales (RN03, RN05) para determinar la habilitación de sufragio de cada docente.
@@ -36,7 +36,7 @@ El caso de uso CUS02 abarca dos fases operativas complementarias según el rol d
 | **1. Carga de archivo** | `PadronPage.subirArchivoPadron` (Paso Carga / Admin) | `POST /api/padron/importar` (multipart `archivo`, solo `ADMIN`) |
 | **2. Parseo y validación** | Notificación y resumen de filas | `ImportarDocentes.leerDatos` → `ImportacionDocenteService` |
 | **3. Registro masivo** | Tabla de resultados (nuevos, actualizados, errores) | `ImportacionDocenteService.registrarMasivo` (UPSERT en `docente` y creación en `usuario`) |
-| **4. Omitir carga** | Visualización directa de docentes registrados | `PadronPage` (modo Admin, consulta `/api/padron/depurado`) |
+| **4. Mostrar docentes registrados** | Visualización directa de docentes registrados | `PadronPage` (modo Admin, consulta `/api/padron/depurado`) |
 | **5. Depurar padrón** | `PadronPage.depurarPadron` (Paso Depuración / CEUNP) | `POST /api/padron/depurar` (`FiltrarHabilitados.procesarReglas`) |
 | **6. Aplicar reglas** | Tarjetas de habilitados vs inhabilitados con filtros | `PadronConsulta.MOTIVO_SQL` (evalúa RN03, RN05, completitud) |
 | **7. Actualizar habilitación** | Actualización reactiva del estado electoral | `FiltrarHabilitados.actualizarHabilitacion` (`docente.habilitado_para_votar`) |
@@ -58,8 +58,8 @@ El caso de uso CUS02 abarca dos fases operativas complementarias según el rol d
   - Se eliminó el indicador de pasos numéricos y las tarjetas de métricas electorales (habilitados/inhabilitados) por corresponder exclusivamente a la fase comicial del CEUNP.
   - **Zona de carga principal:** Componente drag-and-drop compatible con `.xlsx`, `.xls` y `.csv`.
   - **Columnas esperadas:** Lista de verificación de campos requeridos (DNI, Nombres, Apellidos, Categoría, Dedicación, Estado, Facultad, Departamento).
-  - **Acciones inferiores:** Botones *«Plantilla CSV»*, *«Omitir, ya están registrados»* y *«Subir archivo»*.
-  - **Modo Omitir:** Al pulsar *«Omitir, ya están registrados»*, la interfaz presenta la tabla de **Docentes registrados** (DNI, Docente, Categoría, Dedicación, Facultad, Estado) con botón de retorno *«Subir nuevo padrón»*, sin forzar acciones de depuración electoral.
+  - **Acciones inferiores:** Botones *«Plantilla CSV»*, *«Mostrar Docentes Registrados»* y *«Subir archivo»*.
+  - **Consulta de Docentes Registrados:** Al pulsar *«Mostrar Docentes Registrados»*, la interfaz presenta la tabla de **Docentes registrados** (DNI, Docente, Categoría, Dedicación, Facultad, Estado) con botón de retorno *«Subir nuevo padrón»*, sin forzar acciones de depuración electoral.
   - **Panel lateral:** Resumen de resultados en tiempo real (nuevos registrados, cuentas actualizadas, advertencias y detalle de errores).
 
 ### B. Vista «Padrón electoral» (`PadronPage.jsx` - Rol CEUNP)
@@ -166,7 +166,7 @@ Para asegurar la integridad referencial con las tablas `facultad` y `departament
 
 ### Flujo Administrador (Creación masiva de cuentas):
 1. Iniciar sesión como `admin` e ingresar al menú **«Padrón e importación»**.
-2. Arrastrar el archivo `base-de-datos/100 Docentes.xlsx` o seleccionar la opción *«Omitir, ya están registrados»*.
+2. Arrastrar el archivo `base-de-datos/100 Docentes.xlsx` o seleccionar la opción *«Mostrar Docentes Registrados»*.
 3. Verificar en el panel lateral que se procesaron los registros y que se generaron las cuentas de acceso iniciales.
 
 ### Flujo CEUNP (Gestión académica y depuración electoral):

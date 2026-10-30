@@ -351,7 +351,7 @@ export default function PadronPage({ session, onChange, onSessionExpired }) {
               <button type="button" className="cv-btn cv-btn-ghost" onClick={descargarPlantilla}>
                 <MenuIcon name="download" size={15} /> Plantilla CSV
               </button>
-              <button type="button" className="cv-btn cv-btn-ghost" onClick={() => irAPaso(2)}>Omitir, ya están registrados</button>
+              <button type="button" className="cv-btn cv-btn-ghost" onClick={() => irAPaso(2)}>Mostrar Docentes Registrados</button>
               <button type="button" className="cv-btn cv-btn-primary" disabled={!archivo || saving} onClick={subirArchivoPadron}>
                 <MenuIcon name="upload" size={15} /> {saving ? 'Importando…' : 'Subir archivo'}
               </button>
