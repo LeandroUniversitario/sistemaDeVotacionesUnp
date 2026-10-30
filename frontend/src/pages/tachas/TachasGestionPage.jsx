@@ -99,7 +99,10 @@ export default function TachasGestionPage({ session, onSessionExpired }) {
   }
 
   const proceso = procesos.find((p) => p.id === idProceso);
-  const admite = proceso ? (proceso.estado === 'INSCRIPCION' || Boolean(Number(proceso.admiteTachas ?? proceso.admite_tachas ?? 0))) : false;
+  const plazoVencido = proceso?.fechaLimiteInscripcion ? new Date(proceso.fechaLimiteInscripcion) < new Date() : false;
+  const admite = proceso
+    ? proceso.estado === 'INSCRIPCION' && !plazoVencido && Boolean(Number(proceso.admiteTachas ?? proceso.admite_tachas ?? 1))
+    : false;
 
   // ─── 1 ingresarTacha(id_candidato, motivo) → 2 enviarTacha(datos) ────────
   async function ingresarTacha(datos) {
@@ -164,7 +167,13 @@ export default function TachasGestionPage({ session, onSessionExpired }) {
             <MenuIcon name={admite ? 'scale' : 'lock'} size={18} />
             <div>
               <strong>{admite ? 'Se reciben tachas' : 'No se reciben tachas'}</strong>
-              <span>{admite ? 'Etapa de INSCRIPCION: cualquier docente del padrón puede tachar a un candidato.' : `El proceso está en ${proceso.estado}.`}</span>
+              <span>
+                {admite
+                  ? 'Etapa de INSCRIPCION: cualquier docente del padrón puede tachar a un candidato.'
+                  : plazoVencido
+                    ? `Venció el plazo de inscripción y presentación de tachas (${fecha(proceso.fechaLimiteInscripcion)}).`
+                    : `El proceso no recibe tachas (estado: ${proceso.estado}).`}
+              </span>
             </div>
           </div>
         )}
@@ -403,7 +412,17 @@ function FormularioTacha({ candidatos, admite, saving, onEnviar, conDni = false,
         </div>
       </div>
 
-      {!admite && <p className="tc-aviso"><MenuIcon name="lock" size={14} /> Este proceso ya no recibe tachas.</p>}
+      {!admite && (
+        <div style={{
+          display: 'flex', gap: 10, alignItems: 'center',
+          padding: '10px 14px', borderRadius: 8, background: '#fef2f2',
+          border: '1px solid #fecdd3', color: '#991b1b', marginBottom: 14,
+          fontSize: '0.85rem', fontWeight: 600
+        }}>
+          <MenuIcon name="lock" size={16} />
+          <span>El plazo de presentación de tachas para este proceso ha concluido.</span>
+        </div>
+      )}
 
       {localError && (
         <div className="alert error" role="alert" style={{ marginBottom: 12 }}>
@@ -444,7 +463,7 @@ function FormularioTacha({ candidatos, admite, saving, onEnviar, conDni = false,
           </p>
         )}
 
-        <input className="pd-search tc-search" placeholder="Buscar por nombre o lista…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+        <input className="pd-search tc-search" placeholder="Buscar por nombre o lista…" value={busqueda} disabled={!admite} onChange={(e) => setBusqueda(e.target.value)} />
         <div className="tc-candidatos" role="radiogroup" aria-label="Candidatos">
           {grupos.length === 0 && <p className="in-empty">No hay candidatos que coincidan con la búsqueda.</p>}
           {grupos.map(([grupo, cs]) => (
@@ -452,7 +471,8 @@ function FormularioTacha({ candidatos, admite, saving, onEnviar, conDni = false,
               <span className="tc-grupo-title">{grupo}</span>
               {cs.map((c) => (
                 <button key={c.id} type="button" role="radio" aria-checked={idCandidato === c.id}
-                  className={`tc-cand${idCandidato === c.id ? ' on' : ''}`} onClick={() => { setIdCandidato(c.id); setLocalError(null); }}>
+                  disabled={!admite}
+                  className={`tc-cand${idCandidato === c.id ? ' on' : ''}`} onClick={() => { if (admite) { setIdCandidato(c.id); setLocalError(null); } }}>
                   <span className="in-avatar">{c.candidato.charAt(0)}</span>
                   <span className="in-cand-body">
                     <strong>{c.candidato}</strong>
@@ -468,7 +488,8 @@ function FormularioTacha({ candidatos, admite, saving, onEnviar, conDni = false,
 
       <label className="cv-field">
         <span className="cv-label">Fundamento de la tacha{elegido ? ` contra ${elegido.candidato}` : ''} <span className="required-mark">*</span></span>
-        <textarea rows={5} maxLength={4000} value={motivo} placeholder="Describa el requisito que incumple el candidato y las pruebas que lo sustentan…"
+        <textarea rows={5} maxLength={4000} value={motivo} placeholder={admite ? "Describa el requisito que incumple el candidato y las pruebas que lo sustentan…" : "Plazo vencido. No se pueden registrar fundamentos."}
+          disabled={!admite}
           onChange={(e) => { setMotivo(e.target.value); setLocalError(null); }} />
         <small className={motivo.trim().length < MIN ? 'cv-hint' : 'cv-hint ok'}>{motivo.trim().length}/{MIN} caracteres mínimos</small>
       </label>

@@ -1972,6 +1972,7 @@ CREATE PROCEDURE sp_presentar_tacha(
 BEGIN
   DECLARE v_proceso INT DEFAULT NULL;
   DECLARE v_estado  VARCHAR(20) DEFAULT NULL;
+  DECLARE v_limite  DATETIME DEFAULT NULL;
   DECLARE v_doc_est VARCHAR(20) DEFAULT NULL;
   DECLARE v_cand_docente INT DEFAULT NULL;
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -1982,7 +1983,8 @@ BEGIN
 
   START TRANSACTION;
 
-  SELECT p.id_proceso, p.estado, ca.id_docente INTO v_proceso, v_estado, v_cand_docente
+  SELECT p.id_proceso, p.estado, p.fecha_limite_inscripcion, ca.id_docente
+    INTO v_proceso, v_estado, v_limite, v_cand_docente
     FROM candidato ca
     JOIN lista_electoral l   ON l.id_lista = ca.id_lista
     JOIN cargo_electoral c   ON c.id_cargo = l.id_cargo
@@ -1994,6 +1996,9 @@ BEGIN
   END IF;
   IF v_estado <> 'INSCRIPCION' THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Las tachas solo se presentan en etapa de INSCRIPCION.';
+  END IF;
+  IF v_limite IS NOT NULL AND NOW() > v_limite THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Vencio el plazo para presentar tachas en este proceso electoral (RN13).';
   END IF;
 
   SELECT estado INTO v_doc_est FROM docente WHERE id_docente = p_id_docente_denunciante;

@@ -23,7 +23,8 @@ public class TachasConsulta {
     public List<Map<String, Object>> procesos() {
         return dao.consultar("""
                 SELECT p.id_proceso AS id, p.nombre, p.estado, p.fecha_limite_inscripcion,
-                       (p.estado = 'INSCRIPCION') AS admite_tachas,
+                       (p.estado = 'INSCRIPCION'
+                        AND (p.fecha_limite_inscripcion IS NULL OR NOW() <= p.fecha_limite_inscripcion)) AS admite_tachas,
                        (SELECT COUNT(*) FROM tacha t
                           JOIN candidato ca ON ca.id_candidato = t.id_candidato
                           JOIN lista_electoral l ON l.id_lista = ca.id_lista

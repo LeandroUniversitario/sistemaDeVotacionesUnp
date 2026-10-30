@@ -50,6 +50,26 @@ public class RegistrarTacha {
         if (candidato.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "El candidato no existe.");
         }
+        List<Map<String, Object>> proc = dao.consultar("""
+                SELECT p.estado, p.fecha_limite_inscripcion
+                  FROM candidato ca
+                  JOIN lista_electoral l ON l.id_lista = ca.id_lista
+                  JOIN cargo_electoral c ON c.id_cargo = l.id_cargo
+                  JOIN proceso_electoral p ON p.id_proceso = c.id_proceso
+                 WHERE ca.id_candidato = ?
+                """, datos.idCandidato());
+        if (!proc.isEmpty()) {
+            String est = (String) proc.get(0).get("estado");
+            if (!"INSCRIPCION".equals(est)) {
+                throw badRequest("Las tachas solo se pueden presentar en etapa de INSCRIPCION.");
+            }
+            Object limite = proc.get(0).get("fechaLimiteInscripcion");
+            if (limite == null) limite = proc.get(0).get("fecha_limite_inscripcion");
+            if (limite instanceof java.time.LocalDateTime f && java.time.LocalDateTime.now().isAfter(f)) {
+                throw badRequest("RN13: Venció el plazo para presentar tachas en este proceso electoral.");
+            }
+        }
+
         if ("EXCLUIDO".equals(candidato.get(0).get("estadoValidacion"))) {
             throw badRequest("El candidato ya fue excluido; no procede una nueva tacha.");
         }
