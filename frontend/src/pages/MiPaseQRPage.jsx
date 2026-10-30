@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../api/apiClient';
 import MenuIcon from '../components/MenuIcon';
+import { TarjetaCredencial, descargarPNG, imprimirCredenciales } from './credenciales/LectorQR';
+import './credenciales/credenciales.css';
 
 /**
  * CUS07 - Portal del Docente: Mi Pase de Votación QR
@@ -17,6 +19,7 @@ export default function MiPaseQRPage({ onSessionExpired }) {
   const [error, setError]     = useState(null);
   const [generando, setGenerando] = useState(null); // idProceso generando
   const [feedback, setFeedback]   = useState(null);
+  const [credencialesGeneradas, setCredencialesGeneradas] = useState({}); // idProceso -> data
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -39,7 +42,8 @@ export default function MiPaseQRPage({ onSessionExpired }) {
     setFeedback(null);
     try {
       const data = await apiRequest(`/api/docente/mi-pase/${idProceso}`, { method: 'POST' });
-      setFeedback({ type: 'success', text: '¡Credencial QR generada exitosamente! Ahora puedes verla en tu historial.' });
+      setCredencialesGeneradas((prev) => ({ ...prev, [idProceso]: data }));
+      setFeedback({ type: 'success', text: '¡Pase QR generado exitosamente! Descárgalo o imprímelo a continuación.' });
       await cargar(); // recargar estado
     } catch (err) {
       if (err.message === 'SESSION_EXPIRED') onSessionExpired();
@@ -299,6 +303,54 @@ export default function MiPaseQRPage({ onSessionExpired }) {
                     </button>
                   )}
                 </div>
+
+                {/* Tarjeta del QR generado */}
+                {credencialesGeneradas[idProc] && (
+                  <div style={{
+                    marginTop: '1.25rem',
+                    padding: '1.5rem',
+                    borderRadius: 12,
+                    background: '#fff',
+                    border: '2px solid #8b5cf6',
+                    boxShadow: '0 10px 25px -5px rgba(139, 92, 246, 0.15)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '1rem',
+                  }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <h3 style={{ margin: 0, color: '#6d28d9', fontSize: '1.1rem', fontWeight: 700 }}>
+                        🎉 Tu Pase de Votación QR
+                      </h3>
+                      <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#6b7280' }}>
+                        Descárgalo o imprímelo ahora. Por seguridad criptográfica, el QR solo se genera en este momento.
+                      </p>
+                    </div>
+
+                    <TarjetaCredencial
+                      credencial={credencialesGeneradas[idProc]}
+                      proceso={{ nombre: proc.proceso }}
+                      size={190}
+                    />
+
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      <button
+                        type="button"
+                        className="cv-btn cv-btn-primary"
+                        onClick={() => descargarPNG(credencialesGeneradas[idProc])}
+                      >
+                        <MenuIcon name="download" size={16} /> Descargar imagen (PNG)
+                      </button>
+                      <button
+                        type="button"
+                        className="cv-btn cv-btn-ghost"
+                        onClick={() => imprimirCredenciales([credencialesGeneradas[idProc]], { nombre: proc.proceso })}
+                      >
+                        <MenuIcon name="file" size={16} /> Imprimir pase
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           );
