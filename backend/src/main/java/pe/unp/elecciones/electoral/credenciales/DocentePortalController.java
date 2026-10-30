@@ -17,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import pe.unp.elecciones.auth.Usuario;
 import pe.unp.elecciones.auth.UsuarioActual;
+import pe.unp.elecciones.electoral.inscripcion.InscripcionConsulta;
 import pe.unp.elecciones.electoral.service.ProcedimientoDao;
 
 /**
@@ -35,13 +36,38 @@ public class DocentePortalController {
     private final UsuarioActual usuarioActual;
     private final ProcedimientoDao dao;
     private final GenerarTokenQR generarTokenQR;
+    private final InscripcionConsulta inscripcionConsulta;
 
     public DocentePortalController(UsuarioActual usuarioActual,
                                    ProcedimientoDao dao,
-                                   GenerarTokenQR generarTokenQR) {
+                                   GenerarTokenQR generarTokenQR,
+                                   InscripcionConsulta inscripcionConsulta) {
         this.usuarioActual = usuarioActual;
         this.dao = dao;
         this.generarTokenQR = generarTokenQR;
+        this.inscripcionConsulta = inscripcionConsulta;
+    }
+
+    /**
+     * CUS-DOCENTE: Lista todos los procesos con inscripción abierta/en votación
+     * y sus fórmulas/listas inscritas. Solo lectura para DOCENTE.
+     */
+    @GetMapping("/listas-postulantes")
+    public List<Map<String, Object>> listasPostulantes() {
+        return inscripcionConsulta.procesos().stream()
+                .filter(p -> {
+                    Object estado = p.get("estado");
+                    return "INSCRIPCION".equals(estado) || "VOTACION".equals(estado);
+                })
+                .toList();
+    }
+
+    /**
+     * Detalle de fórmulas e integrantes de un proceso para docentes.
+     */
+    @GetMapping("/listas-postulantes/{idProceso}")
+    public Map<String, Object> listasPostulantesPorProceso(@PathVariable Integer idProceso) {
+        return inscripcionConsulta.detalle(idProceso);
     }
 
     /**

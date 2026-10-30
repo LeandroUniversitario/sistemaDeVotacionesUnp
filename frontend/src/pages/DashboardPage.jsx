@@ -18,6 +18,7 @@ import CredencialesPage from './credenciales/CredencialesPage';
 import MisCredencialesPage from './credenciales/MisCredencialesPage';
 import VerificarCredencialPanel from './credenciales/VerificarCredencialPanel';
 import MiPaseQRPage from './MiPaseQRPage';
+import ListasDocentePage from './ListasDocentePage';
 import InstalacionMesaPage from './instalacion/InstalacionMesaPage';
 import PantallaCierreSufragio from './cierre/PantallaCierreSufragio';
 import PantallaImpugnaciones from './impugnaciones/PantallaImpugnaciones';
@@ -102,6 +103,7 @@ const MENU_POR_ROL = {
   DOCENTE: [
     { group: 'WORKSPACE' },
     { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6' },
+    { key: 'listas', label: 'Listas postulantes', icon: 'ballot', color: '#06b6d4' },
     { key: 'pase', label: 'Mi pase de votación QR', icon: 'qr', color: '#8b5cf6' },
     { key: 'tachas', label: 'Presentar tacha', icon: 'scale', color: '#f97316' },
     { key: 'mis-multas', label: 'Mis multas', icon: 'coins', color: '#d97706' },
@@ -137,6 +139,7 @@ const SECTION_TITLES = {
   fotocheck: 'Mi fotocheck digital',
   'verificar-qr': 'Verificar credenciales QR',
   credencial: 'Mi credencial de personero',
+  listas: 'Listas postulantes',
   pase: 'Mi pase de votación QR',
   instalacion: 'Instalación de mesa de sufragio',
   'verificar-elector': 'Verificar elector',
@@ -152,6 +155,7 @@ const SECTION_DESCRIPTIONS = {
   padron: 'Gestione el padrón electoral: aplique reglas de depuración y apruebe el padrón definitivo para el proceso electoral.',
   convocatoria: 'Registre el proceso electoral con su cronograma, configure los cargos a elegir y publique la convocatoria oficial.',
   docentes: 'Administración y mantenimiento del padrón de docentes: consulta de datos académicos, edición de facultades, departamentos y estados de habilitación.',
+  listas: 'Consulte las listas y fórmulas inscritas en el proceso electoral, sus candidatos y plan de gobierno.',
 };
 
 /**
@@ -580,6 +584,10 @@ export default function DashboardPage({ session, onLogout }) {
         {/* CUS07 · Credenciales propias (QR generado en el navegador, sin servicios externos) */}
         {section === 'fotocheck' && <MisCredencialesPage foco="MIEMBRO_MESA" onSessionExpired={onLogout} />}
         {section === 'credencial' && <MisCredencialesPage foco="PERSONERO" onSessionExpired={onLogout} />}
+        {/* CUS-DOCENTE — Consultar listas postulantes */}
+        {section === 'listas' && session.rol === 'DOCENTE' && (
+          <ListasDocentePage onSessionExpired={onLogout} />
+        )}
         {section === 'pase' && session.rol === 'DOCENTE' && (
           <MiPaseQRPage onSessionExpired={onLogout} />
         )}
