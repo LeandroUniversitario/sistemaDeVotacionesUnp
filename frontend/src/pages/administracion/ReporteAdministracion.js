@@ -20,15 +20,15 @@ export const ROL_NOTA = {
   ADMIN: 'Cuentas, parámetros, bitácora y respaldos. Docente opcional.',
   CEUNP: 'Conduce el proceso electoral. Docente opcional.',
   DOCENTE: 'Vota, presenta tachas y consulta sus multas. Requiere docente.',
-  PERSONERO: 'Fiscaliza la mesa e impugna. Requiere docente acreditado (CUS05).',
-  MIEMBRO_MESA: 'Instala, verifica, cierra y escruta. Requiere docente sorteado (CUS06).',
+  PERSONERO: 'Fiscaliza la mesa e impugna. Requiere docente acreditado.',
+  MIEMBRO_MESA: 'Instala, verifica, cierra y escruta. Requiere docente sorteado.',
 };
 export const ROLES_CON_DOCENTE = ['DOCENTE', 'PERSONERO', 'MIEMBRO_MESA'];
 export const GRUPO = {
-  MULTAS: { texto: 'Multas', nota: 'UIT, porcentajes y plazo de justificación (RF105, RN35)', icono: 'coins' },
-  JORNADA: { texto: 'Jornada electoral', nota: 'Mesas, lugar y horarios (RN06-RN08)', icono: 'calendar' },
-  CEUNP: { texto: 'Pleno y plazos del CEUNP', nota: 'Quórum, apelación y segunda vuelta (RN33, RN36)', icono: 'scale' },
-  SEGURIDAD: { texto: 'Seguridad del acceso', nota: 'Intentos, bloqueo y contraseñas', icono: 'lock' },
+  MULTAS: { texto: 'Multas', nota: 'UIT, porcentajes y plazo de justificación', icono: 'coins' },
+  JORNADA: { texto: 'Jornada electoral', nota: 'Mesas, lugar y horarios', icono: 'calendar' },
+  CEUNP: { texto: 'Plazos del CEUNP', nota: 'Quórum, apelación y segunda vuelta', icono: 'scale' },
+  SEGURIDAD: { texto: 'Seguridad de acceso', nota: 'Intentos, bloqueo y contraseñas', icono: 'lock' },
   OTROS: { texto: 'Otros parámetros', nota: 'Sin definición en el catálogo', icono: 'settings' },
 };
 export const ORIGEN = { PANTALLA: 'Pantalla', RESTAURACION: 'Restauración', BASE_DATOS: 'Directo en la base' };
@@ -100,7 +100,7 @@ export function imprimirFichaAcceso(u, clave, politica, admin) {
       </div>` : '<p class="texto">La contraseña no se imprime: el titular la eligió al ingresar. Si la olvidó, el administrador la restablece.</p>'}
       <h2>Condiciones de uso</h2>
       <p class="texto">La cuenta es personal e intransferible. Toda acción queda registrada en la bitácora de auditoría con el usuario,
-        la fecha y la dirección de origen (RN28). No comparta la contraseña ni deje la sesión abierta en equipos de uso común.</p>
+        la fecha y la dirección de origen. No comparta la contraseña ni deje la sesión abierta en equipos de uso común.</p>
       ${firmas(admin || 'Administrador del sistema', u.docente || u.username)}
       <footer>Emitida el ${esc(fecha(new Date()))} · cuenta creada el ${esc(fecha(u.fechaCreacion))}${u.creadoPor ? ` por ${esc(u.creadoPor)}` : ''}</footer>
     </section>`);

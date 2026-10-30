@@ -47,6 +47,21 @@ public class Docente {
     @Column(name = "habilitado_para_votar", nullable = false)
     private boolean habilitadoParaVotar = true;
 
+    @Column(name = "grado_academico", length = 50)
+    private String gradoAcademico;
+
+    @Column(name = "fecha_ingreso")
+    private java.time.LocalDate fechaIngreso;
+
+    @Column(name = "fecha_categoria")
+    private java.time.LocalDate fechaCategoria;
+
+    @Column(name = "email", length = 150)
+    private String email;
+
+    @Column(name = "url_foto", length = 300)
+    private String urlFoto;
+
     protected Docente() {
     }
 
@@ -85,5 +100,15 @@ public class Docente {
     public Integer getIdFacultad() { return idFacultad; }
     public void setIdFacultad(Integer idFacultad) { this.idFacultad = idFacultad; }
     public Integer getIdDepartamento() { return idDepartamento; }
+    public String getGradoAcademico() { return gradoAcademico; }
+    public void setGradoAcademico(String gradoAcademico) { this.gradoAcademico = gradoAcademico; }
+    public java.time.LocalDate getFechaIngreso() { return fechaIngreso; }
+    public void setFechaIngreso(java.time.LocalDate fechaIngreso) { this.fechaIngreso = fechaIngreso; }
+    public java.time.LocalDate getFechaCategoria() { return fechaCategoria; }
+    public void setFechaCategoria(java.time.LocalDate fechaCategoria) { this.fechaCategoria = fechaCategoria; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getUrlFoto() { return urlFoto; }
+    public void setUrlFoto(String urlFoto) { this.urlFoto = urlFoto; }
     public void setIdDepartamento(Integer idDepartamento) { this.idDepartamento = idDepartamento; }
 }

@@ -20,6 +20,14 @@ import pe.unp.elecciones.electoral.service.AuditoriaService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import pe.unp.elecciones.electoral.domain.Docente;
+import pe.unp.elecciones.electoral.domain.Facultad;
+import pe.unp.elecciones.electoral.domain.Departamento;
+import pe.unp.elecciones.electoral.repository.DocenteRepository;
+import pe.unp.elecciones.electoral.repository.FacultadRepository;
+import pe.unp.elecciones.electoral.repository.DepartamentoRepository;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -30,18 +38,27 @@ public class AuthController {
     private final JwtService jwtService;
     private final UsuarioService usuarioService;
     private final AuditoriaService auditoriaService;
+    private final DocenteRepository docenteRepository;
+    private final FacultadRepository facultadRepository;
+    private final DepartamentoRepository departamentoRepository;
 
     public AuthController(
             AuthenticationManager authenticationManager,
             UsuarioRepository usuarioRepository,
             JwtService jwtService,
             UsuarioService usuarioService,
-            AuditoriaService auditoriaService) {
+            AuditoriaService auditoriaService,
+            DocenteRepository docenteRepository,
+            FacultadRepository facultadRepository,
+            DepartamentoRepository departamentoRepository) {
         this.authenticationManager = authenticationManager;
         this.usuarioRepository = usuarioRepository;
         this.jwtService = jwtService;
         this.usuarioService = usuarioService;
         this.auditoriaService = auditoriaService;
+        this.docenteRepository = docenteRepository;
+        this.facultadRepository = facultadRepository;
+        this.departamentoRepository = departamentoRepository;
     }
 
     @PostMapping("/login")
@@ -94,11 +111,48 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public MeResponse me(Authentication authentication) {
+    public Map<String, Object> me(Authentication authentication) {
         Usuario usuario = usuarioRepository.findByUsername(authentication.getName())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no disponible"));
-        return new MeResponse(usuario.getId(), usuario.getUsername(), usuario.getRol().name(),
-                usuario.getIdDocente(), usuario.isDebeCambiarPassword());
+        
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("id", usuario.getId());
+        resp.put("username", usuario.getUsername());
+        resp.put("rol", usuario.getRol().name());
+        resp.put("idDocente", usuario.getIdDocente());
+        resp.put("debeCambiarPassword", usuario.isDebeCambiarPassword());
+        resp.put("activo", usuario.isActivo());
+        boolean bloqueada = usuario.getBloqueadoHasta() != null && usuario.getBloqueadoHasta().isAfter(java.time.LocalDateTime.now());
+        resp.put("bloqueada", bloqueada);
+        resp.put("ultimoAcceso", usuario.getUltimoAcceso());
+
+        if (usuario.getIdDocente() != null) {
+            docenteRepository.findById(usuario.getIdDocente()).ifPresent(d -> {
+                resp.put("dni", d.getDni());
+                resp.put("nombres", d.getNombres());
+                resp.put("apellidos", d.getApellidos());
+                resp.put("nombreCompleto", d.getNombres() + " " + d.getApellidos());
+                resp.put("categoria", d.getCategoria() != null ? d.getCategoria().name() : null);
+                resp.put("dedicacion", d.getDedicacion());
+                resp.put("estadoDocente", d.getEstado() != null ? d.getEstado().name() : null);
+                resp.put("gradoAcademico", d.getGradoAcademico());
+                resp.put("email", d.getEmail());
+                resp.put("fechaIngreso", d.getFechaIngreso());
+                resp.put("fechaCategoria", d.getFechaCategoria());
+                resp.put("habilitadoParaVotar", d.isHabilitadoParaVotar());
+
+                if (d.getIdFacultad() != null) {
+                    facultadRepository.findById(d.getIdFacultad())
+                            .ifPresent(f -> resp.put("facultad", f.getNombre()));
+                }
+                if (d.getIdDepartamento() != null) {
+                    departamentoRepository.findById(d.getIdDepartamento())
+                            .ifPresent(dep -> resp.put("departamento", dep.getNombre()));
+                }
+            });
+        }
+
+        return resp;
     }
 
     @PatchMapping("/password")

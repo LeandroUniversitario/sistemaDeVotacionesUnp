@@ -7,7 +7,6 @@ import CuentaPage from './CuentaPage';
 import MiembroMesaPage from './MiembroMesaPage';
 import PantallaVerificacion from './votacion/PantallaVerificacion';
 import TerminalVotacion from './votacion/TerminalVotacion';
-import ImportarDocentesPage from './ImportarDocentesPage';
 import CargosExcluidosPage from './CargosExcluidosPage';
 import ConvocatoriaPage from './convocatoria/ConvocatoriaPage';
 import PadronPage from './padron/PadronPage';
@@ -29,6 +28,7 @@ import MisMultas from './multas/MisMultas';
 import PantallaEscrutinio from './escrutinio/PantallaEscrutinio';
 import PantallaResultados from './resultados/PantallaResultados';
 import PantallaAdministrador from './administracion/PantallaAdministrador';
+import './administracion/administracion.css';
 import PantallaBitacora from './bitacora/PantallaBitacora';
 
 // ─── Mapas de iconos por sección ─────────────────────────────────────────
@@ -45,7 +45,10 @@ const MENU_POR_ROL = {
   ADMIN: [
     { group: 'WORKSPACE' },
     { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6' },
-    { key: 'administracion', label: 'Usuarios y parámetros', icon: 'users', color: '#ef4444' },
+    { key: 'cuentas', label: 'Cuentas y roles', icon: 'users', color: '#ef4444' },
+    { key: 'parametros', label: 'Parámetros del sistema', icon: 'settings', color: '#7c3aed' },
+    { key: 'respaldo', label: 'Respaldo de la base', icon: 'download', color: '#0891b2' },
+    { key: 'padron', label: 'Padrón e importación', icon: 'list', color: '#0ea5e9' },
     { key: 'cargos-excluidos', label: 'Excepciones Sorteo', icon: 'shield', color: '#f43f5e' },
     { key: 'bitacora', label: 'Bitácora', icon: 'eye', color: '#14b8a6' },
     { key: 'resultados', label: 'Resultados y actas', icon: 'trophy', color: '#059669' },
@@ -110,33 +113,45 @@ const SECTION_TITLES = {
   resumen: 'Resumen general',
   convocatoria: 'Convocatoria y cronograma',
   padron: 'Padrón electoral',
-  docentes: 'Docentes',
+  docentes: 'Gestión de docentes',
   candidaturas: 'Inscripción de listas',
   tachas: 'Tachas electorales',
   personeros: 'Personeros y Acreditaciones',
   credenciales: 'Credenciales y códigos QR',
-  computo: 'Computar y proclamar resultados (CUS14)',
-  nulidades: 'Gestionar nulidades y segunda vuelta (CUS15)',
-  impugnaciones: 'Impugnaciones y apelaciones (CUS13)',
-  administracion: 'Administrar usuarios y parámetros (CUS18)',
+  computo: 'Computar y proclamar resultados',
+  nulidades: 'Gestionar nulidades y segunda vuelta',
+  impugnaciones: 'Impugnaciones y apelaciones',
+  administracion: 'Administrar usuarios y parámetros',
+  cuentas: 'Cuentas y roles',
+  parametros: 'Parámetros del sistema',
+  respaldo: 'Respaldo de la base de datos',
   cuenta: 'Configuración de mi cuenta',
   mesa: 'Mi Mesa de Sufragio',
-  terminal: 'Terminal de votación (CUS10)',
+  terminal: 'Terminal de votación ',
   sorteos: 'Sorteos: miembros de mesa y cédula',
-  'importar-docentes': 'Importar Padrón de Docentes',
-  'cargos-excluidos': 'Excepciones de Sorteo (RN20)',
-  bitacora: 'Consultar bitácora (CUS19)',
-  multas: 'Reportar omisos y multas (CUS16)',
-  resultados: 'Consultar resultados y verificar actas (CUS17)',
+  'cargos-excluidos': 'Excepciones de Sorteo',
+  bitacora: 'Consultar bitácora ',
+  multas: 'Reportar omisos y multas ',
+  resultados: 'Consultar resultados y verificar actas',
   'mis-multas': 'Mis multas electorales',
   fotocheck: 'Mi fotocheck digital',
   'verificar-qr': 'Verificar credenciales QR',
   credencial: 'Mi credencial de personero',
   pase: 'Mi pase de votación QR',
   instalacion: 'Instalación de mesa de sufragio',
-  'verificar-elector': 'Verificar elector (CUS09)',
-  cierre: 'Cerrar sufragio (CUS11)',
-  escrutinio: 'Realizar escrutinio y conciliar (CUS12)',
+  'verificar-elector': 'Verificar elector',
+  cierre: 'Cerrar sufragio',
+  escrutinio: 'Realizar escrutinio y conciliar ',
+};
+
+const SECTION_DESCRIPTIONS = {
+  cuentas: 'Gestión y administración de cuentas de usuario, asignación de roles del sistema, restablecimiento de contraseñas y control de estados.',
+  parametros: 'Configuración de parámetros globales del sistema, multas, UIT, plazos de votación y auditoría de cambios.',
+  respaldo: 'Generación, descarga y verificación de integridad de copias de seguridad de la base de datos electoral.',
+  'cargos-excluidos': 'Gestión de cargos excluidos del sorteo de miembros de mesa.',
+  padron: 'Gestione el padrón electoral: aplique reglas de depuración y apruebe el padrón definitivo para el proceso electoral.',
+  convocatoria: 'Registre el proceso electoral con su cronograma, configure los cargos a elegir y publique la convocatoria oficial.',
+  docentes: 'Administración y mantenimiento del padrón de docentes: consulta de datos académicos, edición de facultades, departamentos y estados de habilitación.',
 };
 
 /**
@@ -168,7 +183,7 @@ export default function DashboardPage({ session, onLogout }) {
     if (session.rol !== 'CEUNP') return undefined;
     const revisar = () => apiRequest('/api/instalacion/alertas')
       .then((lista) => setAlertasInstalacion(lista.length))
-      .catch(() => {});
+      .catch(() => { });
     revisar();
     const timer = setInterval(revisar, 60000);
     return () => clearInterval(timer);
@@ -199,24 +214,21 @@ export default function DashboardPage({ session, onLogout }) {
 
   useEffect(() => { loadData(); }, []);
 
-  /** Carga métricas reales del panel de administración */
+  /** Carga métricas completas del panel de administración */
   async function loadAdminStats() {
     if (!isAdmin) return;
     setAdminStatsLoading(true);
     try {
-      const [users, params, auditPage] = await Promise.all([
-        apiRequest('/api/auth/users'),
-        apiRequest('/api/parametros'),
+      const [adminData, auditPage] = await Promise.all([
+        apiRequest('/api/administracion'),
         apiRequest('/api/auditoria?size=1&page=0'),
       ]);
       setAdminStats({
-        usuarios: users.length,
-        parametros: params.length,
+        detalle: adminData,
         bitacora: auditPage.totalElements ?? 0,
       });
     } catch (error) {
       if (error.message === 'SESSION_EXPIRED') onLogout();
-      // No mostramos feedback de error en el resumen, los valores quedan en null
     } finally {
       setAdminStatsLoading(false);
     }
@@ -310,72 +322,72 @@ export default function DashboardPage({ session, onLogout }) {
       {/* ── Contenido principal ───────────────────────────────────── */}
       <main className="content">
         <header className="topbar">
-          <h1>{SECTION_TITLES[section] ?? 'SICEUNP'}</h1>
+          <div>
+            <h1>
+              {section === 'padron' && isAdmin
+                ? 'Importación y creación de usuarios docentes'
+                : (SECTION_TITLES[section] ?? 'SICEUNP')}
+            </h1>
+            {(section === 'padron' && isAdmin
+              ? 'Importe el padrón de docentes para crear o actualizar masivamente sus cuentas de usuario en el sistema.'
+              : SECTION_DESCRIPTIONS[section]) && (
+              <p style={{ margin: '4px 0 0', color: 'var(--text-muted, #64748b)', fontSize: '.88rem', fontWeight: 400 }}>
+                {section === 'padron' && isAdmin
+                  ? 'Importe el padrón de docentes para crear o actualizar masivamente sus cuentas de usuario en el sistema.'
+                  : SECTION_DESCRIPTIONS[section]}
+              </p>
+            )}
+          </div>
         </header>
 
         {feedback && <div className={`alert ${feedback.type}`}>{feedback.text}</div>}
 
         {/* Resumen — varía según el rol */}
-        {section === 'resumen' && isAdmin && (
-          <>
-            <section className="stats-grid">
-              <article className="stat-card">
-                <div className="stat-card-icon blue">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
+        {section === 'resumen' && isAdmin && (() => {
+          const det = adminStats?.detalle;
+          const res = det?.resumen ?? { total: 0, activos: 0, inactivos: 0, bloqueadas: 0, provisionales: 0, sinAcceso: 0 };
+          const pol = det?.politicaSeguridad ?? { intentosMaximos: 5 };
+          const paramsCount = det?.parametros?.length ?? 17;
+          const resp = det?.respaldos?.[0];
+          return (
+            <>
+              <section className="cq-resumen" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '16px', marginBottom: '1.5rem' }}>
+                <div className="cq-kpi" style={{ '--cq-color': '#2563eb' }}>
+                  <span>Cuentas activas <em>4 mostrarUsuario</em></span>
+                  <strong>{adminStatsLoading ? '…' : res.activos}<small> / {res.total}</small></strong>
+                  <small>{res.inactivos} inactiva(s) · {res.sinAcceso} sin ingresar aún</small>
                 </div>
-                <div className="stat-card-body">
-                  <span className="stat-card-label">Usuarios del sistema</span>
-                  <strong className="stat-card-value">
-                    {adminStatsLoading ? '…' : (adminStats.usuarios ?? '—')}
-                  </strong>
-                  <span className="stat-card-sub">cuentas registradas</span>
+                <div className="cq-kpi" style={{ '--cq-color': res.bloqueadas ? '#e11d48' : '#059669' }}>
+                  <span>Bloqueadas <em>{pol.intentosMaximos} intentos</em></span>
+                  <strong>{adminStatsLoading ? '…' : res.bloqueadas}</strong>
+                  <small>{res.provisionales} con contraseña provisional</small>
                 </div>
-              </article>
-              <article className="stat-card">
-                <div className="stat-card-icon green">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="3" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
-                  </svg>
+                <div className="cq-kpi" style={{ '--cq-color': '#7c3aed' }}>
+                  <span>Parámetros <em>8 registrarAuditoria</em></span>
+                  <strong>{adminStatsLoading ? '…' : paramsCount}</strong>
+                  <small>{det?.historial?.length ? 'Historial disponible' : 'Sin cambios registrados'}</small>
                 </div>
-                <div className="stat-card-body">
-                  <span className="stat-card-label">Parámetros globales</span>
-                  <strong className="stat-card-value">
-                    {adminStatsLoading ? '…' : (adminStats.parametros ?? '—')}
-                  </strong>
-                  <span className="stat-card-sub">configuraciones activas</span>
+                <div className="cq-kpi" style={{ '--cq-color': !resp ? '#d97706' : '#059669' }}>
+                  <span>Último respaldo <em>13 mostrarRespaldo</em></span>
+                  <strong className="cp-etapa">{adminStatsLoading ? '…' : (resp ? 'Respaldado' : 'Sin respaldo')}</strong>
+                  <small>{resp ? resp.nombreArchivo : 'Genere uno antes de la jornada'}</small>
                 </div>
-              </article>
-              <article className="stat-card">
-                <div className="stat-card-icon amber">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  </svg>
+              </section>
+              <section className="panel">
+                <div className="panel-heading">
+                  <div>
+                    <h2>Panel de administración</h2>
+                    <p className="muted">Gestión de usuarios, roles, parámetros del sistema, respaldos y auditoría.</p>
+                  </div>
+                  <button className="text-button" onClick={() => setSection('cuentas')}>Gestionar cuentas y roles</button>
                 </div>
-                <div className="stat-card-body">
-                  <span className="stat-card-label">Registros de auditoría</span>
-                  <strong className="stat-card-value">
-                    {adminStatsLoading ? '…' : (adminStats.bitacora ?? '—')}
-                  </strong>
-                  <span className="stat-card-sub">eventos en bitácora</span>
-                </div>
-              </article>
-            </section>
-            <section className="panel">
-              <div className="panel-heading">
-                <div>
-                  <h2>Panel de administración</h2>
-                  <p className="muted">Gestión de usuarios, roles, parámetros del sistema, respaldos y auditoría.</p>
-                </div>
-                <button className="text-button" onClick={() => setSection('administracion')}>Gestionar usuarios y parámetros</button>
-              </div>
-              <p style={{ padding: '1.5rem', color: 'var(--text-muted)', fontSize: 14 }}>
-                Desde este panel puedes administrar las cuentas de acceso al sistema, configurar parámetros globales (multas, UIT, plazos), generar respaldos de la base y revisar la bitácora de auditoría con todas las acciones registradas.
-              </p>
-            </section>
-          </>
-        )}
+                <p style={{ padding: '1.5rem', color: 'var(--text-muted)', fontSize: 14 }}>
+                  Desde este panel puedes administrar las cuentas de acceso al sistema, configurar parámetros globales (multas, UIT, plazos), generar respaldos de la base y revisar la bitácora de auditoría con todas las acciones registradas.
+                </p>
+              </section>
+            </>
+          );
+        })()}
 
         {/* Resumen — CEUNP */}
         {section === 'resumen' && canManage && (
@@ -437,8 +449,8 @@ export default function DashboardPage({ session, onLogout }) {
         )}
 
         {/* CUS02 · Gestionar padrón electoral (CEUNP) */}
-        {section === 'padron' && canManage && (
-          <PadronPage onChange={loadData} onSessionExpired={onLogout} />
+        {section === 'padron' && (canManage || isAdmin) && (
+          <PadronPage session={session} onChange={loadData} onSessionExpired={onLogout} />
         )}
 
         {/* Docentes — CRUD completo (solo CEUNP) */}
@@ -448,16 +460,13 @@ export default function DashboardPage({ session, onLogout }) {
             loading={loading}
             onRefresh={loadData}
             canManage={canManage}
-            onImport={() => setSection('importar-docentes')}
             onGestionarPadron={() => setSection('padron')}
             onSessionExpired={onLogout}
           />
         )}
 
         {/* Importar Docentes (solo CEUNP) */}
-        {section === 'importar-docentes' && canManage && (
-          <ImportarDocentesPage onImportSuccess={() => { loadData(); setSection('docentes'); }} />
-        )}
+        
 
         {/* CUS03 · Gestionar inscripción de listas (CEUNP) */}
         {section === 'candidaturas' && canManage && (
@@ -474,7 +483,22 @@ export default function DashboardPage({ session, onLogout }) {
         {/* CUS06 · Realizar sorteos (CEUNP) */}
         {section === 'sorteos' && canManage && <SorteoMesaPage onSessionExpired={onLogout} />}
 
-        {/* CUS18 · Administrar usuarios y parámetros (Admin) */}
+        {/* CUS18 · Cuentas y roles (Admin) */}
+        {section === 'cuentas' && isAdmin && (
+          <PantallaAdministrador session={session} onSessionExpired={onLogout} seccionInicial="USUARIOS" ocultarTabs />
+        )}
+
+        {/* CUS18 · Parámetros del sistema (Admin) */}
+        {section === 'parametros' && isAdmin && (
+          <PantallaAdministrador session={session} onSessionExpired={onLogout} seccionInicial="PARAMETROS" ocultarTabs />
+        )}
+
+        {/* CUS18 · Respaldo de la base (Admin) */}
+        {section === 'respaldo' && isAdmin && (
+          <PantallaAdministrador session={session} onSessionExpired={onLogout} seccionInicial="RESPALDO" ocultarTabs />
+        )}
+
+        {/* CUS18 · Administrar usuarios y parámetros (Admin) — acceso directo legacy */}
         {section === 'administracion' && isAdmin && (
           <PantallaAdministrador session={session} onSessionExpired={onLogout} />
         )}

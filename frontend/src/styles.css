@@ -1165,11 +1165,11 @@ p  { line-height: 1.55; }
 /* Boton primario (si no existia) */
 .btn-primary {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 18px; border-radius: var(--r); border: none; cursor: pointer;
-  background: var(--accent); color: #fff; font-size: 14px; font-weight: 600;
+  padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer;
+  background: #2563eb; color: #fff; font-size: 14px; font-weight: 600;
   transition: background 0.18s, box-shadow 0.18s;
 }
-.btn-primary:hover:not(:disabled) { background: #059669; box-shadow: var(--shadow-md); }
+.btn-primary:hover:not(:disabled) { background: #1d4ed8; box-shadow: var(--shadow-md); }
 .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
 /* CUS08 · aviso RF60 en el menú (mesas no instaladas por evaluar) */
 .nav-alerta { margin-left: auto; min-width: 20px; padding: 1px 6px; border-radius: 999px; font-size: .68rem; font-weight: 800; text-align: center; color: #fff; background: #e11d48; }

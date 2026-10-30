@@ -81,6 +81,7 @@ public class ImportarDocentes {
     private Map<String, Object> mostrarImportados(String archivo, Map<String, Object> resultado) {
         int insertados = PadronConsulta.numero(resultado.get("insertados"));
         int actualizados = PadronConsulta.numero(resultado.get("actualizados"));
+        int usuariosCreados = PadronConsulta.numero(resultado.get("usuariosCreados"));
         Object errores = resultado.get("errores");
         int conError = errores instanceof List<?> l ? l.size() : 0;
 
@@ -90,6 +91,7 @@ public class ImportarDocentes {
         respuesta.put("archivo", archivo);
         respuesta.put("insertados", insertados);
         respuesta.put("actualizados", actualizados);
+        respuesta.put("usuariosCreados", usuariosCreados);
         respuesta.put("errores", errores == null ? List.of() : errores);
         respuesta.put("resumen", consulta.resumenDocentes());
         return respuesta;

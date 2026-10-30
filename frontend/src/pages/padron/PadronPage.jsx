@@ -20,7 +20,7 @@ const PASOS = [
   { num: 3, label: 'Aprobar padrón definitivo' },
 ];
 
-const COLUMNAS = ['DNI', 'Nombres', 'Apellidos', 'Categoría', 'Dedicación', 'Estado', 'Facultad', 'Departamento'];
+const COLUMNAS = ['DNI', 'Nombres', 'Apellidos', 'Categoría', 'Dedicación', 'Estado', 'Facultad', 'Departamento', 'Grado Académico', 'Fecha Ingreso', 'Fecha Categoría', 'Email', 'URL Foto'];
 const POR_PAGINA = 25;
 
 const ESTADO_PROCESO = {
@@ -67,8 +67,15 @@ function descargarCsv(nombre, filas) {
   URL.revokeObjectURL(url);
 }
 
-export default function PadronPage({ onChange, onSessionExpired }) {
-  const [paso, setPaso] = useState(1);
+export default function PadronPage({ session, onChange, onSessionExpired }) {
+  const esAdmin = session?.rol === 'ADMIN';
+
+  // ADMIN solo ve paso 1 (importar); CEUNP ve solo depurar y aprobar
+  const PASOS_VISIBLES = esAdmin
+    ? [{ num: 1, label: 'Importar docentes' }]
+    : [{ num: 2, label: 'Depurar padrón' }, { num: 3, label: 'Aprobar padrón definitivo' }];
+
+  const [paso, setPaso] = useState(esAdmin ? 1 : 2);
   const [resumen, setResumen] = useState(null);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -150,7 +157,7 @@ export default function PadronPage({ onChange, onSessionExpired }) {
   function descargarPlantilla() {
     descargarCsv('plantilla_padron_docentes.csv', [
       COLUMNAS,
-      ['03681234', 'Juan Carlos', 'Mendoza Pérez', 'PRINCIPAL', 'DE', 'ACTIVO', 'Facultad de Ingeniería Industrial', 'Ingeniería Informática'],
+      ['03681234', 'Juan Carlos', 'Mendoza Pérez', 'PRINCIPAL', 'DE', 'ACTIVO', 'Facultad de Ingeniería Industrial', 'Ingeniería Informática', 'DOCTOR', '01/11/1997', '01/05/2008', 'jmendoza@unp.edu.pe', ''],
     ]);
   }
 
@@ -263,32 +270,37 @@ export default function PadronPage({ onChange, onSessionExpired }) {
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="pd-shell">
-      <section className="pd-stats" aria-label="Resumen de docentes">
-        <Stat label="Docentes registrados" value={resumen?.total} />
-        <Stat label="Habilitados para votar" value={resumen?.habilitados} tone="green" />
-        <Stat label="Inhabilitados" value={resumen?.inhabilitados} tone="red" />
-        <Stat
-          label="Última depuración"
-          value={resumen?.ultimaDepuracion ? formatFechaHora(resumen.ultimaDepuracion) : 'Pendiente'}
-          sub={resumen ? (resumen.depuracionVigente ? 'Vigente' : 'Depure después de importar') : ''}
-          tone={resumen?.depuracionVigente ? 'green' : 'amber'}
-          small
-        />
-      </section>
+      {/* En ADMIN no se muestran las tarjetas métricas superiores para centrar la vista en la carga masiva */}
+      {!esAdmin && (
+        <section className="pd-stats" aria-label="Resumen de docentes">
+          <Stat label="Docentes registrados" value={resumen?.total} />
+          <Stat label="Habilitados para votar" value={resumen?.habilitados} tone="green" />
+          <Stat label="Inhabilitados" value={resumen?.inhabilitados} tone="red" />
+          <Stat
+            label="Última depuración"
+            value={resumen?.ultimaDepuracion ? formatFechaHora(resumen.ultimaDepuracion) : 'Pendiente'}
+            sub={resumen ? (resumen.depuracionVigente ? 'Vigente' : 'Depure después de importar') : ''}
+            tone={resumen?.depuracionVigente ? 'green' : 'amber'}
+            small
+          />
+        </section>
+      )}
 
-      <nav className="cv-steps" aria-label="Pasos del padrón">
-        {PASOS.map((p) => (
-          <button
-            key={p.num}
-            type="button"
-            className={`cv-step${paso === p.num ? ' current' : ''}${paso > p.num ? ' done' : ''}`}
-            onClick={() => irAPaso(p.num)}
-          >
-            <span className="cv-step-num">{paso > p.num ? <MenuIcon name="check" size={14} /> : p.num}</span>
-            <span>{p.label}</span>
-          </button>
-        ))}
-      </nav>
+      {/* Los pasos numerados solo aplican al flujo CEUNP (depuración y aprobación); en ADMIN se omite el paso 1 aislado */}
+      {!esAdmin && (
+        <nav className="cv-steps" aria-label="Pasos del padrón">
+          {PASOS_VISIBLES.map((p) => (
+            <button
+              key={p.num}
+              type="button"
+              className={`cv-step${paso === p.num ? ' current' : ''}${paso > p.num ? ' done' : ''}`}
+              onClick={() => irAPaso(p.num)}
+            >
+              <span>{p.label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
 
       {feedback && (
         <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>
@@ -296,7 +308,7 @@ export default function PadronPage({ onChange, onSessionExpired }) {
 
       {/* ── Paso 1: Importar ─────────────────────────────────────── */}
       {paso === 1 && (
-        <div className="pd-grid">
+        <div className="pd-grid" style={{ gridTemplateColumns: "1.2fr 1fr", alignItems: "stretch" }}>
           <section className="panel cv-form">
             <div className="cv-section-head">
               <div>
@@ -346,7 +358,7 @@ export default function PadronPage({ onChange, onSessionExpired }) {
             </div>
           </section>
 
-          <section className="panel cv-form">
+          <section className="panel cv-form" style={{ display: "flex", flexDirection: "column" }}>
             <div className="cv-section-head">
               <div>
                 <h3>Resultado de la importación</h3>
@@ -356,12 +368,15 @@ export default function PadronPage({ onChange, onSessionExpired }) {
               </div>
             </div>
             {!importacion ? (
-              <p className="empty-state">Suba un archivo para ver cuántos docentes se registraron o actualizaron.</p>
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px", textAlign: "center" }}>
+                <p className="empty-state" style={{ margin: 0 }}>Suba un archivo para ver cuántos docentes se registraron o actualizaron.</p>
+              </div>
             ) : (
               <>
                 <div className="pd-mini-stats">
                   <Stat label="Nuevos" value={importacion.insertados} tone="green" />
                   <Stat label="Actualizados" value={importacion.actualizados} />
+                  <Stat label="Cuentas creadas" value={importacion.usuariosCreados ?? 0} tone="green" />
                   <Stat label="Filas con error" value={importacion.errores.length} tone={importacion.errores.length ? 'red' : undefined} />
                 </div>
                 {importacion.errores.length > 0 && (
@@ -370,29 +385,43 @@ export default function PadronPage({ onChange, onSessionExpired }) {
                     <ul>{importacion.errores.map((e) => <li key={e}>{e}</li>)}</ul>
                   </details>
                 )}
-                <div className="cv-actions">
-                  <button type="button" className="cv-btn cv-btn-primary" onClick={() => irAPaso(2)}>Continuar a depurar</button>
-                </div>
+                {!esAdmin && (
+                  <div className="cv-actions">
+                    <button type="button" className="cv-btn cv-btn-primary" onClick={() => irAPaso(2)}>Continuar a depurar</button>
+                  </div>
+                )}
               </>
             )}
           </section>
         </div>
       )}
 
-      {/* ── Paso 2: Depurar ──────────────────────────────────────── */}
+      {/* ── Paso 2: Docentes registrados (Admin) / Depurar padrón (CEUNP) ── */}
       {paso === 2 && (
         <section className="panel cv-form">
-          <div className="cv-section-head">
+          <div className="cv-section-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
             <div>
-              <h3>Depurar padrón</h3>
-              <p className="muted">Aplica las reglas de habilitación a todos los docentes: RN03 (solo docentes ACTIVOS; fuera licencia, suspendidos e inactivos), RN05 (DNI de 8 dígitos) y datos completos.</p>
+              <h3>{esAdmin ? 'Docentes registrados' : 'Depurar padrón'}</h3>
+              <p className="muted">
+                {esAdmin
+                  ? 'Lista general de docentes importados en el sistema con sus datos de adscripción y estado actual.'
+                  : 'Aplica las reglas de habilitación a todos los docentes: solo docentes ACTIVOS (fuera licencia, suspendidos e inactivos), DNI de 8 dígitos y datos completos.'}
+              </p>
             </div>
-            <button type="button" className="cv-btn cv-btn-primary" disabled={saving} onClick={depurarPadron}>
-              <MenuIcon name="filter" size={15} /> {saving ? 'Depurando…' : 'Depurar padrón'}
-            </button>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              {esAdmin ? (
+                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => irAPaso(1)}>
+                  <MenuIcon name="upload" size={15} /> Subir nuevo padrón
+                </button>
+              ) : (
+                <button type="button" className="cv-btn cv-btn-primary" disabled={saving} onClick={depurarPadron}>
+                  <MenuIcon name="filter" size={15} /> {saving ? 'Depurando…' : 'Depurar padrón'}
+                </button>
+              )}
+            </div>
           </div>
 
-          {depuracion?.cambios && (
+          {!esAdmin && depuracion?.cambios && (
             <div className="pd-changes">
               <span><b>{depuracion.cambios.habilitados}</b> rehabilitados</span>
               <span><b>{depuracion.cambios.inhabilitados}</b> inhabilitados</span>
@@ -400,7 +429,7 @@ export default function PadronPage({ onChange, onSessionExpired }) {
             </div>
           )}
 
-          {(depuracion?.motivos ?? []).length > 0 && (
+          {!esAdmin && (depuracion?.motivos ?? []).length > 0 && (
             <div className="pd-motivos">
               {depuracion.motivos.map((m) => (
                 <span key={m.motivo} className="pd-motivo"><b>{m.total}</b> {m.motivo}</span>
@@ -434,26 +463,34 @@ export default function PadronPage({ onChange, onSessionExpired }) {
               pagina={pagina}
               onPagina={setPagina}
               vacio="No hay docentes que coincidan con el filtro."
-              columnas={['DNI', 'Docente', 'Categoría', 'Facultad', 'Estado', 'Habilitación']}
+              columnas={esAdmin
+                ? ['DNI', 'Docente', 'Categoría', 'Dedicación', 'Facultad', 'Estado']
+                : ['DNI', 'Docente', 'Categoría', 'Facultad', 'Estado', 'Habilitación']}
               renderFila={(d) => (
                 <tr key={d.id}>
-                  <td className="mono">{d.dni}</td>
+                  <td className="mono"><code>{d.dni}</code></td>
                   <td><strong>{d.docente}</strong><small className="pd-sub">{d.departamento}</small></td>
                   <td>{d.categoria}</td>
+                  {esAdmin ? <td>{d.dedicacion || '—'}</td> : null}
                   <td>{d.facultad}</td>
-                  <td>{d.estado}</td>
                   <td>
-                    {num(d.habilitado)
-                      ? <span className="cv-estado votacion">Habilitado</span>
-                      : <span className="pd-inhab"><span className="cv-estado anulado">Inhabilitado</span><small>{d.motivo}</small></span>}
+                    <span className={`badge ${d.estado === 'ACTIVO' ? 'creado' : 'anulado'}`}>
+                      {d.estado}
+                    </span>
                   </td>
+                  {!esAdmin && (
+                    <td>
+                      {num(d.habilitado)
+                        ? <span className="cv-estado votacion">Habilitado</span>
+                        : <span className="pd-inhab"><span className="cv-estado anulado">Inhabilitado</span><small>{d.motivo}</small></span>}
+                    </td>
+                  )}
                 </tr>
               )}
             />
           )}
 
           <div className="cv-actions">
-            <button type="button" className="cv-btn cv-btn-ghost" onClick={() => irAPaso(1)}>Volver a importar</button>
             <button type="button" className="cv-btn cv-btn-primary" disabled={!resumen?.depuracionVigente} onClick={() => irAPaso(3)}
               title={resumen?.depuracionVigente ? '' : 'Depure el padrón para continuar'}>
               Continuar a aprobar

@@ -112,6 +112,11 @@ public class ImportacionDocenteService {
                 String estadoS           = obtenerCampo(fila, "Estado", "estado");
                 String facultadNombre    = obtenerCampo(fila, "Facultad", "facultad");
                 String departamentoNombre = obtenerCampo(fila, "Departamento", "departamento");
+                String gradoS            = obtenerCampo(fila, "Grado Académico", "Grado Academico", "Grado", "grado_academico", "grado");
+                String fechaIngresoS     = obtenerCampo(fila, "Fecha Ingreso", "Fecha de Ingreso", "fecha_ingreso");
+                String fechaCategoriaS   = obtenerCampo(fila, "Fecha Categoría", "Fecha Categoria", "Fecha de Categoria", "fecha_categoria");
+                String email             = obtenerCampo(fila, "Email", "Correo", "Correo Electrónico", "Correo Electronico", "email");
+                String urlFoto           = obtenerCampo(fila, "URL Foto", "Foto", "url_foto", "Url Foto");
 
                 if (nombres.isBlank() || apellidos.isBlank()) {
                     errores.add("Fila " + (i + 2) + ": Nombres o Apellidos vacios, se omite.");
@@ -120,6 +125,9 @@ public class ImportacionDocenteService {
 
                 CategoriaDocente categoria = parsarCategoria(categoriaS);
                 DocenteEstado    estado    = parsarEstado(estadoS);
+                String grado = parsarGrado(gradoS);
+                java.time.LocalDate fechaIngreso = parsarFecha(fechaIngresoS);
+                java.time.LocalDate fechaCategoria = parsarFecha(fechaCategoriaS);
 
                 Facultad facultadObj = buscarFacultad(facultadNombre, todasFacultades);
                 if (facultadObj == null) {
@@ -147,11 +155,21 @@ public class ImportacionDocenteService {
                     d.setEstado(estado);
                     d.setIdFacultad(facultadObj.getId());
                     d.setIdDepartamento(dptoObj.getId());
+                    if (grado != null) d.setGradoAcademico(grado);
+                    if (fechaIngreso != null) d.setFechaIngreso(fechaIngreso);
+                    if (fechaCategoria != null) d.setFechaCategoria(fechaCategoria);
+                    if (!email.isBlank()) d.setEmail(email);
+                    if (!urlFoto.isBlank()) d.setUrlFoto(urlFoto);
                     docenteGuardado = docenteRepository.save(d);
                     actualizados++;
                 } else {
                     Docente nuevo = new Docente(dniFormateado, nombres, apellidos, categoria,
                             dedicacion, estado, facultadObj.getId(), dptoObj.getId());
+                    nuevo.setGradoAcademico(grado);
+                    nuevo.setFechaIngreso(fechaIngreso);
+                    nuevo.setFechaCategoria(fechaCategoria);
+                    nuevo.setEmail(email.isBlank() ? null : email);
+                    nuevo.setUrlFoto(urlFoto.isBlank() ? null : urlFoto);
                     docenteGuardado = docenteRepository.save(nuevo);
                     insertados++;
                 }
@@ -337,6 +355,10 @@ public class ImportacionDocenteService {
         return switch (cell.getCellType()) {
             case STRING  -> cell.getStringCellValue().trim();
             case NUMERIC -> {
+                if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(cell)) {
+                    java.time.LocalDate d = cell.getLocalDateTimeCellValue().toLocalDate();
+                    yield d.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                }
                 double v = cell.getNumericCellValue();
                 yield v == Math.floor(v) ? String.valueOf((long) v) : String.valueOf(v);
             }
@@ -388,5 +410,26 @@ public class ImportacionDocenteService {
             case "INACTIVO"   -> DocenteEstado.INACTIVO;
             default           -> DocenteEstado.ACTIVO;
         };
+    }
+
+    private String parsarGrado(String s) {
+        if (s == null || s.isBlank()) return null;
+        String n = normalizar(s);
+        if (n.contains("doc")) return "DOCTOR";
+        if (n.contains("mae") || n.contains("mag")) return "MAESTRO";
+        if (n.contains("bac")) return "BACHILLER";
+        return null;
+    }
+
+    private java.time.LocalDate parsarFecha(String s) {
+        if (s == null || s.isBlank()) return null;
+        String t = s.trim();
+        String[] patrones = {"dd/MM/yyyy", "d/M/yyyy", "d/MM/yyyy", "dd-MM-yyyy", "yyyy-MM-dd"};
+        for (String p : patrones) {
+            try {
+                return java.time.LocalDate.parse(t, java.time.format.DateTimeFormatter.ofPattern(p));
+            } catch (Exception ignored) {}
+        }
+        return null;
     }
 }

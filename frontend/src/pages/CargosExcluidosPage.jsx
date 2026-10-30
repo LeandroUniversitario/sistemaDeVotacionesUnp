@@ -107,14 +107,30 @@ export default function CargosExcluidosPage({ canManage, onSessionExpired }) {
         </div>
       )}
 
-      <div className="page-header">
-        <p className="page-subtitle">Gestión de cargos excluidos del sorteo de miembros de mesa</p>
-        {canManage && (
-          <button className="btn-primary" onClick={() => { setShowCreate(true); setFeedback(null); }}>
-            ＋ Agregar cargo
+      {canManage && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => { setShowCreate(true); setFeedback(null); }}
+            style={{
+              height: '40px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderRadius: '10px',
+              padding: '0 18px',
+              fontWeight: 600,
+              fontSize: '.875rem',
+              background: '#2563eb',
+              color: '#ffffff',
+              boxShadow: '0 1px 3px rgba(37, 99, 235, 0.2)'
+            }}
+          >
+            <MenuIcon name="plus" size={16} /> Agregar cargo
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="panel">
         {loading ? (
@@ -167,30 +183,50 @@ export default function CargosExcluidosPage({ canManage, onSessionExpired }) {
               <h2>Agregar cargo excluido</h2>
               <button className="modal-close" onClick={() => setShowCreate(false)}>✕</button>
             </div>
-            <form className="modal-form" onSubmit={handleCreate}>
-              <div className="form-row">
-                <label>Nombre del cargo (Ej: Rector, Decano) <span className="required-mark">*</span>
-                  <input value={form.nombreCargo} onChange={e => setForm(f => ({ ...f, nombreCargo: e.target.value }))} required />
+            <form className="modal-form" style={{ padding: '20px 24px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }} onSubmit={handleCreate}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ margin: 0, fontWeight: 600, fontSize: '.84rem', color: '#334155' }}>
+                  Nombre del cargo (Ej: Rector, Decano) <span className="required-mark">*</span>
                 </label>
+                <input
+                  value={form.nombreCargo}
+                  onChange={e => setForm(f => ({ ...f, nombreCargo: e.target.value }))}
+                  required
+                  style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', padding: '0 12px', fontSize: '.875rem' }}
+                />
               </div>
-              <div className="form-row">
-                <label>Nivel <span className="required-mark">*</span>
-                  <select value={form.nivel} onChange={e => setForm(f => ({ ...f, nivel: e.target.value }))}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ margin: 0, fontWeight: 600, fontSize: '.84rem', color: '#334155' }}>
+                    Nivel <span className="required-mark">*</span>
+                  </label>
+                  <select
+                    value={form.nivel}
+                    onChange={e => setForm(f => ({ ...f, nivel: e.target.value }))}
+                    style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', padding: '0 12px', fontSize: '.875rem', background: '#fff' }}
+                  >
                     <option value="UNIVERSIDAD">Universidad</option>
                     <option value="FACULTAD">Facultad</option>
                   </select>
-                </label>
-                <label>Estado <span className="required-mark">*</span>
-                  <select value={form.activo ? 'ACTIVO' : 'INACTIVO'} onChange={e => setForm(f => ({ ...f, activo: e.target.value === 'ACTIVO' }))}>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ margin: 0, fontWeight: 600, fontSize: '.84rem', color: '#334155' }}>
+                    Estado <span className="required-mark">*</span>
+                  </label>
+                  <select
+                    value={form.activo ? 'ACTIVO' : 'INACTIVO'}
+                    onChange={e => setForm(f => ({ ...f, activo: e.target.value === 'ACTIVO' }))}
+                    style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', padding: '0 12px', fontSize: '.875rem', background: '#fff' }}
+                  >
                     <option value="ACTIVO">Activo</option>
                     <option value="INACTIVO">Inactivo</option>
                   </select>
-                </label>
+                </div>
               </div>
-              <div className="modal-actions">
-                <button type="button" className="btn-ghost" onClick={() => setShowCreate(false)}>Cancelar</button>
-                <button type="submit" className="btn-primary" disabled={saving}>
-                  {saving ? 'Guardando…' : 'Guardar'}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                <button type="button" className="btn-ghost" style={{ borderRadius: '8px', height: '40px' }} onClick={() => setShowCreate(false)}>Cancelar</button>
+                <button type="submit" className="btn-primary" style={{ borderRadius: '8px', height: '40px', background: '#2563eb', color: '#fff' }} disabled={saving}>
+                  <MenuIcon name="check" size={15} /> {saving ? 'Guardando…' : 'Guardar'}
                 </button>
               </div>
             </form>
@@ -205,30 +241,50 @@ export default function CargosExcluidosPage({ canManage, onSessionExpired }) {
               <h2>Editar cargo excluido</h2>
               <button className="modal-close" onClick={() => setEditCargo(null)}>✕</button>
             </div>
-            <form className="modal-form" onSubmit={handleEdit}>
-              <div className="form-row">
-                <label>Nombre del cargo <span className="required-mark">*</span>
-                  <input value={editForm.nombreCargo} onChange={e => setEditForm(f => ({ ...f, nombreCargo: e.target.value }))} required />
+            <form className="modal-form" style={{ padding: '20px 24px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }} onSubmit={handleEdit}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ margin: 0, fontWeight: 600, fontSize: '.84rem', color: '#334155' }}>
+                  Nombre del cargo <span className="required-mark">*</span>
                 </label>
+                <input
+                  value={editForm.nombreCargo}
+                  onChange={e => setEditForm(f => ({ ...f, nombreCargo: e.target.value }))}
+                  required
+                  style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', padding: '0 12px', fontSize: '.875rem' }}
+                />
               </div>
-              <div className="form-row">
-                <label>Nivel <span className="required-mark">*</span>
-                  <select value={editForm.nivel} onChange={e => setEditForm(f => ({ ...f, nivel: e.target.value }))}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ margin: 0, fontWeight: 600, fontSize: '.84rem', color: '#334155' }}>
+                    Nivel <span className="required-mark">*</span>
+                  </label>
+                  <select
+                    value={editForm.nivel}
+                    onChange={e => setEditForm(f => ({ ...f, nivel: e.target.value }))}
+                    style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', padding: '0 12px', fontSize: '.875rem', background: '#fff' }}
+                  >
                     <option value="UNIVERSIDAD">Universidad</option>
                     <option value="FACULTAD">Facultad</option>
                   </select>
-                </label>
-                <label>Estado <span className="required-mark">*</span>
-                  <select value={editForm.activo ? 'ACTIVO' : 'INACTIVO'} onChange={e => setEditForm(f => ({ ...f, activo: e.target.value === 'ACTIVO' }))}>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ margin: 0, fontWeight: 600, fontSize: '.84rem', color: '#334155' }}>
+                    Estado <span className="required-mark">*</span>
+                  </label>
+                  <select
+                    value={editForm.activo ? 'ACTIVO' : 'INACTIVO'}
+                    onChange={e => setEditForm(f => ({ ...f, activo: e.target.value === 'ACTIVO' }))}
+                    style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', padding: '0 12px', fontSize: '.875rem', background: '#fff' }}
+                  >
                     <option value="ACTIVO">Activo</option>
                     <option value="INACTIVO">Inactivo</option>
                   </select>
-                </label>
+                </div>
               </div>
-              <div className="modal-actions">
-                <button type="button" className="btn-ghost" onClick={() => setEditCargo(null)}>Cancelar</button>
-                <button type="submit" className="btn-primary" disabled={saving}>
-                  {saving ? 'Guardando…' : 'Guardar cambios'}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                <button type="button" className="btn-ghost" style={{ borderRadius: '8px', height: '40px' }} onClick={() => setEditCargo(null)}>Cancelar</button>
+                <button type="submit" className="btn-primary" style={{ borderRadius: '8px', height: '40px', background: '#2563eb', color: '#fff' }} disabled={saving}>
+                  <MenuIcon name="check" size={15} /> {saving ? 'Guardando…' : 'Guardar cambios'}
                 </button>
               </div>
             </form>

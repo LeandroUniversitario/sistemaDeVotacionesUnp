@@ -52,6 +52,7 @@ public class PadronController {
         return consulta.resumenDocentes();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/importar")
     public Map<String, Object> importar(@RequestParam("archivo") MultipartFile archivo, Authentication authentication) {
         return importarDocentes.leerDatos(archivo, usuarioActual.id(authentication));
@@ -64,6 +65,7 @@ public class PadronController {
         return filtrarHabilitados.mostrarListaDepurada();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'CEUNP')")
     @PostMapping("/depurar")
     public Map<String, Object> depurar(Authentication authentication) {
         return filtrarHabilitados.procesarReglas(usuarioActual.id(authentication));
