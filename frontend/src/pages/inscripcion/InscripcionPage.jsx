@@ -226,13 +226,16 @@ export default function InscripcionPage({ onSessionExpired }) {
     setSaving(true);
     setFeedback(null);
     try {
-      const data = await apiRequest(`/api/listas/${listaSel.id}/validar`, {
+      const idActual = listaSel.id;
+      const data = await apiRequest(`/api/listas/${idActual}/validar`, {
         method: 'POST',
         body: JSON.stringify({ admitir, motivo: motivo ?? '' }),
       });
-      aplicarDetalle(data);
-      setVista({ idLista: listaSel.id });
-      setFeedback({ type: 'success', text: data.mensaje ?? (admitir ? 'Lista admitida.' : 'Lista excluida.') });
+      const actDetalle = await apiRequest(`/api/inscripcion/procesos/${idProceso}`);
+      setDetalle(actDetalle);
+      setVista({ idLista: idActual });
+      const msg = Array.isArray(data) ? data[0]?.mensaje : data?.mensaje;
+      setFeedback({ type: 'success', text: msg || (admitir ? 'Lista admitida exitosamente.' : 'Lista excluida.') });
       setProcesos(await apiRequest('/api/inscripcion/procesos'));
     } catch (error) {
       manejarError(error);
@@ -439,7 +442,11 @@ export default function InscripcionPage({ onSessionExpired }) {
               <div className={`in-formula-status ${listaSel.completa ? 'ok' : ''}`}>
                 <MenuIcon name={listaSel.completa ? 'check' : 'alert'} size={16} />
                 {listaSel.completa
-                  ? 'Fórmula completa (RN10). Queda pendiente la calificación del CEUNP.'
+                  ? (listaSel.estado === 'ADMITIDA'
+                      ? 'Fórmula completa (RN10). Lista admitida oficialmente por el CEUNP.'
+                      : listaSel.estado === 'EXCLUIDA'
+                        ? 'Fórmula completa (RN10). Lista excluida por el CEUNP.'
+                        : 'Fórmula completa (RN10). Queda pendiente la calificación del CEUNP.')
                   : `Fórmula incompleta (RN10): faltan ${listaSel.rolesFaltantes.length} candidato(s).`}
               </div>
 
