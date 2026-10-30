@@ -109,7 +109,8 @@ export default function InscripcionPage({ onSessionExpired }) {
   // ─── 1 ingresarDatosLista(nombre, cargo) → 2 guardarLista(datos) ─────────
   function nuevaLista(idCargo = '') {
     setVista('nueva');
-    setListaForm({ ...EMPTY_LISTA, idCargo: idCargo ? String(idCargo) : '' });
+    const autoCargo = idCargo ? String(idCargo) : (cargos.length === 1 ? String(cargos[0].id) : '');
+    setListaForm({ ...EMPTY_LISTA, idCargo: autoCargo });
     cerrarBusqueda();
     setFeedback(null);
   }
@@ -337,10 +338,27 @@ export default function InscripcionPage({ onSessionExpired }) {
               <div className="cv-grid two">
                 <label className="cv-field">
                   <span className="cv-label">Cargo al que postula</span>
-                  <select required value={listaForm.idCargo} onChange={(e) => setListaForm({ ...listaForm, idCargo: e.target.value })}>
-                    <option value="">Seleccione…</option>
-                    {cargos.map((c) => <option key={c.id} value={c.id}>{c.nombre}{c.jurisdiccion ? ` — ${c.jurisdiccion}` : ''}</option>)}
-                  </select>
+                  {cargos.length === 1 ? (
+                    <div style={{
+                      height: 42,
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '0 12px',
+                      background: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: 8,
+                      fontWeight: 700,
+                      color: '#0f172a',
+                      fontSize: '.875rem'
+                    }}>
+                      {cargos[0].nombre}{cargos[0].jurisdiccion ? ` — ${cargos[0].jurisdiccion}` : ''}
+                    </div>
+                  ) : (
+                    <select required value={listaForm.idCargo} onChange={(e) => setListaForm({ ...listaForm, idCargo: e.target.value })}>
+                      <option value="">Seleccione…</option>
+                      {cargos.map((c) => <option key={c.id} value={c.id}>{c.nombre}{c.jurisdiccion ? ` — ${c.jurisdiccion}` : ''}</option>)}
+                    </select>
+                  )}
                 </label>
                 <label className="cv-field">
                   <span className="cv-label">Nombre de la lista</span>

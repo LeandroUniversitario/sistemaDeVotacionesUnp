@@ -33,6 +33,9 @@ public final class RolesCargo {
     /** Roles de la fórmula según el nombre del cargo electoral. */
     public static List<Rol> roles(String nombreCargo) {
         String n = normalizar(nombreCargo);
+        if (n.matches(".*\\brector\\b.*")) {   // «Rector», «Rector y Vicerrectores», etc.
+            return List.of(RECTOR, VR_ACADEMICO, VR_INVESTIGACION);
+        }
         if (n.contains("vicerrector") && n.contains("investigacion")) {
             return List.of(VR_INVESTIGACION);
         }
@@ -50,9 +53,6 @@ public final class RolesCargo {
         }
         if (n.contains("director") && n.contains("escuela")) {
             return List.of(new Rol("DIRECTOR_ESCUELA", "Director de Escuela", List.of(), 0));
-        }
-        if (n.matches(".*\\brector\\b.*")) {   // palabra completa: «Director» no es «Rector»
-            return List.of(RECTOR, VR_ACADEMICO, VR_INVESTIGACION);
         }
         return List.of(new Rol("TITULAR", nombreCargo == null ? "Titular" : nombreCargo, List.of(), 0));
     }

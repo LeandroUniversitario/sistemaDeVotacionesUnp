@@ -442,14 +442,27 @@ export default function ConvocatoriaPage({ onChange, onSessionExpired }) {
                           <option value="">Seleccione un cargo…</option>
                           {NIVELES.map((n) => (
                             <optgroup key={n.value} label={n.label}>
-                              {catalogos.cargos.filter((c) => c.nivel === n.value).map((c) => (
-                                <option key={c.id} value={c.id}>{c.nombre}</option>
-                              ))}
+                              {catalogos.cargos.filter((c) => c.nivel === n.value).map((c) => {
+                                const yaTieneRector = cargos.some((cr) => cr.nombre.toLowerCase().includes('rector'));
+                                const esVicerrector = c.nombre.toLowerCase().includes('vicerrector');
+                                return (
+                                  <option key={c.id} value={c.id} disabled={yaTieneRector && esVicerrector}>
+                                    {c.nombre}{yaTieneRector && esVicerrector ? ' (ya incluido en la fórmula de Rector)' : ''}
+                                  </option>
+                                );
+                              })}
                             </optgroup>
                           ))}
                           <option value="otro">Otro cargo…</option>
                         </select>
                       </Campo>
+
+                      {cargoForm.nombre && cargoForm.nombre.toLowerCase().includes('rector') && (
+                        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', fontSize: '.84rem', color: '#1e40af', marginBottom: 14 }}>
+                          ℹ️ <strong>Elección por fórmula completa (RN10 / Art. 21 Reglamento UNP):</strong><br />
+                          La lista que postule a este cargo incluirá obligatoriamente a los 3 miembros: <strong>Rector, Vicerrector Académico y Vicerrector de Investigación</strong>. No agregue los vicerrectorados por separado.
+                        </div>
+                      )}
 
                       {cargoForm.idCatalogo === 'otro' && (
                         <div className="cv-grid two">
