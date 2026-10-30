@@ -58,6 +58,8 @@ export default function InscripcionPage({ onSessionExpired }) {
 
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [motivoExclusion, setMotivoExclusion] = useState('');
+  const [mostrarExcluir, setMostrarExcluir] = useState(false);
 
   function manejarError(error) {
     if (error.message === 'SESSION_EXPIRED') onSessionExpired?.();
@@ -216,6 +218,28 @@ export default function InscripcionPage({ onSessionExpired }) {
       manejarError(error);
     } finally {
       setSaving(false);
+    }
+  }
+
+  // ─── CUS03·ext: Calificar lista (Admitir / Excluir) ─────────────────────
+  async function calificarLista(admitir, motivo) {
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const data = await apiRequest(`/api/listas/${listaSel.id}/validar`, {
+        method: 'POST',
+        body: JSON.stringify({ admitir, motivo: motivo ?? '' }),
+      });
+      aplicarDetalle(data);
+      setVista({ idLista: listaSel.id });
+      setFeedback({ type: 'success', text: data.mensaje ?? (admitir ? 'Lista admitida.' : 'Lista excluida.') });
+      setProcesos(await apiRequest('/api/inscripcion/procesos'));
+    } catch (error) {
+      manejarError(error);
+    } finally {
+      setSaving(false);
+      setMotivoExclusion('');
+      setMostrarExcluir(false);
     }
   }
 
@@ -483,9 +507,44 @@ export default function InscripcionPage({ onSessionExpired }) {
                     <MenuIcon name="trash" size={15} /> Retirar lista
                   </button>
                 )}
-                {!editable && (
+                {!editable && listaSel.estado === 'INSCRITA' && listaSel.completa && !plazoAbierto && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      <button type="button" className="cv-btn cv-btn-success" disabled={saving}
+                        onClick={() => calificarLista(true, '')}>
+                        <MenuIcon name="check" size={15} /> Admitir lista
+                      </button>
+                      <button type="button" className="cv-btn cv-btn-ghost in-danger" disabled={saving}
+                        onClick={() => setMostrarExcluir((v) => !v)}>
+                        <MenuIcon name="close" size={15} /> Excluir lista
+                      </button>
+                    </div>
+                    {mostrarExcluir && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label className="cv-field">
+                          <span className="cv-label">Motivo de exclusión (obligatorio)</span>
+                          <textarea rows={3} maxLength={500} value={motivoExclusion}
+                            placeholder="Indique el fundamento normativo de la exclusión..."
+                            onChange={(e) => setMotivoExclusion(e.target.value)} />
+                        </label>
+                        <button type="button" className="cv-btn tc-btn-danger"
+                          disabled={saving || motivoExclusion.trim().length < 10}
+                          onClick={() => calificarLista(false, motivoExclusion)}>
+                          Confirmar exclusión
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {!editable && listaSel.estado === 'ADMITIDA' && (
+                  <span className="muted">✅ Lista admitida por el CEUNP.</span>
+                )}
+                {!editable && listaSel.estado === 'EXCLUIDA' && (
+                  <span className="muted">❌ Lista excluida por el CEUNP.</span>
+                )}
+                {!editable && listaSel.estado === 'INSCRITA' && (!listaSel.completa || plazoAbierto) && (
                   <span className="muted">
-                    {plazoAbierto ? 'La lista ya fue calificada por el CEUNP.' : 'El plazo de inscripción terminó (RN13): la lista ya no admite cambios.'}
+                    {plazoAbierto ? 'El plazo sigue abierto.' : 'La lista no está completa y no puede ser calificada.'}
                   </span>
                 )}
               </div>
