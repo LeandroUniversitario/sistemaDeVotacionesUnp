@@ -63,10 +63,9 @@ const MENU_POR_ROL = {
     { group: 'OPERACIONES' },
     { key: 'candidaturas', label: 'Inscripción de listas', icon: 'ballot', color: '#06b6d4' },
     { key: 'tachas', label: 'Tachas', icon: 'scale', color: '#f97316' },
-    { key: 'cargos-excluidos', label: 'Excepciones Sorteo', icon: 'shield', color: '#f43f5e' },
+    { key: 'sorteos', label: 'Sorteos', icon: 'sorteo', color: '#eab308' },
     { key: 'personeros', label: 'Personeros', icon: 'person', color: '#8b5cf6' },
     { key: 'credenciales', label: 'Credenciales y QR', icon: 'qr', color: '#10b981' },
-    { key: 'sorteos', label: 'Sorteos', icon: 'sorteo', color: '#eab308' },
     { group: 'JORNADA ELECTORAL' },
     { key: 'instalacion', label: 'Instalación de mesas', icon: 'shield', color: '#14b8a6' },
     { key: 'verificar-elector', label: 'Verificación de electores', icon: 'scan', color: '#14b8a6' },
@@ -510,9 +509,9 @@ export default function DashboardPage({ session, onLogout }) {
         {/* Cuenta */}
         {section === 'cuenta' && <CuentaPage onSessionExpired={onLogout} />}
 
-        {/* Cargos excluidos */}
-        {section === 'cargos-excluidos' && (isAdmin || canManage) && (
-          <CargosExcluidosPage canManage={isAdmin || canManage} onSessionExpired={onLogout} />
+        {/* Cargos excluidos (Exclusivo Administrador) */}
+        {section === 'cargos-excluidos' && isAdmin && (
+          <CargosExcluidosPage canManage={isAdmin} onSessionExpired={onLogout} />
         )}
 
         {/* CUS19 · Consultar bitácora (Admin) */}

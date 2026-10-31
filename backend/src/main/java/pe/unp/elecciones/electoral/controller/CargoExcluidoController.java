@@ -19,7 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/cargos-excluidos")
-@PreAuthorize("hasAnyRole('ADMIN', 'CEUNP')")
+@PreAuthorize("hasRole('ADMIN')")
 public class CargoExcluidoController {
 
     private final JdbcTemplate jdbc;
