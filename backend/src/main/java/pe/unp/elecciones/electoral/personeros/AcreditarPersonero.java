@@ -78,6 +78,8 @@ public class AcreditarPersonero {
         }
 
         insertar(idLista, datos.idDocente(), tipo, idMesa);
+        // Al acreditar, la cuenta del docente asume temporalmente el rol PERSONERO
+        dao.ejecutar("UPDATE usuario SET rol = 'PERSONERO' WHERE id_docente = ? AND rol = 'DOCENTE'", datos.idDocente());
 
         Map<String, Object> lista = consulta.lista(idLista);
         Integer idProceso = ((Number) lista.get("idProceso")).intValue();
@@ -143,6 +145,12 @@ public class AcreditarPersonero {
         }
         dao.ejecutar("UPDATE personero SET estado_acreditacion = 'REVOCADO', qr_credencial_hash = NULL WHERE id_personero = ?",
                 idPersonero);
+        // Si ya no le quedan otras personerías acreditadas, su cuenta retorna al rol DOCENTE
+        Integer idDocenteRev = dao.entero("SELECT id_docente FROM personero WHERE id_personero = ?", idPersonero);
+        int activas = dao.entero("SELECT COUNT(*) FROM personero WHERE id_docente = ? AND estado_acreditacion = 'ACREDITADO'", idDocenteRev);
+        if (activas == 0) {
+            dao.ejecutar("UPDATE usuario SET rol = 'DOCENTE' WHERE id_docente = ? AND rol = 'PERSONERO'", idDocenteRev);
+        }
 
         Integer idProceso = ((Number) pe.get("idProceso")).intValue();
         Map<String, Object> detalle = new LinkedHashMap<>();

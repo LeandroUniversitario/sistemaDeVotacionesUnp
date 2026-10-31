@@ -96,6 +96,15 @@ public class ComputarProclamar {
     public Map<String, Object> publicar(Integer idProceso, Usuario usuario) {
         consulta.proceso(idProceso);
         dao.llamar("sp_publicar_resultados", ProcedimientoDao.SIN_SALIDA, idProceso, usuario.getId());
+        // Concluida la elección con la publicación oficial, los personeros concluyen sus funciones y retornan a DOCENTE
+        dao.ejecutar("""
+            UPDATE usuario u
+              JOIN personero pe ON pe.id_docente = u.id_docente
+              JOIN lista_electoral l ON l.id_lista = pe.id_lista
+              JOIN cargo_electoral c ON c.id_cargo = l.id_cargo
+             WHERE c.id_proceso = ? AND u.rol = 'PERSONERO'
+               SET u.rol = 'DOCENTE'
+            """, idProceso);
         Map<String, Object> respuesta = new LinkedHashMap<>();
         respuesta.put("mensaje", "Resultados publicados en el portal electoral, por mesa y generales (RF99).");
         respuesta.put("detalle", consulta.detalle(idProceso, usuario));
