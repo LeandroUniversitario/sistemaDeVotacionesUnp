@@ -92,7 +92,6 @@ const MENU_POR_ROL = {
     { key: 'terminal', label: 'Terminal de votación', icon: 'vote', color: '#6366f1' },
     { key: 'cierre', label: 'Cerrar sufragio', icon: 'lock', color: '#f43f5e' },
     { key: 'escrutinio', label: 'Realizar escrutinio', icon: 'table', color: '#2563eb' },
-    { key: 'impugnaciones', label: 'Impugnar votos', icon: 'scale', color: '#ef4444' },
     { key: 'verificar-qr', label: 'Verificar credencial QR', icon: 'scan', color: '#10b981' },
     { group: 'RESULTADOS' },
     { key: 'mis-multas', label: 'Mis multas', icon: 'coins', color: '#d97706' },
@@ -531,7 +530,7 @@ export default function DashboardPage({ session, onLogout }) {
 
         {/* Mesa */}
         {section === 'mesa' && (
-          <MiembroMesaPage onIrImpugnaciones={() => setSection('impugnaciones')} onIrInstalacion={() => setSection('instalacion')} onIrCierre={() => setSection('cierre')} onIrEscrutinio={() => setSection('escrutinio')} />
+          <MiembroMesaPage onIrInstalacion={() => setSection('instalacion')} onIrCierre={() => setSection('cierre')} onIrEscrutinio={() => setSection('escrutinio')} />
         )}
 
         {/* CUS08 · Instalar mesa (miembros de mesa y CEUNP; ADMIN solo consulta) */}
@@ -578,8 +577,8 @@ export default function DashboardPage({ session, onLogout }) {
           <PantallaNulidades session={session} onSessionExpired={onLogout} />
         )}
 
-        {/* CUS13 · Gestionar impugnaciones y apelaciones (personero de mesa impugna, la mesa decide, el CEUNP falla) */}
-        {section === 'impugnaciones' && ['MIEMBRO_MESA', 'PERSONERO', 'CEUNP', 'ADMIN'].includes(session.rol) && (
+        {/* CUS13 · Gestionar impugnaciones y apelaciones (personero de mesa impugna, el CEUNP falla) */}
+        {section === 'impugnaciones' && ['PERSONERO', 'CEUNP', 'ADMIN'].includes(session.rol) && (
           <PantallaImpugnaciones session={session} onSessionExpired={onLogout} />
         )}
 
