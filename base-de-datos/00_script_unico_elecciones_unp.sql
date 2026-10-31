@@ -2390,6 +2390,14 @@ BEGIN
 
   CALL sp_registrar_auditoria(p_id_usuario, NULL, p_id_proceso, 'SORTEO_GENERAL_MESAS',
        JSON_OBJECT('semilla_base', v_base));
+
+  -- Elevar cuenta de DOCENTE a MIEMBRO_MESA para los docentes sorteados
+  UPDATE usuario u
+    JOIN miembro_mesa mm ON mm.id_docente = u.id_docente
+    JOIN mesa_electoral m ON m.id_mesa = mm.id_mesa
+     SET u.rol = 'MIEMBRO_MESA'
+   WHERE m.id_proceso = p_id_proceso AND u.rol = 'DOCENTE';
+
   COMMIT;
 
   SELECT numero_mesa, orden_sorteo, rol, docente, dni
@@ -6149,6 +6157,21 @@ BEGIN
 
   UPDATE computo_proceso SET estado = 'PUBLICADO', fecha_publicacion = NOW(), id_usuario_publicacion = p_id_usuario
    WHERE id_proceso = p_id_proceso;
+
+  -- Concluida la elección con la publicación oficial, los personeros y miembros de mesa retornan a DOCENTE
+  UPDATE usuario u
+    JOIN personero pe ON pe.id_docente = u.id_docente
+    JOIN lista_electoral l ON l.id_lista = pe.id_lista
+    JOIN cargo_electoral c ON c.id_cargo = l.id_cargo
+     SET u.rol = 'DOCENTE'
+   WHERE c.id_proceso = p_id_proceso AND u.rol = 'PERSONERO';
+
+  UPDATE usuario u
+    JOIN miembro_mesa mm ON mm.id_docente = u.id_docente
+    JOIN mesa_electoral m ON m.id_mesa = mm.id_mesa
+     SET u.rol = 'DOCENTE'
+   WHERE m.id_proceso = p_id_proceso AND u.rol = 'MIEMBRO_MESA';
+
   CALL sp_registrar_auditoria(p_id_usuario, NULL, p_id_proceso, 'PUBLICAR_RESULTADOS',
        JSON_OBJECT('estado_proceso', v_estado));
   COMMIT;

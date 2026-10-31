@@ -80,16 +80,23 @@ const MENU_POR_ROL = {
   ],
   MIEMBRO_MESA: [
     { group: 'WORKSPACE' },
-    { key: 'instalacion', label: 'Instalar mesa', icon: 'shield', color: '#0ea5e9' },
+    { key: 'resumen', label: 'Resumen', icon: 'dashboard', color: '#3b82f6' },
+    { key: 'listas', label: 'Listas postulantes', icon: 'ballot', color: '#06b6d4' },
+    { key: 'pase', label: 'Mi pase de votación QR', icon: 'qr', color: '#8b5cf6' },
+    { key: 'fotocheck', label: 'Mi fotocheck de miembro (RF56)', icon: 'qr', color: '#f59e0b' },
+    { key: 'tachas', label: 'Presentar tacha', icon: 'scale', color: '#f97316' },
+    { group: 'JORNADA ELECTORAL' },
     { key: 'mesa', label: 'Mi Mesa de Sufragio', icon: 'table', color: '#14b8a6' },
+    { key: 'instalacion', label: 'Instalar mesa', icon: 'shield', color: '#0ea5e9' },
     { key: 'verificar-elector', label: 'Verificar elector', icon: 'scan', color: '#0ea5e9' },
     { key: 'terminal', label: 'Terminal de votación', icon: 'vote', color: '#6366f1' },
     { key: 'cierre', label: 'Cerrar sufragio', icon: 'lock', color: '#f43f5e' },
     { key: 'escrutinio', label: 'Realizar escrutinio', icon: 'table', color: '#2563eb' },
-    { key: 'impugnaciones', label: 'Impugnaciones', icon: 'scale', color: '#ef4444' },
-    { key: 'fotocheck', label: 'Fotocheck QR (RF56)', icon: 'qr', color: '#f59e0b' },
+    { key: 'impugnaciones', label: 'Impugnar votos', icon: 'scale', color: '#ef4444' },
     { key: 'verificar-qr', label: 'Verificar credencial QR', icon: 'scan', color: '#10b981' },
-    { key: 'resultados', label: 'Resultados y verificar actas', icon: 'trophy', color: '#059669' },
+    { group: 'RESULTADOS' },
+    { key: 'mis-multas', label: 'Mis multas', icon: 'coins', color: '#d97706' },
+    { key: 'resultados', label: 'Resultados y actas', icon: 'trophy', color: '#059669' },
   ],
   PERSONERO: [
     { group: 'WORKSPACE' },
@@ -395,8 +402,8 @@ export default function DashboardPage({ session, onLogout }) {
           );
         })()}
 
-        {/* Resumen — CEUNP */}
-        {section === 'resumen' && canManage && (
+        {/* Resumen — CEUNP, Docente, Personero y Miembro de Mesa */}
+        {section === 'resumen' && !isAdmin && (
           <>
             <section className="stats-grid">
               <article className="stat-card">
@@ -442,7 +449,7 @@ export default function DashboardPage({ session, onLogout }) {
                   <h2>Actividad electoral</h2>
                   <p className="muted">Estado actual de los procesos registrados.</p>
                 </div>
-                <button className="text-button" onClick={() => setSection('convocatoria')}>Ver convocatorias</button>
+                {canManage && <button className="text-button" onClick={() => setSection('convocatoria')}>Ver convocatorias</button>}
               </div>
               <ProcessTable processes={processes.slice(0, 5)} loading={loading} />
             </section>
@@ -580,20 +587,20 @@ export default function DashboardPage({ session, onLogout }) {
         {section === 'multas' && ['CEUNP', 'ADMIN'].includes(session.rol) && (
           <PantallaMultas session={session} onSessionExpired={onLogout} />
         )}
-        {section === 'mis-multas' && ['DOCENTE', 'PERSONERO'].includes(session.rol) && <MisMultas onSessionExpired={onLogout} />}
+        {section === 'mis-multas' && ['DOCENTE', 'PERSONERO', 'MIEMBRO_MESA'].includes(session.rol) && <MisMultas onSessionExpired={onLogout} />}
         {/* CUS17 · Consultar resultados y verificar actas (docente y personero; también mesa, CEUNP y ADMIN) */}
         {section === 'resultados' && <PantallaResultados session={session} onSessionExpired={onLogout} />}
         {/* CUS07 · Credenciales propias (QR generado en el navegador, sin servicios externos) */}
         {section === 'fotocheck' && <MisCredencialesPage foco="MIEMBRO_MESA" onSessionExpired={onLogout} />}
         {section === 'credencial' && <MisCredencialesPage foco="PERSONERO" onSessionExpired={onLogout} />}
         {/* CUS-DOCENTE — Consultar listas postulantes */}
-        {section === 'listas' && ['DOCENTE', 'PERSONERO'].includes(session.rol) && (
+        {section === 'listas' && ['DOCENTE', 'PERSONERO', 'MIEMBRO_MESA'].includes(session.rol) && (
           <ListasDocentePage onSessionExpired={onLogout} />
         )}
-        {section === 'pase' && ['DOCENTE', 'PERSONERO'].includes(session.rol) && (
+        {section === 'pase' && ['DOCENTE', 'PERSONERO', 'MIEMBRO_MESA'].includes(session.rol) && (
           <MiPaseQRPage onSessionExpired={onLogout} />
         )}
-        {section === 'pase' && !['DOCENTE', 'PERSONERO'].includes(session.rol) && <MisCredencialesPage foco="ELECTOR" onSessionExpired={onLogout} />}
+        {section === 'pase' && !['DOCENTE', 'PERSONERO', 'MIEMBRO_MESA'].includes(session.rol) && <MisCredencialesPage foco="ELECTOR" onSessionExpired={onLogout} />}
         {section === 'verificar-qr' && <VerificarCredencialPanel onSessionExpired={onLogout} />}
 
       </main>

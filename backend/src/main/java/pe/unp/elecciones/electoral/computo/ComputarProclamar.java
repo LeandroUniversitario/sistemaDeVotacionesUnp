@@ -105,6 +105,14 @@ public class ComputarProclamar {
              WHERE c.id_proceso = ? AND u.rol = 'PERSONERO'
                SET u.rol = 'DOCENTE'
             """, idProceso);
+        // Concluida la elección, los miembros de mesa también concluyen sus funciones y retornan a DOCENTE
+        dao.ejecutar("""
+            UPDATE usuario u
+              JOIN miembro_mesa mm ON mm.id_docente = u.id_docente
+              JOIN mesa_electoral m ON m.id_mesa = mm.id_mesa
+             WHERE m.id_proceso = ? AND u.rol = 'MIEMBRO_MESA'
+               SET u.rol = 'DOCENTE'
+            """, idProceso);
         Map<String, Object> respuesta = new LinkedHashMap<>();
         respuesta.put("mensaje", "Resultados publicados en el portal electoral, por mesa y generales (RF99).");
         respuesta.put("detalle", consulta.detalle(idProceso, usuario));
