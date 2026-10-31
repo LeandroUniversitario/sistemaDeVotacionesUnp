@@ -65,15 +65,24 @@ export default function MisCredencialesPage({ foco = 'ELECTOR', onSessionExpired
 
   if (cargando) return <p className="empty-state">Cargando…</p>;
 
-  const credenciales = procesos.flatMap((p) => p.credenciales.map((c) => ({ p, c })))
-    .sort((a, b) => (a.c.tipo === foco ? -1 : 0) - (b.c.tipo === foco ? -1 : 0));
+  // Filtrar estrictamente por el foco de la pantalla (PERSONERO, MIEMBRO_MESA o ELECTOR)
+  // para evitar duplicar el Pase de votación en pantallas especializadas
+  const credenciales = procesos
+    .flatMap((p) => p.credenciales.map((c) => ({ p, c })))
+    .filter(({ c }) => (foco ? c.tipo === foco : true));
 
   if (credenciales.length === 0) {
     return (
       <div className="panel cv-placeholder">
         <span className="cv-placeholder-icon"><MenuIcon name="qr" size={28} /></span>
-        <h2>No tiene credenciales disponibles</h2>
-        <p className="muted">Aparecen cuando figura en el padrón definitivo de un proceso en curso, cuando sale sorteado como miembro de mesa o cuando lo acreditan como personero.</p>
+        <h2>No tiene {foco === 'PERSONERO' ? 'credencial de personero' : foco === 'MIEMBRO_MESA' ? 'fotocheck de miembro de mesa' : 'credenciales'} disponible(s)</h2>
+        <p className="muted">
+          {foco === 'PERSONERO'
+            ? 'Aparece cuando el CEUNP acredita su designación como personero de una lista.'
+            : foco === 'MIEMBRO_MESA'
+              ? 'Aparece cuando sale sorteado como miembro de mesa en un proceso electoral.'
+              : 'Aparecen cuando figura en el padrón definitivo de un proceso en curso.'}
+        </p>
       </div>
     );
   }
