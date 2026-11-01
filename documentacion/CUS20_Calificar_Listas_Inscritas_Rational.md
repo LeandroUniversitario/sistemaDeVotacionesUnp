@@ -153,4 +153,4 @@ Guía para dibujarlo a mano en **Rational Rose**: ficha del caso de uso, relacio
 | 9 | Fórmula completa según `RolesCargo` (RN10) y `COUNT(*)` de tachas PENDIENTES |
 | 10, 11, 12 | `sp_validar_lista(id_lista, admitir, motivo, id_usuario)`: aprueba o excluye candidatos, cambia el estado de la lista y registra `VALIDAR_LISTA` en `log_auditoria` |
 
-Referencia en PlantUML: `diagramas/colaboracion_calificar_listas.puml` y `diagramas/secuencia_calificar_listas.puml`.
+Diagramas actualizados: `diagramas/colaboracion_drawio/CUS20_Calificar_listas_inscritas.drawio` y `diagramas/secuencia_drawio/CUS20_Calificar_listas_inscritas.drawio`.

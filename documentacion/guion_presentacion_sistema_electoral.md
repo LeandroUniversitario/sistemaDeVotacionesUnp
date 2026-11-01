@@ -252,8 +252,8 @@
 | # | Diagrama | Archivo | Qué explica |
 |---|----------|---------|-------------|
 | 1 | Casos de Uso General | `diagrama_casos_uso_general.puml` | Qué hace el sistema y quién lo usa |
-| 2 | Secuencia: Emitir Voto | `secuencia_emitir_voto.puml` | Cómo funciona el voto secreto paso a paso |
-| 3 | Secuencia: Sortear Mesa | `secuencia_sortear_mesa.puml` | Cómo se ejecuta el sorteo y sus exclusiones |
+| 2 | Secuencia: Emitir Voto | `secuencia_drawio/CUS09_CUS10_Verificar_elector_y_emitir_voto.drawio` | Cómo funciona el voto secreto paso a paso |
+| 3 | Secuencia: Sortear Mesa | `secuencia_drawio/CUS06_Realizar_sorteos.drawio` | Cómo se ejecuta el sorteo y sus exclusiones |
 | 4 | Clases de Diseño | `diagrama_clases_diseno.puml` | Arquitectura interna completa (4 capas) |
 | 5 | Objetos | `diagrama_objetos.puml` | Instancia real del sistema con datos concretos |
 | 6 | Despliegue | `diagrama_despliegue.puml` | Infraestructura física del sistema |
