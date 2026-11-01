@@ -3,7 +3,7 @@
 **Actor:** CEUNP (registra los recursos, los resuelve en Pleno, comunica, dirime empates y convoca la segunda vuelta); ADMIN solo consulta · **Pantalla:** menú «Nulidades y segunda vuelta» (`PantallaNulidades`, boundary «PantallaNulidades»)
 **Caso de negocio:** CUN12 Gestionar nulidades · **Módulo:** M13 (RF100 a RF102) · **Reglas:** RN26, RN31, RN33, RN34, RN36, RF94, RF97 · **Reglamento:** Art. 64 (nulidad de mesa), Art. 65 (nulidad de la elección), Art. 66 (comunicación)
 **Requiere:** el proceso con la votación concluida (CUS14, «Concluir votación»). La nulidad parcial se plantea antes del cómputo; la total, antes de la proclamación; la segunda vuelta, después del cómputo (CUS14).
-**Instalación:** en una base ya creada, ejecutar `base-de-datos/14_nulidades_segunda_vuelta.sql` después de `13_computo_proclamacion.sql`. No hace falta recrear la base: el script solo agrega lo nuevo y se puede volver a ejecutar. `00_script_unico_elecciones_unp.sql` (sección 5e) ya lo incluye y `02_limpiar_datos_electorales.sql` ya vacía sus tablas.
+**Instalación:** incluido en `base-de-datos/00_script_unico_elecciones_unp.sql` (sección 5e); el proyecto usa una sola base creada con ese script. `02_limpiar_datos_electorales.sql` ya vacía sus tablas.
 
 ## Correspondencia con el diagrama de colaboración («Colaboration - Gestionar nulidades y segunda vuelta», `diagramas/Sistema De Elecciones.mdl`)
 
@@ -71,7 +71,7 @@ Públicos (sin sesión): `GET /api/publico/nulidad/{token}` (verifica la resoluc
 
 CUS14: `GET /api/computo/procesos/{id}` agrega a `bloqueos` los recursos pendientes antes del cómputo, y `acciones.motivoNoProclama` cuando hay una nulidad total pendiente.
 
-## Base de datos (`14_nulidades_segunda_vuelta.sql`)
+## Base de datos (`00_script_unico_elecciones_unp.sql`, sección 5e)
 - Tablas: `nulidad_electoral` (recurso y resolución con contenido JSON, huella y token del QR), `nulidad_comunicacion` (un envío por destinatario) y `dirimencia_empate` (sorteo por cargo: semilla, listas empatadas y elegidas, resolución y huella).
 - Función: `fn_resolucion_en_uso(numero)`.
 - Vistas: `v_nulidades`, `v_portal_nulidades` y `v_segunda_vuelta_procesos`.
@@ -94,7 +94,7 @@ CUS14: `GET /api/computo/procesos/{id}` agrega a `bloqueos` los recursos pendien
 - Cada acción que no se puede deshacer pide confirmación.
 
 ## Prueba rápida (verificada con MariaDB 10.11, la API y el navegador)
-1. Ejecutar `14_nulidades_segunda_vuelta.sql` sobre la base existente (o crearla con `00`). Tener un proceso con la votación concluida y la sesión de cómputo instalada (CUS14).
+1. Crear la base con `00_script_unico_elecciones_unp.sql`. Tener un proceso con la votación concluida y la sesión de cómputo instalada (CUS14).
 2. «Nulidades y segunda vuelta» → «Nulidad parcial» → «Plantear nulidad» en una mesa a pedido de un personero. En «Cómputo y proclamación» aparece el bloqueo y «Ejecutar cómputo» se rechaza (RF94). Un segundo recurso sobre la misma mesa se rechaza.
 3. «Resolución del Pleno» con 4 miembros: exige quórum. Con 6 miembros y 3 a 3: exige el voto dirimente; al marcarlo se emite FUNDADA, la mesa queda anulada y sus votos aparecen tachados. Volver a resolver: RN36. Repetir un número de resolución: RN36.
 4. Ejecutar el cómputo (CUS14): se computan las demás mesas. Un recurso parcial después del cómputo se rechaza (RN26).

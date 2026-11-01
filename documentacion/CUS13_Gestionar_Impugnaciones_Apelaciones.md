@@ -3,7 +3,7 @@
 **Actores:** Personero de mesa (impugna y apela), Presidente de mesa (registra la decisión de la mesa) y CEUNP (falla la apelación); ADMIN solo consulta · **Pantalla:** menú «Impugnaciones» (MIEMBRO_MESA), «Impugnar votos y apelar» (PERSONERO) e «Impugnaciones y apelaciones» (CEUNP y ADMIN)
 **Caso de negocio:** CUN10 Resolver impugnaciones y nulidades (pasos 1 a 4; la nulidad es del CUS15) · **Módulo:** M11 (RF80 y RF81) · **Reglas:** RN23, RN24, RN36 · **Fuente:** tabla 21 y tablas 38 y 99 del informe v2.1
 **Requiere:** sufragio cerrado (CUS11) y escrutinio de la mesa en curso (CUS12: cédulas contadas). El registro de la impugnación lo hace `sp_registrar_impugnacion`, que crea el CUS12.
-**Instalación:** en una base ya creada, ejecutar `base-de-datos/12_impugnaciones_apelaciones.sql` después de `11_escrutinio_conciliacion.sql`. `00_script_unico_elecciones_unp.sql` (sección 5c) y `01_crear_base_de_datos.sql` (al final) ya lo incluyen y `02_limpiar_datos_electorales.sql` ya vacía `impugnacion_electoral`.
+**Instalación:** incluido en `base-de-datos/00_script_unico_elecciones_unp.sql` (sección 5c); el proyecto usa una sola base creada con ese script. `02_limpiar_datos_electorales.sql` ya vacía `impugnacion_electoral`.
 
 ## Correspondencia con el diagrama de colaboración («Colaboration - Gestionar impugnaciones y apelaciones», `diagramas/Sistema De Elecciones.mdl`)
 
@@ -58,7 +58,7 @@ Para probar la apelación vencida, baje `IMPUGNACION_PLAZO_APELACION_HORAS` en P
 | POST | `/{id}/apelacion` `{idPersonero, fundamento}` | PERSONERO de la lista, presidente en funciones |
 | POST | `/{id}/fallo` `{decision, numeroResolucion, miembrosPleno, votosFavor, votosContra, votoDirimente, opcion, idLista, fundamento}` | CEUNP |
 
-## Base de datos (`12_impugnaciones_apelaciones.sql`)
+## Base de datos (`00_script_unico_elecciones_unp.sql`, sección 5c)
 - `impugnacion_electoral` + columnas de la decisión de la mesa (`votos_mesa_favor`, `votos_mesa_contra`, `opcion_mesa`, `id_lista_mesa`, `fundamento_mesa`, `fecha_decision_mesa`, `id_usuario_mesa`), de la apelación (`id_personero_apela`, `fundamento_apelacion`, `fecha_apelacion`, `id_usuario_apelacion`) y del fallo (`numero_resolucion` único, `miembros_pleno`, `votos_pleno_favor`, `votos_pleno_contra`, `voto_dirimente`, `opcion_final`, `id_lista_final`, `fundamento_ceunp`, `fecha_fallo`, `id_usuario_ceunp`). Los dominios de `decision_mesa`, `decision_ceunp` y `estado` son los del diccionario (tabla 99).
 - `sp_resolver_impugnacion_mesa`, `sp_apelar_impugnacion` y `sp_resolver_apelacion`.
 - Triggers `trg_impugnacion_bu` y `trg_impugnacion_bd`.
@@ -78,7 +78,7 @@ Para probar la apelación vencida, baje `IMPUGNACION_PLAZO_APELACION_HORAS` en P
 - Cada acción pide confirmación antes de enviarse («Confirmar registro», «Confirmar decisión», «Confirmar apelación», «Confirmar fallo»).
 
 ## Prueba rápida (verificada con MariaDB 10.11)
-1. Ejecutar `12_impugnaciones_apelaciones.sql` (o crear la base con `00`). Tener una mesa CERRADA con el escrutinio iniciado (CUS12: «Contar cédulas») y personeros presentes (CUS08).
+1. Crear la base con `00_script_unico_elecciones_unp.sql`. Tener una mesa CERRADA con el escrutinio iniciado (CUS12: «Contar cédulas») y personeros presentes (CUS08).
 2. Personero: en «Impugnar votos y apelar», «Registrar impugnación» con el motivo. La cédula queda IMPUGNADA.
 3. Presidente: en «Impugnaciones», «Tramitar» → «Registrar decisión de la mesa». Probar 1 a 2 con «Fundada»: el sistema rechaza la decisión porque no coincide con la mayoría. Registrar «Infundada» 1 a 2 y asignar la cédula a una lista.
 4. Personero de la misma lista: «Apelar ante el CEUNP». Un personero de otra lista no puede apelar.

@@ -3,7 +3,7 @@
 **Actor:** Administrador del sistema (rol ADMIN) · **Pantalla:** menú «Bitácora» del Admin (`PantallaBitacora`, boundary «PantallaBitacora»), con tres pestañas: «Registros», «Resumen de actividad» e «Integridad». Reemplaza a la antigua página `BitacoraPage`.
 **Módulo:** M01 Seguridad y administración · **Requisitos:** trazabilidad de las acciones críticas, bitácora inalterable, secreto del voto · **Reglas:** RN28 (trazabilidad: nada se borra si tiene historia), RNF05 (la bitácora nunca registra por quién se votó)
 **Requiere:** sesión con rol ADMIN y cuenta activa. Cada consulta vuelve a validar el rol en la base (`sp_validar_admin`).
-**Instalación:** en una base ya creada, ejecutar `base-de-datos/18_consultar_bitacora.sql` después de `17_administracion_usuarios_parametros.sql`. No hace falta recrear la base: el script solo agrega lo nuevo, sella los registros que ya existen (la primera vez) y se puede volver a ejecutar. `00_script_unico_elecciones_unp.sql` (sección 5i) ya lo incluye. `02_limpiar_datos_electorales.sql` vacía la bitácora, reinicia la cadena de sellos y deja como primer registro `REINICIAR_BITACORA`.
+**Instalación:** incluido en `base-de-datos/00_script_unico_elecciones_unp.sql` (sección 5i); el proyecto usa una sola base creada con ese script. `02_limpiar_datos_electorales.sql` vacía la bitácora, reinicia la cadena de sellos y deja como primer registro `REINICIAR_BITACORA`.
 
 ## Correspondencia con el diagrama de colaboración («Colaboration Consultar bitácora», `diagramas/Sistema De Elecciones.mdl`)
 
@@ -53,7 +53,7 @@
 
 Se mantiene `GET /api/auditoria` (lo usa el contador del resumen del Admin).
 
-## Base de datos (`18_consultar_bitacora.sql`)
+## Base de datos (`00_script_unico_elecciones_unp.sql`, sección 5i)
 - Columnas nuevas en `log_auditoria`: `hash_anterior` y `hash_registro`; índices por usuario, proceso e IP con la fecha.
 - Tablas: `bitacora_accion` (96 códigos con etiqueta, descripción, módulo, caso de uso y criticidad) y `bitacora_cadena` (sello vigente).
 - Parámetro nuevo: `BITACORA_EXPORTACION_MAX` (20 000, grupo Seguridad del CUS18, de 100 a 100 000).

@@ -3,7 +3,7 @@
 **Actores:** Presidente de mesa (cuenta las cédulas, confirma el escrutinio y registra la entrega), Secretario de mesa (ingresa el conteo por lista). El CEUNP supervisa y puede operar, y el ADMIN solo consulta. · **Pantalla:** menú «Realizar escrutinio» (MIEMBRO_MESA) y «Escrutinio y conciliación» (CEUNP)
 **Caso de negocio:** CUN09 Realizar escrutinio y levantar actas · **Módulo:** M11 (RF77 a RF87) · **Reglas:** RN24 a RN28 · **Fuente:** tabla 38 del informe v2.1
 **Requiere:** mesa CERRADA y acta de sufragio emitida (CUS11). El proceso tiene que estar en VOTACION o CERRADO.
-**Instalación:** en una base ya creada, ejecutar `base-de-datos/11_escrutinio_conciliacion.sql` después de `10_cerrar_sufragio.sql`. `00_script_unico_elecciones_unp.sql` (sección 5b) y `01_crear_base_de_datos.sql` (al final) ya lo incluyen, y `02_limpiar_datos_electorales.sql` vacía sus tablas. El script no borra datos y se puede volver a ejecutar.
+**Instalación:** incluido en `base-de-datos/00_script_unico_elecciones_unp.sql` (sección 5b); el proyecto usa una sola base creada con ese script. `02_limpiar_datos_electorales.sql` vacía sus tablas.
 
 ## Correspondencia con el diagrama de colaboración («Colaboracion - Realizar escrutinio y conciliar»)
 
@@ -65,7 +65,7 @@ Paso 4 de la tabla 38 (un personero impugna un voto): botón «Registrar impugna
 
 Los errores de negocio de los procedimientos (SQLSTATE 45000) llegan como HTTP 400 con su mensaje.
 
-## Base de datos (`11_escrutinio_conciliacion.sql`)
+## Base de datos (`00_script_unico_elecciones_unp.sql`, sección 5b)
 - `impugnacion_electoral` + `id_cargo` (cargo de la cédula impugnada).
 - Tabla `escrutinio_mesa` (una fila por mesa): avance (`CEDULAS_CONTADAS`, `CONTEO_REGISTRADO`, `ACTA_EMITIDA`, `ENTREGADA`), horas, cédulas (A1 y A2), recuentos, cuadre, prevalencia, observaciones, acta y datos de la entrega.
 - Tabla `escrutinio_conteo`: conteo manual y digital por mesa, cargo y opción.
@@ -77,7 +77,7 @@ Los errores de negocio de los procedimientos (SQLSTATE 45000) llegan como HTTP 4
 - Frontend: `frontend/src/pages/escrutinio/` (`PantallaEscrutinio.jsx`, `ActaEscrutinio.js`, `escrutinio.css`). Además: menú y sección en `DashboardPage.jsx`, botón «Ir al escrutinio» en `MiembroMesaPage.jsx` y «Continuar con el escrutinio» en el acta de `PantallaCierreSufragio.jsx`.
 
 ## Prueba rápida
-1. Ejecutar `11_escrutinio_conciliacion.sql` (o importar el script único). Tener una mesa CERRADA con su acta de sufragio emitida (CUS11).
+1. Crear la base con `00_script_unico_elecciones_unp.sql`. Tener una mesa CERRADA con su acta de sufragio emitida (CUS11).
 2. Presidente: en «Realizar escrutinio», ingresar las cédulas del ánfora. Para A1, ingresar más que los votantes, marcar la destrucción y escribir la observación. Pulsar «Verificar total e iniciar escrutinio» y confirmar.
 3. Si un personero presente impugna un voto, pulsar «Registrar impugnación» y elegir personero, cargo y motivo.
 4. Secretario (o presidente): ingresar los votos de cada lista, en blanco y nulos, y pulsar «Registrar conteo y conciliar». Se muestra el cuadre con el conteo digital. Para A3, ingresar números distintos, registrar el recuento y luego marcar que prevalece la cédula física.

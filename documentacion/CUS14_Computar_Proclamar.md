@@ -3,7 +3,7 @@
 **Actor:** CEUNP (verifica, instala la sesión, computa, proclama y publica); ADMIN solo consulta · **Pantalla:** menú «Cómputo y proclamación» (`PantallaComputo`, boundary «ComputoResultado»)
 **Caso de negocio:** CUN11 Computar y proclamar · **Módulo:** M12 (RF89 a RF99) · **Reglas:** RN26, RN31, RN32, RN33, RN34, RN36 · **Fuente:** tabla 39 del informe v2.1
 **Requiere:** mesas con el sufragio cerrado (CUS11), el escrutinio con su acta emitida y entregada al CEUNP (CUS12, RF87) y las impugnaciones resueltas (CUS13).
-**Instalación:** en una base ya creada, ejecutar `base-de-datos/13_computo_proclamacion.sql` después de `12_impugnaciones_apelaciones.sql`. `00_script_unico_elecciones_unp.sql` (sección 5d) ya lo incluye y `02_limpiar_datos_electorales.sql` ya vacía sus tablas.
+**Instalación:** incluido en `base-de-datos/00_script_unico_elecciones_unp.sql` (sección 5d); el proyecto usa una sola base creada con ese script. `02_limpiar_datos_electorales.sql` ya vacía sus tablas.
 
 ## Correspondencia con el diagrama de colaboración («Colaboration - Computar y proclamar», `diagramas/Sistema De Elecciones.mdl`)
 
@@ -78,7 +78,7 @@
 
 Públicos (sin sesión): `GET /api/publico/computo/{token}` (verifica el acta general o la resolución), `GET /api/publico/resultados` y `GET /api/publico/procesos/{id}/resultados` (con la proclamación y los resultados por mesa). `POST /api/procesos/{id}/computo` (heredado) usa ahora `sp_ejecutar_computo` cuando el CUS14 está instalado.
 
-## Base de datos (`13_computo_proclamacion.sql`)
+## Base de datos (`00_script_unico_elecciones_unp.sql`, sección 5d)
 - Tablas: `computo_proceso` (sesión, cómputo con acta general, proclamación y publicación), `computo_personero`, `verificacion_acta`, `calificacion_mesa` y `proclamacion_cargo`.
 - Vistas: `v_computo_actas`, `v_computo_mesas`, `v_computo_conteo_mesa`, `v_computo_resultados` y `v_portal_resultados`.
 - Procedimientos: `sp_instalar_sesion_computo`, `sp_registrar_personero_computo`, `sp_marcar_acta_dudosa`, `sp_comprobar_acta`, `sp_calificar_mesa`, `sp_ejecutar_computo`, `sp_proclamar_resultados`, `sp_publicar_resultados`, `sp_convocar_segunda_vuelta` y `sp_verificar_acta_computo`.
@@ -101,7 +101,7 @@ Públicos (sin sesión): `GET /api/publico/computo/{token}` (verifica el acta ge
 - Cada acción que no se puede deshacer pide confirmación.
 
 ## Prueba rápida (verificada con MariaDB 10.11 y el navegador)
-1. Ejecutar `13_computo_proclamacion.sql` (o crear la base con `00`). Tener un proceso en VOTACION con sus mesas cerradas, escrutadas y con actas entregadas (CUS11 y CUS12).
+1. Crear la base con `00_script_unico_elecciones_unp.sql`. Tener un proceso en VOTACION con sus mesas cerradas, escrutadas y con actas entregadas (CUS11 y CUS12).
 2. CEUNP: «Cómputo y proclamación» → «Concluir votación». Una mesa con impugnaciones pendientes aparece como bloqueo hasta resolverlas (CUS13).
 3. «Revisar» una mesa → «Marcar dudosa» el acta de escrutinio → «Comprobar autenticidad» con su QR: auténtica. Con el QR de otra acta: NO auténtica; entonces «Calificar acta válida» se rechaza y «Declarar nulidad» con resolución anula la mesa.
 4. En una mesa con el acta observada o que difiere, «Calificar acta válida».

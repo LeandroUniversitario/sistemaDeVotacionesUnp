@@ -3,7 +3,7 @@
 **Actores:** Docente elector (consulta los resultados) y Personero de mesa (escanea el QR del acta y la coteja con su ejemplar); también CEUNP, ADMIN y miembros de mesa. El CEUNP atiende las discrepancias reportadas. Cualquier persona, sin sesión, consulta los resultados y verifica un documento en el portal público · **Pantalla:** menú «Resultados y verificar actas» (`PantallaResultados`, boundary «PantallaResultados») y el portal `/resultados` y `/verificar/{código}` (`PortalResultados`), enlazado desde la pantalla de inicio de sesión con «Consultar resultados y verificar actas»
 **Módulos:** M07 (actas con QR) y M12 (portal de transparencia) · **Requisitos:** RF52 (QR en cada acta), RF55 (verificación pública de autenticidad), RF99 (resultados solo después de su publicación) · **Reglas:** RN15 (transparencia sin revelar el voto), RN26 (actas emitidas inalterables), RN28 (las actas no se modifican ni eliminan)
 **Requiere:** un proceso con el cómputo publicado por el CEUNP (CUS14, `computo_proceso.estado = PUBLICADO`). Los procesos computados antes de CUS14 (cómputo heredado) se muestran si están FINALIZADOS o ANULADOS y tienen resultados.
-**Instalación:** en una base ya creada, ejecutar `base-de-datos/16_resultados_verificacion.sql` después de `15_omisos_multas.sql`. No hace falta recrear la base: el script solo agrega lo nuevo y se puede volver a ejecutar. `00_script_unico_elecciones_unp.sql` (sección 5g) ya lo incluye y `02_limpiar_datos_electorales.sql` ya vacía sus tablas.
+**Instalación:** incluido en `base-de-datos/00_script_unico_elecciones_unp.sql` (sección 5g); el proyecto usa una sola base creada con ese script. `02_limpiar_datos_electorales.sql` ya vacía sus tablas.
 
 ## Correspondencia con el diagrama de colaboración («Colaboration - Consultar resultados y verificar actas», `diagramas/Sistema De Elecciones.mdl`)
 
@@ -58,7 +58,7 @@
 
 Público (sin sesión): `GET /api/publico/consulta/procesos`, `GET /api/publico/consulta/procesos/{id}` y `GET /api/publico/verificacion/{código}` (canal `PORTAL`).
 
-## Base de datos (`16_resultados_verificacion.sql`)
+## Base de datos (`00_script_unico_elecciones_unp.sql`, sección 5g)
 - Tablas: `verificacion_documento` (código consultado en hash, método TOKEN o HUELLA, canal, documento, proceso, mesa, resultado, usuario, rol, IP y fecha) y `cotejo_acta` (documento, huella, integridad, usuario, rol, personero, cifras en JSON, líneas, diferencias, observación, estado CONFORME, OBSERVADO o ATENDIDO, y la decisión, respuesta y fecha del CEUNP).
 - Función: `fn_resultados_disponibles`.
 - Vistas: `v_resultados_procesos`, `v_resultados_mesa`, `v_documentos_verificables` y `v_cotejos_acta`.
@@ -80,7 +80,7 @@ Público (sin sesión): `GET /api/publico/consulta/procesos`, `GET /api/publico/
 - Cada acción que no se puede deshacer pide confirmación.
 
 ## Prueba rápida (verificada con MariaDB, la API y el navegador)
-1. Ejecutar `16_resultados_verificacion.sql` sobre la base existente (o crearla con `00`). Llevar un proceso hasta «Publicar resultados» (CUS11 a CUS14).
+1. Crear la base con `00_script_unico_elecciones_unp.sql`. Llevar un proceso hasta «Publicar resultados» (CUS11 a CUS14).
 2. Sin sesión, abrir `/resultados` (o «Consultar resultados y verificar actas» en el inicio de sesión): la lista ganadora, las barras, los totales y los resultados por mesa.
 3. Abrir el QR de la resolución de proclamación (`/verificar/{token}`): «Documento auténtico», con las dos huellas iguales. Un código inexistente: «Documento no encontrado». Si se altera el contenido de un acta en la base: «Documento alterado».
 4. Como personero: «Verificar acta» con la huella del acta de escrutinio de su mesa → «Cotejar con mi ejemplar físico» → cifras iguales → «Comparar» → «Registrar cotejo conforme» → «Confirmar»: cotejo Conforme. Repetir con una cifra distinta: exige la descripción y queda «Discrepancia reportada». Un segundo reporte pendiente sobre la misma acta se rechaza.

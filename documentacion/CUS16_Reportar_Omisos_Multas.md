@@ -3,7 +3,7 @@
 **Actor:** CEUNP (genera las multas, el Pleno las determina, notifica, resuelve descargos y registra pagos); ADMIN solo consulta; el DOCENTE consulta sus multas · **Pantalla:** menú «Omisos y multas» (`PantallaMultas`, boundary «PantallaMultas») y, para el docente, «Mis multas» (`MisMultas`)
 **Caso de negocio:** CUN12 Aplicar multas por omisión · **Módulo:** M14 (RF103 a RF107) · **Reglas:** RN35, RN36, RN40 · **Reglamento:** Art. 67 (miembro de mesa que no asiste, 3 % de la UIT), Art. 68 (docente que no vota, 2.5 % de la UIT), Disposiciones Finales 2.ª y 5.ª (justificación)
 **Requiere:** el proceso con la votación concluida (CERRADO, FINALIZADO o ANULADO) y todas sus mesas con el sufragio cerrado (CUS11). La UIT y los porcentajes se configuran en «Parámetros» (RF105).
-**Instalación:** en una base ya creada, ejecutar `base-de-datos/15_omisos_multas.sql` después de `14_nulidades_segunda_vuelta.sql`. No hace falta recrear la base: el script solo agrega lo nuevo y se puede volver a ejecutar. `00_script_unico_elecciones_unp.sql` (sección 5f) ya lo incluye y `02_limpiar_datos_electorales.sql` ya vacía sus tablas.
+**Instalación:** incluido en `base-de-datos/00_script_unico_elecciones_unp.sql` (sección 5f); el proyecto usa una sola base creada con ese script. `02_limpiar_datos_electorales.sql` ya vacía sus tablas.
 
 ## Correspondencia con el diagrama de colaboración («Colaboration - Reportar omisos y multas», `diagramas/Sistema De Elecciones.mdl`)
 
@@ -64,7 +64,7 @@
 
 Docente: `GET /api/multas/mias` (sus multas ya determinadas). Público (sin sesión): `GET /api/publico/multas/{token}` (verifica la resolución recalculando su SHA-256).
 
-## Base de datos (`15_omisos_multas.sql`)
+## Base de datos (`00_script_unico_elecciones_unp.sql`, sección 5f)
 - `multa`: estado `JUSTIFICADA` y columnas `id_mesa`, `rol_mesa`, `asistio_sin_votar`, `fecha_notificacion`, `medio_notificacion`, `documento_notificacion`, `numero_recibo`, `fecha_actualizacion` e `id_usuario_actualizacion`.
 - Tablas: `reporte_multas` (uno por proceso: totales, UIT, veces generado y la resolución con contenido JSON, huella y token del QR) y `multa_justificacion` (justificación o exoneración con causal, sustento, decisión y resolución).
 - Función: `fn_resolucion_en_uso` (redefinida, incluye multas y descargos).
@@ -88,7 +88,7 @@ Docente: `GET /api/multas/mias` (sus multas ya determinadas). Público (sin sesi
 - Cada acción que no se puede deshacer pide confirmación.
 
 ## Prueba rápida (verificada con MariaDB, la API y el navegador)
-1. Ejecutar `15_omisos_multas.sql` sobre la base existente (o crearla con `00` y `CALL sp_demo_flujo_completo();`, que ya genera las multas del proceso de demostración).
+1. Crear la base con `00_script_unico_elecciones_unp.sql` y ejecutar `CALL sp_demo_flujo_completo();`, que ya genera las multas del proceso de demostración.
 2. «Omisos y multas» → «Reporte de omisos»: 8 omisos al sufragio y 1 vocal inasistente. «Volver a generar multas» → «Confirmar». Si una mesa no se instaló, sus electores no aparecen.
 3. «Multas y resolución» → «Emitir resolución del Pleno» con 4 miembros: exige quórum. Con 5 se emite; «Volver a generar» ya no aparece y el QR abre `/api/publico/multas/{token}` con `contenidoIntegro = 1`.
 4. «Notificar multas pendientes» por correo institucional: todas quedan notificadas con el plazo de 10 días. «Imprimir cédulas» genera una hoja por docente.
