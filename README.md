@@ -8,7 +8,7 @@ Sistema de Elecciones Docentes de la Universidad Nacional de Piura.
 backend/          -> Spring Boot (Java 21, MariaDB, JWT)
 frontend/         -> React + Vite
 base-de-datos/    -> Scripts SQL y datos iniciales
-diagramas/        -> Diagramas PlantUML del sistema
+diagramas/        -> Modelo Rational Rose (.mdl), diagramas de secuencia y colaboracion (.drawio) y diagramas PlantUML
 documentacion/    -> Documentacion tecnica y de negocio
 `
 
@@ -19,13 +19,13 @@ documentacion/    -> Documentacion tecnica y de negocio
 | Backend     | Java 21, Spring Boot 3.5.6, MariaDB |
 | Seguridad   | Spring Security + JWT (JJWT 0.12.6) |
 | Frontend    | React 18, Vite, CSS vanilla         |
-| Base Datos  | MariaDB / MySQL (schema.sql)        |
+| Base Datos  | MariaDB / MySQL (script unico)      |
 
 ## Inicio rapido
 
 ### 1. Base de datos
 Ejecutar en MariaDB/MySQL:
-- `base-de-datos/01_crear_base_de_datos.sql` (crea tablas, triggers, vistas, procedimientos y datos iniciales)
+- `base-de-datos/00_script_unico_elecciones_unp.sql` (crea la base completa: tablas, triggers, vistas, procedimientos y datos iniciales)
 - `base-de-datos/02_limpiar_datos_electorales.sql` (limpia y reinicia datos electorales para una nueva elección)
 - Usuario inicial: admin / Admin2026* (cambiar al ingresar)
 - Guía: `base-de-datos/README.md` y `documentacion/BACKEND_v2.md`
