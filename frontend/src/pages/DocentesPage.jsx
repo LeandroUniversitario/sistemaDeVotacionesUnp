@@ -256,7 +256,6 @@ export default function DocentesPage({
           <div style={{ display: 'flex', gap: '10px' }}>
             <button
               className="btn-primary"
-              style={{ borderRadius: 8, padding: '9px 18px', fontWeight: 600 }}
               onClick={() => {
                 setShowCreate(true);
                 setFeedback(null);
@@ -265,22 +264,8 @@ export default function DocentesPage({
               ＋ Nuevo docente
             </button>
             {onGestionarPadron && (
-              <button
-                style={{
-                  background: '#10b981',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '9px 18px',
-                  borderRadius: '8px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-                onClick={onGestionarPadron}
-              >
-                Gestionar padrón electoral →
+              <button className="btn-ghost" onClick={onGestionarPadron}>
+                Gestionar padrón electoral
               </button>
             )}
           </div>

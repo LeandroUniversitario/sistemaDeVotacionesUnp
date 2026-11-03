@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../api/apiClient';
 import MenuIcon from '../components/MenuIcon';
 import ProcessTable from '../components/ProcessTable';
@@ -60,13 +60,13 @@ const MENU_POR_ROL = {
     { key: 'convocatoria', label: 'Convocatoria y cronograma', icon: 'calendar', color: '#10b981' },
     { key: 'padron', label: 'Padrón electoral', icon: 'list', color: '#0ea5e9' },
     { key: 'docentes', label: 'Docentes', icon: 'users', color: '#8b5cf6' },
-    { group: 'OPERACIONES' },
+    { group: 'Operaciones' },
     { key: 'candidaturas', label: 'Inscripción de listas', icon: 'ballot', color: '#06b6d4' },
     { key: 'tachas', label: 'Tachas', icon: 'scale', color: '#f97316' },
     { key: 'sorteos', label: 'Sorteos', icon: 'sorteo', color: '#eab308' },
     { key: 'personeros', label: 'Personeros', icon: 'person', color: '#8b5cf6' },
     { key: 'credenciales', label: 'Credenciales y QR', icon: 'qr', color: '#10b981' },
-    { group: 'RESULTADOS' },
+    { group: 'Resultados' },
     { key: 'impugnaciones', label: 'Impugnaciones y apelaciones', icon: 'scale', color: '#ef4444' },
     { key: 'computo', label: 'Cómputo y proclamación', icon: 'trophy', color: '#6366f1' },
     { key: 'nulidades', label: 'Nulidades y segunda vuelta', icon: 'scale', color: '#e11d48' },
@@ -80,7 +80,7 @@ const MENU_POR_ROL = {
     { key: 'pase', label: 'Mi pase de votación QR', icon: 'qr', color: '#8b5cf6' },
     { key: 'fotocheck', label: 'Mi fotocheck de miembro (RF56)', icon: 'qr', color: '#f59e0b' },
     { key: 'tachas', label: 'Presentar tacha', icon: 'scale', color: '#f97316' },
-    { group: 'JORNADA ELECTORAL' },
+    { group: 'Jornada electoral' },
     { key: 'mesa', label: 'Mi Mesa de Sufragio', icon: 'table', color: '#14b8a6' },
     { key: 'instalacion', label: 'Instalar mesa', icon: 'shield', color: '#0ea5e9' },
     { key: 'verificar-elector', label: 'Verificar elector', icon: 'scan', color: '#0ea5e9' },
@@ -88,7 +88,7 @@ const MENU_POR_ROL = {
     { key: 'cierre', label: 'Cerrar sufragio', icon: 'lock', color: '#f43f5e' },
     { key: 'escrutinio', label: 'Realizar escrutinio', icon: 'table', color: '#2563eb' },
     { key: 'verificar-qr', label: 'Verificar credencial QR', icon: 'scan', color: '#10b981' },
-    { group: 'RESULTADOS' },
+    { group: 'Resultados' },
     { key: 'mis-multas', label: 'Mis multas', icon: 'coins', color: '#d97706' },
     { key: 'resultados', label: 'Resultados y actas', icon: 'trophy', color: '#059669' },
   ],
@@ -161,6 +161,31 @@ const SECTION_DESCRIPTIONS = {
   listas: 'Consulte las listas y fórmulas inscritas en el proceso electoral, sus candidatos y plan de gobierno.',
 };
 
+// ─── Agrupa el menú plano en secciones desplegables ───────────────────────
+function agruparMenu(items) {
+  const grupos = [];
+  for (const item of items) {
+    if (item.group) grupos.push({ nombre: item.group, items: [] });
+    else if (grupos.length) grupos[grupos.length - 1].items.push(item);
+    else grupos.push({ nombre: 'WORKSPACE', items: [item] });
+  }
+  return grupos;
+}
+
+const ROL_LEGIBLE = {
+  ADMIN: 'Administrador del sistema',
+  CEUNP: 'Comité Electoral (CEUNP)',
+  MIEMBRO_MESA: 'Miembro de mesa',
+  PERSONERO: 'Personero',
+  DOCENTE: 'Docente elector',
+};
+
+const CLAVE_GRUPOS = 'siceunp.menu.cerrados';
+function leerGruposCerrados() {
+  try { return new Set(JSON.parse(localStorage.getItem(CLAVE_GRUPOS) ?? '[]')); }
+  catch { return new Set(); }
+}
+
 /**
  * Layout principal de la aplicación.
  * Contiene el sidebar, el header y renderiza la página activa según la sección.
@@ -175,6 +200,11 @@ export default function DashboardPage({ session, onLogout }) {
     return 'resumen';
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Rediseño: menú lateral en móvil, grupos desplegables y menú de usuario
+  const [navAbierta, setNavAbierta] = useState(false);
+  const [gruposCerrados, setGruposCerrados] = useState(leerGruposCerrados);
+  const [menuUsuario, setMenuUsuario] = useState(false);
+  const menuUsuarioRef = useRef(null);
   // CUS08 · RF60: mesas no instaladas que esperan la evaluación de nulidad del CEUNP
   const [alertasInstalacion, setAlertasInstalacion] = useState(0);
   const [processes, setProcesses] = useState([]);
@@ -195,6 +225,39 @@ export default function DashboardPage({ session, onLogout }) {
     const timer = setInterval(revisar, 60000);
     return () => clearInterval(timer);
   }, [session.rol, section]);
+
+  // Cierra el menú de usuario al hacer clic fuera o con Escape
+  useEffect(() => {
+    if (!menuUsuario) return undefined;
+    const fuera = (e) => { if (!menuUsuarioRef.current?.contains(e.target)) setMenuUsuario(false); };
+    const esc = (e) => { if (e.key === 'Escape') setMenuUsuario(false); };
+    document.addEventListener('mousedown', fuera);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', fuera); document.removeEventListener('keydown', esc); };
+  }, [menuUsuario]);
+
+  // En móvil, cerrar el menú lateral con Escape
+  useEffect(() => {
+    if (!navAbierta) return undefined;
+    const esc = (e) => { if (e.key === 'Escape') setNavAbierta(false); };
+    document.addEventListener('keydown', esc);
+    return () => document.removeEventListener('keydown', esc);
+  }, [navAbierta]);
+
+  function irA(clave) {
+    setSection(clave);
+    setNavAbierta(false);
+    setMenuUsuario(false);
+  }
+
+  function alternarGrupo(nombre) {
+    setGruposCerrados((prev) => {
+      const sig = new Set(prev);
+      if (sig.has(nombre)) sig.delete(nombre); else sig.add(nombre);
+      try { localStorage.setItem(CLAVE_GRUPOS, JSON.stringify([...sig])); } catch { /* sin almacenamiento */ }
+      return sig;
+    });
+  }
 
   // CEUNP gestiona el proceso electoral; ADMIN gestiona el sistema
   const canManage = session.rol === 'CEUNP';
@@ -243,93 +306,113 @@ export default function DashboardPage({ session, onLogout }) {
 
   useEffect(() => { loadAdminStats(); }, []);
 
+  const grupos = agruparMenu(MENU_POR_ROL[session.rol] ?? []);
+  const grupoActual = grupos.find((g) => g.items.some((i) => i.key === section))?.nombre;
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell${navAbierta ? ' nav-abierta' : ''}`}>
       {/* ── Sidebar ──────────────────────────────────────────────── */}
-      <aside className="sidebar">
-        {/* ── Logo + cabecera estilo CampaignHub ── */}
+      <aside className="sidebar" id="menu-lateral">
         <div className="sidebar-brand">
           <div className="brand-header-row">
             <div className="brand-logo-wrap">
-              <img
-                src="/escudo-unp.png"
-                alt="Escudo UNP"
-                style={{ width: 26, height: 26, objectFit: 'contain', display: 'block' }}
-              />
+              <img src="/escudo-unp.png" alt="Escudo UNP" className="brand-logo" />
             </div>
             <div className="brand-info">
               <h2 className="brand-title">SICEUNP</h2>
-              <span className="brand-badge">{session.rol}</span>
+              <span className="brand-sub">Elecciones docentes · UNP</span>
             </div>
           </div>
         </div>
 
         <nav className="nav-list" aria-label="Navegación principal">
-          {/* ── Menú principal según rol con grupos ── */}
-          {(MENU_POR_ROL[session.rol] ?? []).map((item, idx) => {
-            if (item.group) {
-              // Ocultamos la etiqueta del primer grupo (WORKSPACE)
-              if (item.group === 'WORKSPACE') return null;
-              return (
-                <div key={`group-${idx}`} className="nav-section-title">
-                  {item.group}
-                </div>
-              );
-            }
+          {grupos.map((grupo) => {
+            const fijo = grupo.nombre === 'WORKSPACE';
+            const contieneActiva = grupo.items.some((i) => i.key === section);
+            const abierto = fijo || contieneActiva || !gruposCerrados.has(grupo.nombre);
+            const idGrupo = `grupo-${grupo.nombre.replace(/\s+/g, '-').toLowerCase()}`;
             return (
-              <button
-                key={item.key}
-                className={`nav-item${section === item.key ? ' active' : ''}`}
-                onClick={() => setSection(item.key)}
-                title={item.label}
-              >
-                <span className="nav-icon" style={{ color: item.color }}>
-                  <MenuIcon name={item.icon} size={19} />
-                </span>
-                <span className="nav-label">{item.label}</span>
-                {item.key === 'instalacion' && alertasInstalacion > 0 && (
-                  <span className="nav-alerta" title="Mesas no instaladas por evaluar (RF60)">{alertasInstalacion}</span>
+              <div key={grupo.nombre} className={`nav-group${abierto ? ' open' : ''}`}>
+                {!fijo && (
+                  <button
+                    type="button"
+                    className="nav-section-title"
+                    aria-expanded={abierto}
+                    aria-controls={idGrupo}
+                    onClick={() => !contieneActiva && alternarGrupo(grupo.nombre)}
+                  >
+                    <span>{grupo.nombre}</span>
+                    <MenuIcon name="chevron" size={14} className="nav-chevron" />
+                  </button>
                 )}
-              </button>
+                <div className="nav-group-body" id={idGrupo}>
+                  <div className="nav-group-inner">
+                    {grupo.items.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        className={`nav-item${section === item.key ? ' active' : ''}`}
+                        aria-current={section === item.key ? 'page' : undefined}
+                        tabIndex={abierto ? 0 : -1}
+                        onClick={() => irA(item.key)}
+                        title={item.label}
+                      >
+                        <span className="nav-icon"><MenuIcon name={item.icon} size={18} /></span>
+                        <span className="nav-label">{item.label}</span>
+                        {item.key === 'instalacion' && alertasInstalacion > 0 && (
+                          <span className="nav-alerta" title="Mesas no instaladas por evaluar (RF60)">{alertasInstalacion}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             );
           })}
 
-          {/* ── Sección GENERAL estilo CampaignHub ── */}
-          <div className="nav-section-title">GENERAL</div>
-          <button
-            className={`nav-item${section === 'cuenta' ? ' active' : ''}`}
-            onClick={() => setSection('cuenta')}
-            title="Configuración de la cuenta"
-          >
-            <span className="nav-icon" style={{ color: '#6366f1' }}>
-              <MenuIcon name="settings" size={19} />
-            </span>
-            <span className="nav-label">Configuración</span>
-          </button>
+          <div className="nav-group open">
+            <div className="nav-section-title estatico">General</div>
+            <button
+              type="button"
+              className={`nav-item${section === 'cuenta' ? ' active' : ''}`}
+              aria-current={section === 'cuenta' ? 'page' : undefined}
+              onClick={() => irA('cuenta')}
+              title="Configuración de la cuenta"
+            >
+              <span className="nav-icon"><MenuIcon name="settings" size={18} /></span>
+              <span className="nav-label">Configuración</span>
+            </button>
+          </div>
         </nav>
 
         <div className="sidebar-footer">
-          <div className="account-summary">
-            <div className="account-avatar">{session.username.charAt(0).toUpperCase()}</div>
-            <div className="account-details">
-              <strong>{session.username}</strong>
-              <span>{session.rol}</span>
-            </div>
-          </div>
-          <button
-            className="logout-icon-btn"
-            onClick={onLogout}
-            title="Cerrar sesión"
-          >
-            <MenuIcon name="logout" size={17} />
-          </button>
+          <span className="sidebar-footer-rol">{ROL_LEGIBLE[session.rol] ?? session.rol}</span>
+          <span className="sidebar-footer-org">Universidad Nacional de Piura</span>
         </div>
       </aside>
+      <button
+        type="button"
+        className="nav-scrim"
+        aria-label="Cerrar menú"
+        tabIndex={navAbierta ? 0 : -1}
+        onClick={() => setNavAbierta(false)}
+      />
 
       {/* ── Contenido principal ───────────────────────────────────── */}
       <main className="content">
         <header className="topbar">
-          <div>
+          <button
+            type="button"
+            className="nav-toggle"
+            aria-label="Abrir menú"
+            aria-controls="menu-lateral"
+            aria-expanded={navAbierta}
+            onClick={() => setNavAbierta(true)}
+          >
+            <MenuIcon name="menu" size={20} />
+          </button>
+          <div className="topbar-titulo" key={section}>
+            {grupoActual && grupoActual !== 'WORKSPACE' && <span className="topbar-ruta">{grupoActual}</span>}
             <h1>
               {section === 'padron' && isAdmin
                 ? 'Importación y creación de usuarios docentes'
@@ -338,15 +421,53 @@ export default function DashboardPage({ session, onLogout }) {
             {(section === 'padron' && isAdmin
               ? 'Importe el padrón de docentes para crear o actualizar masivamente sus cuentas de usuario en el sistema.'
               : SECTION_DESCRIPTIONS[section]) && (
-              <p style={{ margin: '4px 0 0', color: 'var(--text-muted, #64748b)', fontSize: '.88rem', fontWeight: 400 }}>
+              <p className="topbar-desc">
                 {section === 'padron' && isAdmin
                   ? 'Importe el padrón de docentes para crear o actualizar masivamente sus cuentas de usuario en el sistema.'
                   : SECTION_DESCRIPTIONS[section]}
               </p>
             )}
           </div>
+
+          <div className="user-menu" ref={menuUsuarioRef}>
+            <button
+              type="button"
+              className="user-menu-trigger"
+              aria-haspopup="menu"
+              aria-expanded={menuUsuario}
+              onClick={() => setMenuUsuario((v) => !v)}
+            >
+              <span className="account-avatar">{session.username.charAt(0).toUpperCase()}</span>
+              <span className="user-menu-id">
+                <strong>{session.username}</strong>
+                <span>{ROL_LEGIBLE[session.rol] ?? session.rol}</span>
+              </span>
+              <MenuIcon name="chevron" size={16} className="user-menu-chevron" />
+            </button>
+            {menuUsuario && (
+              <div className="user-menu-panel" role="menu">
+                <div className="user-menu-head">
+                  <strong>{session.username}</strong>
+                  <span>{ROL_LEGIBLE[session.rol] ?? session.rol}</span>
+                </div>
+                <button type="button" role="menuitem" className="user-menu-item" onClick={() => irA('cuenta')}>
+                  <MenuIcon name="settings" size={16} /> Configuración de la cuenta
+                </button>
+                {MENU_POR_ROL[session.rol]?.some((i) => i.key === 'resultados') && (
+                  <button type="button" role="menuitem" className="user-menu-item" onClick={() => irA('resultados')}>
+                    <MenuIcon name="trophy" size={16} /> Resultados y actas
+                  </button>
+                )}
+                <div className="user-menu-sep" />
+                <button type="button" role="menuitem" className="user-menu-item peligro" onClick={onLogout}>
+                  <MenuIcon name="logout" size={16} /> Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
         </header>
 
+        <div className="vista" key={section}>
         {feedback && <div className={`alert ${feedback.type}`}>{feedback.text}</div>}
 
         {/* Resumen — varía según el rol */}
@@ -597,6 +718,7 @@ export default function DashboardPage({ session, onLogout }) {
         {section === 'pase' && !['DOCENTE', 'PERSONERO', 'MIEMBRO_MESA'].includes(session.rol) && <MisCredencialesPage foco="ELECTOR" onSessionExpired={onLogout} />}
         {section === 'verificar-qr' && <VerificarCredencialPanel onSessionExpired={onLogout} />}
 
+        </div>
       </main>
     </div>
   );

@@ -7,6 +7,7 @@ import CambiarPasswordObligatorioPage from './pages/CambiarPasswordObligatorioPa
 import PortalResultados from './pages/resultados/PortalResultados';
 import CredencialPublica from './pages/credenciales/CredencialPublica';
 import './styles.css';
+import './theme/ejecutivo.css'; // capa de diseño ejecutivo: va al final para prevalecer
 
 /**
  * Componente raiz de la aplicacion.
