@@ -384,7 +384,7 @@ CREATE TABLE padron_electoral (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- REGLA DE ORO: esta tabla NO referencia a docente, usuario, sesión ni constancia.
--- Secreto del voto (RF69, RNF05/RNF06): la clave es aleatoria (16 bytes de RANDOM_BYTES, la pone
+-- Secreto del voto (RF69, RNF05/RNF06): la clave es aleatoria (16 bytes de fn_bytes_aleatorios, la pone
 -- trg_voto_bi). Con una clave autoincremental el orden de los ids era el orden de votación y,
 -- cruzado con padron_electoral.fecha_votacion, revelaba el voto de cada docente.
 CREATE TABLE voto (
@@ -856,6 +856,18 @@ DELIMITER $$
 -- FUNCIONES
 -- ---------------------------------------------------------------------
 
+-- Bytes aleatorios (1 a 32) compatible con MariaDB 10.4 (XAMPP), que no tiene
+-- fn_bytes_aleatorios() (existe recién desde 10.10). Mezcla con SHA-256 un UUID (marca de
+-- tiempo + nodo), dos RAND(), el reloj en microsegundos y el id de conexión, de modo
+-- que el resultado no sigue el orden de inserción ni se puede predecir desde la BD.
+CREATE FUNCTION fn_bytes_aleatorios(p_n INT)
+RETURNS VARBINARY(32)
+NOT DETERMINISTIC NO SQL
+BEGIN
+  RETURN LEFT(UNHEX(SHA2(CONCAT_WS('|', UUID(), RAND(), RAND(), SYSDATE(6), CONNECTION_ID()), 256)),
+              LEAST(GREATEST(p_n, 1), 32));
+END$$
+
 -- Lee un parámetro numérico (UIT, porcentajes, tamaños). Devuelve NULL si no existe.
 CREATE FUNCTION fn_parametro_decimal(p_clave VARCHAR(80))
 RETURNS DECIMAL(12,2)
@@ -1162,7 +1174,7 @@ BEGIN
 
   -- Secreto del voto: clave aleatoria (sin orden de inserción) y solo la hora (sin minutos
   -- ni segundos) para que no se pueda cruzar con el padrón, la constancia ni la bitácora.
-  SET NEW.id_voto = RANDOM_BYTES(16);
+  SET NEW.id_voto = fn_bytes_aleatorios(16);
   SET NEW.fecha_hora = DATE_FORMAT(NOW(), '%Y-%m-%d %H:00:00');
 END$$
 
@@ -1559,7 +1571,7 @@ CREATE PROCEDURE sp_emitir_acta(
   OUT p_token     CHAR(64)
 )
 BEGIN
-  SET p_token = LOWER(HEX(RANDOM_BYTES(32)));
+  SET p_token = LOWER(HEX(fn_bytes_aleatorios(32)));
   INSERT INTO acta_electoral (id_mesa, tipo, contenido_json, hash_integridad, token_qr_hash)
   VALUES (p_id_mesa, p_tipo, p_contenido, SHA2(p_contenido, 256), SHA2(p_token, 256));
 END$$
@@ -2166,7 +2178,7 @@ BEGIN
       SET MESSAGE_TEXT = 'RN18: el orden de la cedula de este cargo ya fue sorteado; no se repite.';
   END IF;
 
-  SET v_semilla = COALESCE(NULLIF(TRIM(p_semilla), ''), LOWER(HEX(RANDOM_BYTES(32))));
+  SET v_semilla = COALESCE(NULLIF(TRIM(p_semilla), ''), LOWER(HEX(fn_bytes_aleatorios(32))));
 
   DROP TEMPORARY TABLE IF EXISTS tmp_orden_cedula;
   CREATE TEMPORARY TABLE tmp_orden_cedula (id_lista INT PRIMARY KEY, n INT NOT NULL);
@@ -2370,7 +2382,7 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RN19: la mesa ya fue sorteada (el cargo es irrenunciable).';
   END IF;
 
-  SET v_semilla = COALESCE(NULLIF(TRIM(p_semilla), ''), LOWER(HEX(RANDOM_BYTES(32))));
+  SET v_semilla = COALESCE(NULLIF(TRIM(p_semilla), ''), LOWER(HEX(fn_bytes_aleatorios(32))));
   SELECT COUNT(*) INTO v_asignados FROM padron_electoral WHERE id_mesa = p_id_mesa;
 
   DROP TEMPORARY TABLE IF EXISTS tmp_sorteo;
@@ -2430,7 +2442,7 @@ BEGIN
   END;
 
   START TRANSACTION;
-  SET v_base = COALESCE(NULLIF(TRIM(p_semilla_base), ''), LOWER(HEX(RANDOM_BYTES(32))));
+  SET v_base = COALESCE(NULLIF(TRIM(p_semilla_base), ''), LOWER(HEX(fn_bytes_aleatorios(32))));
 
   SET v_fin = 0;
   OPEN cur_mesas;
@@ -2576,7 +2588,7 @@ BEGIN
   VALUES (p_id_proceso, p_id_cargo, IF(v_tipo = 'VALIDO', p_id_lista, NULL), v_tipo, v_mesa);
 
   -- 4. constancia de participación
-  SET p_token_constancia = LOWER(HEX(RANDOM_BYTES(32)));
+  SET p_token_constancia = LOWER(HEX(fn_bytes_aleatorios(32)));
   INSERT INTO constancia_voto (id_proceso, id_docente, id_cargo, token_qr_hash)
   VALUES (p_id_proceso, p_id_docente, p_id_cargo, SHA2(p_token_constancia, 256));
 
@@ -3420,7 +3432,7 @@ BEGIN
   VALUES (v_proceso, p_id_cargo, IF(v_tipo = 'VALIDO', p_id_lista, NULL), v_tipo, v_mesa);
 
   -- generarConstancia(): prueba de participación (no del sentido del voto)
-  SET p_token_constancia = LOWER(HEX(RANDOM_BYTES(32)));
+  SET p_token_constancia = LOWER(HEX(fn_bytes_aleatorios(32)));
   INSERT INTO constancia_voto (id_proceso, id_docente, id_cargo, token_qr_hash)
   VALUES (v_proceso, v_docente, p_id_cargo, SHA2(p_token_constancia, 256));
 
@@ -4586,7 +4598,7 @@ BEGIN
   END IF;
 
   SET v_ahora = NOW();
-  SET v_codigo = UPPER(LEFT(SHA2(CONCAT(p_id_mesa, '|', v_numero, '|', v_ahora, '|', HEX(RANDOM_BYTES(16))), 256), 12));
+  SET v_codigo = UPPER(LEFT(SHA2(CONCAT(p_id_mesa, '|', v_numero, '|', v_ahora, '|', HEX(fn_bytes_aleatorios(16))), 256), 12));
 
   UPDATE escrutinio_mesa
      SET estado = 'ENTREGADA', fecha_entrega = v_ahora, recibido_por = v_recibe, ejemplares = p_ejemplares,
@@ -6031,7 +6043,7 @@ BEGIN
          ',"comunicar_a":["SUNEDU","Asamblea Universitaria","Consejo Universitario"]', ''),
       '}');
 
-  SET v_token = LOWER(HEX(RANDOM_BYTES(32)));
+  SET v_token = LOWER(HEX(fn_bytes_aleatorios(32)));
   UPDATE computo_proceso
      SET estado = 'COMPUTADO', fecha_computo = v_ahora, mesas_total = v_mesas, mesas_computadas = v_computadas,
          mesas_no_instaladas = v_no_inst, mesas_anuladas = v_anuladas, actas_verificadas = v_actas,
@@ -6119,7 +6131,7 @@ BEGIN
   -- 16: acreditarGanadora(idLista) -> 17 listaAcreditada()
   INSERT INTO proclamacion_cargo (id_cargo, id_proceso, id_lista, votos, porcentaje_validos, codigo_credencial, fecha_proclamacion)
   SELECT c.id_cargo, c.id_proceso, c.id_lista_ganadora, r.total_votos, r.porcentaje_validos,
-         UPPER(LEFT(SHA2(CONCAT(c.id_cargo, '|', c.id_lista_ganadora, '|', v_res, '|', HEX(RANDOM_BYTES(16))), 256), 12)), v_ahora
+         UPPER(LEFT(SHA2(CONCAT(c.id_cargo, '|', c.id_lista_ganadora, '|', v_res, '|', HEX(fn_bytes_aleatorios(16))), 256), 12)), v_ahora
     FROM cargo_electoral c
     JOIN resultado_electoral r ON r.id_cargo = c.id_cargo AND r.id_lista = c.id_lista_ganadora AND r.tipo_voto = 'VALIDO'
    WHERE c.id_proceso = p_id_proceso AND c.estado_resultado = 'ELEGIDO';
@@ -6165,7 +6177,7 @@ BEGIN
       ',"sin_proclamar":', COALESCE(v_sin, '[]'),
       ',"fundamento":', IF(NULLIF(TRIM(p_fundamento), '') IS NULL, 'null', JSON_QUOTE(TRIM(p_fundamento))),
       '}');
-  SET v_token = LOWER(HEX(RANDOM_BYTES(32)));
+  SET v_token = LOWER(HEX(fn_bytes_aleatorios(32)));
 
   UPDATE computo_proceso
      SET estado = 'PROCLAMADO', numero_resolucion = v_res, miembros_pleno = p_miembros_pleno, presidente_ceunp = v_pres,
@@ -6952,7 +6964,7 @@ BEGIN
       IF(v_decision = 'FUNDADA' AND v_alcance = 'TOTAL',
          ',"comunicar_a":["SUNEDU","Asamblea Universitaria","Consejo Universitario"]', ''),
       '}');
-  SET v_token = LOWER(HEX(RANDOM_BYTES(32)));
+  SET v_token = LOWER(HEX(fn_bytes_aleatorios(32)));
 
   UPDATE nulidad_electoral
      SET estado = v_decision, numero_resolucion = v_res, fundamento_resolucion = v_fund,
@@ -7898,7 +7910,7 @@ BEGIN
       ',"multas":', v_lista,
       ',"nota":', JSON_QUOTE('El sistema determina las multas; no las cobra. El docente puede justificar su inasistencia ante el CEUNP (Disp. Final 2.ª y 5.ª).'),
       '}');
-  SET v_token = LOWER(HEX(RANDOM_BYTES(32)));
+  SET v_token = LOWER(HEX(fn_bytes_aleatorios(32)));
 
   UPDATE reporte_multas
      SET estado = 'RESUELTO', numero_resolucion = v_res, fundamento = v_fund, miembros_pleno = p_miembros_pleno,
