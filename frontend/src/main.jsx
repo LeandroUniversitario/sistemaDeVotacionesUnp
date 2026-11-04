@@ -1,4 +1,4 @@
-﻿import { StrictMode, useEffect, useState } from 'react';
+import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { apiRequest } from './api/apiClient';
 import LoginPage from './pages/LoginPage';
@@ -7,6 +7,7 @@ import CambiarPasswordObligatorioPage from './pages/CambiarPasswordObligatorioPa
 import PortalResultados from './pages/resultados/PortalResultados';
 import CredencialPublica from './pages/credenciales/CredencialPublica';
 import TerminalVotacion from './pages/votacion/TerminalVotacion';
+import ErrorBoundary from './components/ErrorBoundary';
 import './styles.css';
 import './theme/ejecutivo.css'; // capa de diseño ejecutivo: va al final para prevalecer
 
@@ -19,6 +20,15 @@ import './theme/ejecutivo.css'; // capa de diseño ejecutivo: va al final para p
  *      (cuenta con clave provisional aleatoria; el backend tambien bloquea el resto de la API)
  *   3. DashboardPage        - sesion normal, password ya elegida por el usuario
  */
+/**
+ * Quita la sección (#/...) de la URL. Al iniciar o cerrar sesión cada cuenta debe entrar a la pantalla
+ * inicial de SU rol, no a la que dejó abierta la sesión anterior (que puede ni existir para el nuevo rol
+ * y dejaba la pantalla en blanco).
+ */
+function limpiarRuta() {
+  if (window.location.hash) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+}
+
 function App() {
   const [session, setSession] = useState(null);
   // true mientras verificamos el token almacenado en sessionStorage
@@ -45,16 +55,24 @@ function App() {
   function handleLogin(data) {
     // data = { token, username, rol, debeCambiarPassword }
     sessionStorage.setItem('accessToken', data.token);
+    limpiarRuta();
     setSession({
       token:               data.token,
       username:            data.username,
       rol:                 data.rol,
       debeCambiarPassword: data.debeCambiarPassword ?? false,
     });
+    // El login no devuelve idDocente: se completa con /me (lo usan instalación, cierre y escrutinio)
+    apiRequest('/api/auth/me')
+      .then((user) => setSession((prev) => (prev && prev.username === user.username
+        ? { ...prev, idDocente: user.idDocente }
+        : prev)))
+      .catch(() => { });
   }
 
   function handleLogout() {
     sessionStorage.removeItem('accessToken');
+    limpiarRuta();
     setSession(null);
   }
 
@@ -104,7 +122,8 @@ function App() {
   }
 
   // 3. Dashboard normal
-  return <DashboardPage session={session} onLogout={handleLogout} />;
+  // key: cada cuenta monta un panel nuevo, sin el estado (sección, filtros, datos) de la anterior
+  return <DashboardPage key={session.username} session={session} onLogout={handleLogout} />;
 }
 
 // CUS17 · Portal público (sin sesión): destino de los QR (/verificar/{token}) y resultados publicados (/resultados)
@@ -120,6 +139,8 @@ function Cabina() {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
+    <ErrorBoundary>
     {cabina ? <Cabina /> : credencialPublica ? <CredencialPublica /> : portalPublico ? <PortalResultados /> : <App />}
+    </ErrorBoundary>
   </StrictMode>,
 );

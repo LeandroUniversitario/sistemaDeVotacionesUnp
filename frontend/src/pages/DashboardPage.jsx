@@ -1,7 +1,8 @@
-﻿import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../api/apiClient';
 import MenuIcon from '../components/MenuIcon';
 import ProcessTable from '../components/ProcessTable';
+import ErrorBoundary from '../components/ErrorBoundary';
 const DocentesPage = lazy(() => import('./DocentesPage'));
 const CuentaPage = lazy(() => import('./CuentaPage'));
 const MiembroMesaPage = lazy(() => import('./MiembroMesaPage'));
@@ -187,6 +188,31 @@ const ROL_LEGIBLE = {
   DOCENTE: 'Docente elector',
 };
 
+// Pantalla con la que abre cada rol al iniciar sesión
+const SECCION_INICIAL_ROL = {
+  CEUNP: 'candidaturas',
+  MIEMBRO_MESA: 'mesa',
+  DOCENTE: 'pase',
+};
+const seccionPorDefecto = (rol) => SECCION_INICIAL_ROL[rol] ?? 'resumen';
+
+// Secciones que el rol puede abrir aunque no estén en su menú (accesos desde otras pantallas)
+const SECCIONES_EXTRA_ROL = {
+  ADMIN: ['administracion', 'instalacion', 'cierre', 'escrutinio', 'computo', 'nulidades', 'impugnaciones', 'multas', 'pase', 'verificar-qr'],
+  CEUNP: ['terminal', 'verificar-elector', 'verificar-qr', 'pase'],
+  MIEMBRO_MESA: [],
+  PERSONERO: ['verificar-qr'],
+  DOCENTE: [],
+};
+
+/** true si la sección existe para el rol: evita abrir (en blanco) una sección de otra cuenta */
+function seccionPermitida(rol, seccion) {
+  if (!seccion) return false;
+  if (seccion === 'cuenta') return true;
+  return (MENU_POR_ROL[rol] ?? []).some((i) => i.key === seccion)
+    || (SECCIONES_EXTRA_ROL[rol] ?? []).includes(seccion);
+}
+
 const CLAVE_GRUPOS = 'siceunp.menu.cerrados';
 function leerGruposCerrados() {
   try { return new Set(JSON.parse(localStorage.getItem(CLAVE_GRUPOS) ?? '[]')); }
@@ -203,11 +229,11 @@ export default function DashboardPage({ session, onLogout }) {
   // UX: cada sección tiene su URL (#/seccion), así el botón Atrás y los enlaces funcionan sin salir de la app
   const seccionInicial = () => {
     const desdeUrl = window.location.hash.replace(/^#\/?/, '');
-    if (desdeUrl) return desdeUrl;
-    if (session.rol === 'CEUNP') return 'candidaturas';
-    if (session.rol === 'MIEMBRO_MESA') return 'mesa';
-    if (session.rol === 'DOCENTE') return 'pase';
-    return 'resumen';
+    if (seccionPermitida(session.rol, desdeUrl)) return desdeUrl;
+    const inicial = seccionPorDefecto(session.rol);
+    // La URL traía una sección que este rol no tiene (p. ej. la de otra cuenta): se corrige sin dejar historial
+    if (desdeUrl) window.history.replaceState(null, '', `#/${inicial}`);
+    return inicial;
   };
   const [section, setSeccion] = useState(seccionInicial);
   const setSection = (nueva) => {
@@ -421,7 +447,6 @@ export default function DashboardPage({ session, onLogout }) {
       {/* ── Contenido principal ───────────────────────────────────── */}
       <main className="content">
         {/* UX: cada pantalla se carga al abrirla (el paquete inicial deja de pesar 1,2 MB) */}
-        <Suspense fallback={<div className="spinner" aria-label="Cargando" />}>
         <header className="topbar">
           <button
             type="button"
@@ -490,6 +515,9 @@ export default function DashboardPage({ session, onLogout }) {
         </header>
 
         <div className="vista" key={section}>
+        {/* Si una pantalla falla, el error queda dentro del panel: menú y barra superior siguen disponibles */}
+        <ErrorBoundary compacto onInicio={() => setSection(seccionPorDefecto(session.rol))}>
+        <Suspense fallback={<div className="vista-cargando"><div className="spinner" aria-label="Cargando" /></div>}>
         {feedback && <div className={`alert ${feedback.type}`}>{feedback.text}</div>}
 
         {/* Resumen — varía según el rol */}
@@ -654,7 +682,16 @@ export default function DashboardPage({ session, onLogout }) {
         )}
 
         {/* Cuenta */}
-        {section === 'cuenta' && <CuentaPage onSessionExpired={onLogout} />}
+        {section === 'cuenta' && (
+          <CuentaPage
+            session={session}
+            menu={MENU_POR_ROL[session.rol] ?? []}
+            rolLegible={ROL_LEGIBLE[session.rol] ?? session.rol}
+            onIrA={irA}
+            onLogout={onLogout}
+            onSessionExpired={onLogout}
+          />
+        )}
 
         {/* Cargos excluidos (Exclusivo Administrador) */}
         {section === 'cargos-excluidos' && isAdmin && (
@@ -740,8 +777,9 @@ export default function DashboardPage({ session, onLogout }) {
         {section === 'pase' && !['DOCENTE', 'PERSONERO', 'MIEMBRO_MESA'].includes(session.rol) && <MisCredencialesPage foco="ELECTOR" onSessionExpired={onLogout} />}
         {section === 'verificar-qr' && <VerificarCredencialPanel onSessionExpired={onLogout} />}
 
+        </Suspense>
+        </ErrorBoundary>
         </div>
-              </Suspense>
       </main>
     </div>
   );
