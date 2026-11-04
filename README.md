@@ -33,8 +33,6 @@ Ejecutar en MariaDB/MySQL:
 ### 2. Backend
 ```
 cd backend
-export JWT_SECRET=$(openssl rand -hex 32)      # obligatorio: sin él el backend no arranca
-export RESPALDO_CLAVE='una-frase-larga-y-privada' # obligatorio para generar respaldos (mín. 16 caracteres)
 mvn spring-boot:run
 ```
 Servidor: http://localhost:8080
@@ -43,11 +41,11 @@ Variables de entorno:
 
 | Variable | Obligatoria | Uso |
 |----------|-------------|-----|
-| `JWT_SECRET` | Sí | Firma de las sesiones. Al menos 32 bytes aleatorios; el valor de ejemplo que estuvo en el repositorio se rechaza. |
-| `RESPALDO_CLAVE` | Para respaldos | Clave con la que se cifran los respaldos (AES-256-GCM). Guárdela fuera del servidor. |
-| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | En producción | Conexión a MariaDB (por defecto `localhost`, `root`, sin clave). |
+| `JWT_SECRET` | Solo en producción | Firma de las sesiones (al menos 32 bytes aleatorios). En desarrollo, si falta, el backend genera una clave aleatoria al arrancar y las sesiones se cierran al reiniciarlo. Defínala si quiere conservar las sesiones entre reinicios. |
+| `RESPALDO_CLAVE` | Para respaldos | Clave con la que se cifran los respaldos (AES-256-GCM, mín. 16 caracteres). Guárdela fuera del servidor. |
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | En producción | Conexión a MariaDB (por defecto `localhost`, `root`, sin clave, como en XAMPP). |
 
-En producción use el perfil `prod` (`SPRING_PROFILES_ACTIVE=prod`): exige las variables de la base, respeta `X-Forwarded-For` detrás de un proxy con HTTPS y no devuelve trazas de error.
+En producción use el perfil `prod` (`SPRING_PROFILES_ACTIVE=prod`): exige `JWT_SECRET` y las variables de la base, respeta `X-Forwarded-For` detrás de un proxy con HTTPS y no devuelve trazas de error.
 
 ### 3. Frontend
 ```

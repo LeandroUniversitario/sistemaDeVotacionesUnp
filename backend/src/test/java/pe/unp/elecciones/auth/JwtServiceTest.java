@@ -26,6 +26,16 @@ class JwtServiceTest {
     }
 
     @Test
+    void enDesarrolloSinSecretoGeneraUnoAleatorio() {
+        JwtService a = new JwtService("", Duration.ofHours(2), false);
+        JwtService b = new JwtService(null, Duration.ofHours(2), false);
+        Usuario u = usuario();
+        assertTrue(a.isValid(a.generateToken(u), u));
+        // cada arranque tiene su propia clave: un token de una ejecución no sirve en otra
+        assertThrows(io.jsonwebtoken.security.SignatureException.class, () -> b.extractUsername(a.generateToken(u)));
+    }
+
+    @Test
     void tokenValidoParaSuUsuario() {
         JwtService jwt = new JwtService(SECRETO, Duration.ofHours(2));
         Usuario u = usuario();

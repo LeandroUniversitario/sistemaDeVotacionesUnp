@@ -15,6 +15,7 @@ import io.jsonwebtoken.security.Keys;
 
 @Service
 public class JwtService {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(JwtService.class);
     private static final java.util.Set<String> SECRETOS_PUBLICADOS =
             java.util.Set.of("change-this-development-secret-with-at-least-32-bytes");
 
@@ -23,13 +24,23 @@ public class JwtService {
     private final SecretKey signingKey;
     private final Duration expiration;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public JwtService(
             @Value("${app.security.jwt-secret:}") String secret,
-            @Value("${app.security.jwt-expiration:PT2H}") Duration expiration) {
-        // A4: sin valor por defecto. Si falta JWT_SECRET (o es el valor de ejemplo que estuvo en el
-        // repositorio), el backend no arranca: cualquiera que leyera el repo podría firmar un token de ADMIN.
+            @Value("${app.security.jwt-expiration:PT2H}") Duration expiration,
+            @Value("${app.security.jwt-secret-obligatorio:false}") boolean secretoObligatorio) {
+        // A4: nunca un valor fijo en el código o en el repositorio. Si falta JWT_SECRET, en desarrollo se
+        // genera uno aleatorio al arrancar (las sesiones caducan al reiniciar el backend); en el perfil
+        // prod es obligatorio y el backend no arranca sin él.
         if (secret == null || secret.isBlank()) {
-            throw new IllegalStateException("Defina la variable de entorno JWT_SECRET (al menos 32 bytes aleatorios).");
+            if (secretoObligatorio) {
+                throw new IllegalStateException("Defina la variable de entorno JWT_SECRET (al menos 32 bytes aleatorios).");
+            }
+            byte[] azar = new byte[48];
+            new java.security.SecureRandom().nextBytes(azar);
+            secret = java.util.HexFormat.of().formatHex(azar);
+            LOG.warn("JWT_SECRET no está definido: se generó una clave aleatoria para esta ejecución. "
+                    + "Las sesiones se cierran al reiniciar el backend. En producción defina JWT_SECRET.");
         }
         if (SECRETOS_PUBLICADOS.contains(secret)) {
             throw new IllegalStateException("JWT_SECRET usa un valor publicado en el repositorio; genere uno nuevo.");
@@ -39,6 +50,10 @@ public class JwtService {
         }
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expiration = expiration;
+    }
+
+    JwtService(String secret, Duration expiration) {
+        this(secret, expiration, true);
     }
 
     public String generateToken(Usuario usuario) {

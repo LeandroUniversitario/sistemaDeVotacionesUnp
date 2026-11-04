@@ -7,6 +7,10 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
+app:
+  security:
+    jwt-secret-obligatorio: true   # A4: en producción el backend no arranca sin JWT_SECRET
+
 server:
   forward-headers-strategy: framework   # respeta X-Forwarded-For/Proto del proxy (IP real para los límites)
   error:
