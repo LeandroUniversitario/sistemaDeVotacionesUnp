@@ -119,7 +119,6 @@ export default function SorteoMesaPage({ onSessionExpired }) {
       const data = await apiRequest(`/api/sorteo-mesas/procesos/${idProceso}/vista-previa`, {
         method: 'POST', body: JSON.stringify({ semilla }),
       });
-      setSemilla(data.semillaBase);
       setPreview(data);
     } catch (error) {
       manejarError(error);
@@ -156,7 +155,7 @@ export default function SorteoMesaPage({ onSessionExpired }) {
       });
       setDetalle((d) => ({ ...d, cedula: data.cargos }));
       setSemillasCedula((s) => ({ ...s, [cargo.id]: data.semilla }));
-      setFeedback({ type: 'success', text: `${data.mensaje} Semilla: ${data.semilla.slice(0, 16)}…` });
+      setFeedback({ type: 'success', text: `${data.mensaje} Secreto revelado: ${data.secretoServidor.slice(0, 16)}… · semilla: ${data.semilla.slice(0, 16)}…` });
     } catch (error) {
       manejarError(error);
     } finally {
@@ -295,15 +294,16 @@ export default function SorteoMesaPage({ onSessionExpired }) {
             <section className="panel cv-form">
               <div className="cv-section-head">
                 <div>
-                  <h3>Semilla del sorteo</h3>
+                  <h3>Aporte a la semilla del sorteo</h3>
                   <p className="muted">
-                    Puede usar una semilla pública acordada en el acto (por ejemplo, el número ganador de un sorteo de lotería) o generar una aleatoria.
-                    Con la misma semilla cualquiera puede repetir el sorteo y obtener los mismos miembros.
+                    El sistema ya fijó un secreto y publica solo su huella (compromiso). La semilla final es SHA-256(secreto | su aporte):
+                    nadie puede conocer el resultado antes de sortear, y al sortear se revela el secreto para que cualquiera lo verifique.
+                    Su aporte puede ser un dato público acordado en el acto (por ejemplo, el número ganador de una lotería) o quedar vacío.
                   </p>
                 </div>
               </div>
               <div className="so-semilla">
-                <input className="mono" maxLength={128} value={semilla} placeholder="Vacía = el sistema genera una semilla de 256 bits"
+                <input className="mono" maxLength={128} value={semilla} placeholder="Opcional: dato público acordado en el acto"
                   onChange={(e) => { setSemilla(e.target.value); setPreview(null); }} aria-label="Semilla del sorteo" />
                 <button type="button" className="cv-btn cv-btn-soft" onClick={() => { setSemilla(semillaAleatoria()); setPreview(null); }}>
                   <MenuIcon name="refresh" size={15} /> Generar aleatoria
@@ -312,7 +312,8 @@ export default function SorteoMesaPage({ onSessionExpired }) {
               <details className="so-algoritmo">
                 <summary>¿Cómo se sortea? (RNF01 · auditable)</summary>
                 <ol>
-                  <li>Semilla de cada mesa = SHA-256(semilla | número de mesa).</li>
+                  <li>Semilla base = SHA-256(secreto del sistema | aporte). El secreto se compromete antes (se publica su SHA-256) y se revela al sortear.</li>
+                  <li>Semilla de cada mesa = SHA-256(semilla base | número de mesa).</li>
                   <li>Los elegibles de la mesa se ordenan por SHA-256(semilla de la mesa | DNI).</li>
                   <li>Los 6 primeros: Presidente, Secretario y Vocal (titulares) y 3 suplentes (RN19).</li>
                 </ol>
@@ -322,8 +323,8 @@ export default function SorteoMesaPage({ onSessionExpired }) {
                 <button type="button" className="cv-btn cv-btn-ghost" disabled={saving} onClick={vistaPrevia}>
                   <MenuIcon name="eye" size={15} /> Vista previa
                 </button>
-                <button type="button" className="cv-btn cv-btn-success" disabled={saving || !semilla || insuficientes.length > 0}
-                  title={semilla ? '' : 'Ingrese o genere la semilla'} onClick={() => setConfirmando(true)}>
+                <button type="button" className="cv-btn cv-btn-success" disabled={saving || insuficientes.length > 0}
+                  onClick={() => setConfirmando(true)}>
                   <MenuIcon name="sorteo" size={15} /> Realizar sorteo
                 </button>
               </div>
@@ -331,7 +332,7 @@ export default function SorteoMesaPage({ onSessionExpired }) {
               {preview && (
                 <div className="so-preview">
                   <p className="so-preview-head">
-                    <MenuIcon name="eye" size={14} /> Vista previa con la semilla <code>{preview.semillaBase.slice(0, 24)}…</code> — aún no se ha grabado nada.
+                    <MenuIcon name="eye" size={14} /> Compromiso del sorteo: <code>{preview.compromiso.slice(0, 24)}…</code> — los miembros se conocen solo al sortear.
                   </p>
                   {insuficientes.length > 0 && (
                     <p className="tc-aviso so-aviso bad"><MenuIcon name="alert" size={14} />
@@ -339,7 +340,11 @@ export default function SorteoMesaPage({ onSessionExpired }) {
                     </p>
                   )}
                   <div className="so-grid">
-                    {preview.mesas.map((m) => <MesaCard key={m.idMesa} numero={m.numeroMesa} miembros={m.miembros} semilla={m.semillaMesa} previa />)}
+                    {preview.mesas.map((m) => (
+                      <div key={m.idMesa} className="panel so-mesa-previa">
+                        <strong>Mesa {m.numeroMesa}</strong> · {m.elegibles} docentes elegibles {m.suficientes ? '' : '(insuficientes)'}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -361,7 +366,12 @@ export default function SorteoMesaPage({ onSessionExpired }) {
                 )}
               </div>
               {resultado && (
-                <p className="so-preview-head">Semilla base usada: <code className="so-seed">{resultado.semillaBase}</code></p>
+                <p className="so-preview-head">
+                  Compromiso publicado: <code className="so-seed">{resultado.compromiso}</code><br />
+                  Secreto revelado: <code className="so-seed">{resultado.secretoServidor}</code><br />
+                  Aporte del acto: <code className="so-seed">{resultado.aporteOperador || '(vacío)'}</code><br />
+                  Semilla base = SHA-256(secreto | aporte): <code className="so-seed">{resultado.semillaBase}</code>
+                </p>
               )}
               <div className="so-grid">
                 {sorteadas.map((m) => (
@@ -400,12 +410,15 @@ export default function SorteoMesaPage({ onSessionExpired }) {
                   ))}
                 </ol>
               )}
-              {admite && c.listas.length > 0 && (
+              {c.compromiso && !c.sorteado && (
+                <p className="muted">Compromiso del sorteo: <code>{c.compromiso.slice(0, 24)}…</code></p>
+              )}
+              {admite && c.listas.length > 0 && !c.sorteado && (
                 <div className="so-semilla">
-                  <input className="mono" maxLength={128} placeholder="Semilla (vacía = aleatoria)" value={semillasCedula[c.id] ?? ''}
+                  <input className="mono" maxLength={128} placeholder="Aporte opcional (dato público del acto)" value={semillasCedula[c.id] ?? ''}
                     onChange={(e) => setSemillasCedula((s) => ({ ...s, [c.id]: e.target.value }))} aria-label={`Semilla para ${c.nombre}`} />
                   <button type="button" className="cv-btn cv-btn-primary" disabled={saving} onClick={() => sortearCedula(c)}>
-                    <MenuIcon name="sorteo" size={15} /> {c.sorteado ? 'Volver a sortear' : 'Sortear orden'}
+                    <MenuIcon name="sorteo" size={15} /> Sortear orden
                   </button>
                 </div>
               )}
@@ -419,7 +432,7 @@ export default function SorteoMesaPage({ onSessionExpired }) {
           <div className="modal-card small cv-confirm">
             <h2 id="so-confirm-title">¿Realizar el sorteo?</h2>
             <p>
-              Se sortearán {pendientes.length} mesa(s) con la semilla <code>{semilla.slice(0, 16)}…</code>. Los docentes sorteados quedan
+              Se sortearán {pendientes.length} mesa(s){semilla ? <> con el aporte <code>{semilla.slice(0, 16)}</code></> : ''}. Los docentes sorteados quedan
               designados (RN19: cargo irrenunciable) y el sorteo no se puede repetir.
             </p>
             <div className="cv-actions">

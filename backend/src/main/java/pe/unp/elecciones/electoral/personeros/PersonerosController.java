@@ -66,6 +66,7 @@ public class PersonerosController {
 
     // ─── 5-8: confirmarAcreditacion(tipo, id_mesa) ───────────────────────────
 
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @PostMapping("/listas/{idLista}")
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, Object> acreditar(@PathVariable Integer idLista,
@@ -73,6 +74,7 @@ public class PersonerosController {
         return acreditarPersonero.guardarAcreditacion(idLista, datos, usuarioActual.id(authentication));
     }
 
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @PostMapping("/{idPersonero}/revocar")
     public Map<String, Object> revocar(@PathVariable Integer idPersonero,
             @Valid @RequestBody DatosRevocacion datos, Authentication authentication) {

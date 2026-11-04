@@ -160,6 +160,9 @@ CREATE TABLE usuario (
   fecha_actualizacion   DATETIME NULL COMMENT 'CUS18: último cambio de rol, docente, estado o contraseña',
   motivo_estado         VARCHAR(300) NULL COMMENT 'CUS18: motivo de la última desactivación o reactivación',
   debe_cambiar_password BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE: docente importado, debe cambiar clave en 1er login
+  -- A4: los JWT emitidos antes de esta fecha dejan de valer (cambio de clave o desactivación).
+  -- La pone trg_usuario_revocar_bu; el filtro JWT la compara con la fecha de emisión del token.
+  token_valido_desde    DATETIME(3) NULL,   -- milisegundos: un token emitido en el mismo segundo que la revocación no sobrevive
   UNIQUE KEY uq_usuario_username (username),
   CONSTRAINT fk_usuario_docente FOREIGN KEY (id_docente) REFERENCES docente(id_docente),
   CONSTRAINT fk_usuario_creador FOREIGN KEY (id_usuario_creador) REFERENCES usuario(id_usuario) ON DELETE SET NULL
@@ -381,8 +384,11 @@ CREATE TABLE padron_electoral (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- REGLA DE ORO: esta tabla NO referencia a docente, usuario, sesión ni constancia.
+-- Secreto del voto (RF69, RNF05/RNF06): la clave es aleatoria (16 bytes de RANDOM_BYTES, la pone
+-- trg_voto_bi). Con una clave autoincremental el orden de los ids era el orden de votación y,
+-- cruzado con padron_electoral.fecha_votacion, revelaba el voto de cada docente.
 CREATE TABLE voto (
-  id_voto          BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id_voto          BINARY(16) NOT NULL PRIMARY KEY,
   id_proceso       INT NOT NULL,
   id_cargo         INT NOT NULL,
   id_lista_elegida INT NULL,
@@ -414,6 +420,29 @@ CREATE TABLE constancia_voto (
   UNIQUE KEY uq_constancia_participacion (id_proceso, id_docente, id_cargo),
   CONSTRAINT fk_constancia_cargo_proceso FOREIGN KEY (id_cargo, id_proceso) REFERENCES cargo_electoral(id_cargo, id_proceso),
   CONSTRAINT fk_constancia_docente FOREIGN KEY (id_docente) REFERENCES docente(id_docente)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- M2: compromiso del sorteo (commit-reveal). Antes de sortear se publica SHA-256(secreto); al
+-- sortear, semilla = SHA-256(secreto | aporte del operador) y se revela el secreto. El operador no
+-- puede probar semillas hasta obtener el resultado que quiere, y cualquiera puede verificarlo después.
+CREATE TABLE sorteo_compromiso (
+  ambito         VARCHAR(40) NOT NULL PRIMARY KEY,   -- 'MESAS:<id_proceso>' o 'CEDULA:<id_cargo>'
+  secreto        CHAR(64) NOT NULL,
+  compromiso     CHAR(64) NOT NULL,                  -- SHA-256 del secreto, visible antes del sorteo
+  fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- M5: constancias por entregar en la mesa (antes vivían en memoria del backend y se perdían al
+-- reiniciarlo). Se borran al entregarlas o a las 3 horas. No guardan el sentido del voto.
+CREATE TABLE constancia_pendiente (
+  id_proceso    INT NOT NULL,
+  id_docente    INT NOT NULL,
+  id_mesa       INT NOT NULL,
+  cargos_json   TEXT NOT NULL,                       -- [{idCargo, cargo, token}]
+  fecha_emision DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id_proceso, id_docente),
+  CONSTRAINT fk_constancia_pend_docente FOREIGN KEY (id_docente) REFERENCES docente(id_docente),
+  CONSTRAINT fk_constancia_pend_mesa    FOREIGN KEY (id_mesa)    REFERENCES mesa_electoral(id_mesa)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- RN28: tres actas por mesa, con huella SHA-256 del contenido
@@ -730,6 +759,10 @@ CREATE TABLE terminal_votacion (
   activo           BOOLEAN NOT NULL DEFAULT TRUE,     -- FALSE: fuera de servicio (CUS10 A4)
   fecha_registro   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   ultima_conexion  DATETIME NULL,
+  -- C2/M1: el equipo de la cabina se identifica con un secreto de dispositivo (no con la sesión de
+  -- una persona). Se guarda solo su SHA-256; se emite al conectar el equipo y se rota al reconectarlo.
+  secreto_hash     CHAR(64) NULL,
+  id_usuario_conexion INT NULL,                       -- miembro de mesa que conectó el equipo
   UNIQUE KEY uq_terminal_mesa_nombre (id_mesa, nombre),
   CONSTRAINT fk_terminal_mesa FOREIGN KEY (id_mesa) REFERENCES mesa_electoral(id_mesa)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1093,9 +1126,8 @@ BEGIN
       SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'RN04: el docente no esta habilitado en el padron.';
     END IF;
-    IF NEW.fecha_votacion IS NULL THEN
-      SET NEW.fecha_votacion = NOW();
-    END IF;
+    -- Secreto del voto: el padrón guarda solo la hora en que votó (sin minutos ni segundos)
+    SET NEW.fecha_votacion = DATE_FORMAT(COALESCE(NEW.fecha_votacion, NOW()), '%Y-%m-%d %H:00:00');
   END IF;
 END$$
 
@@ -1128,8 +1160,9 @@ BEGIN
       SET MESSAGE_TEXT = 'Solo se puede votar por listas ADMITIDAS.';
   END IF;
 
-  -- Secreto del voto: se guarda solo la hora (sin minutos ni segundos) para que no
-  -- se pueda cruzar con padron_electoral.fecha_votacion ni con la bitácora.
+  -- Secreto del voto: clave aleatoria (sin orden de inserción) y solo la hora (sin minutos
+  -- ni segundos) para que no se pueda cruzar con el padrón, la constancia ni la bitácora.
+  SET NEW.id_voto = RANDOM_BYTES(16);
   SET NEW.fecha_hora = DATE_FORMAT(NOW(), '%Y-%m-%d %H:00:00');
 END$$
 
@@ -1526,7 +1559,7 @@ CREATE PROCEDURE sp_emitir_acta(
   OUT p_token     CHAR(64)
 )
 BEGIN
-  SET p_token = SHA2(CONCAT(UUID(), RAND(), p_id_mesa, p_tipo, NOW(6)), 256);
+  SET p_token = LOWER(HEX(RANDOM_BYTES(32)));
   INSERT INTO acta_electoral (id_mesa, tipo, contenido_json, hash_integridad, token_qr_hash)
   VALUES (p_id_mesa, p_tipo, p_contenido, SHA2(p_contenido, 256), SHA2(p_token, 256));
 END$$
@@ -1640,6 +1673,8 @@ BEGIN
   DECLARE v_estado VARCHAR(20) DEFAULT NULL;
   DECLARE v_nuevo  VARCHAR(20);
   DECLARE v_n      INT DEFAULT 0;
+  DECLARE v_abiertas TEXT DEFAULT NULL;
+  DECLARE v_msg    VARCHAR(255);
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
   BEGIN
     ROLLBACK;
@@ -1702,6 +1737,21 @@ BEGIN
        AND (SELECT COUNT(*) FROM miembro_mesa mm WHERE mm.id_mesa = m.id_mesa) <> 6;
     IF v_n > 0 THEN
       SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RN19: hay mesas sin sus 3 titulares y 3 suplentes.';
+    END IF;
+  END IF;
+
+  -- RN32: la votación concluye con todas las mesas cerradas (la regla vive aquí, no en Java,
+  -- para que ningún camino de la API pueda cerrar el proceso con mesas abiertas).
+  IF v_nuevo = 'CERRADO' THEN
+    SELECT GROUP_CONCAT(CONCAT('Mesa ', numero_mesa,
+                               IF(estado = 'INSTALADA', ' con el sufragio abierto (CUS11)', ' sin instalar (CUS08)'))
+                        ORDER BY LENGTH(numero_mesa), numero_mesa SEPARATOR '; ')
+      INTO v_abiertas
+      FROM mesa_electoral
+     WHERE id_proceso = p_id_proceso AND estado IN ('INSTALADA', 'PENDIENTE');
+    IF v_abiertas IS NOT NULL THEN
+      SET v_msg = LEFT(CONCAT('RN32: la votacion concluye con todas las mesas cerradas. ', v_abiertas, '.'), 255);
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
     END IF;
   END IF;
 
@@ -2108,8 +2158,15 @@ BEGIN
   IF v_estado NOT IN ('CREADO','INSCRIPCION') THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RN18: la cedula solo se sortea antes de la VOTACION.';
   END IF;
+  -- M2: un solo sorteo por cargo. Solo se repite si se admitió una lista nueva sin número.
+  IF EXISTS (SELECT 1 FROM lista_electoral WHERE id_cargo = p_id_cargo AND estado = 'ADMITIDA')
+     AND NOT EXISTS (SELECT 1 FROM lista_electoral
+                      WHERE id_cargo = p_id_cargo AND estado = 'ADMITIDA' AND orden_cedula IS NULL) THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'RN18: el orden de la cedula de este cargo ya fue sorteado; no se repite.';
+  END IF;
 
-  SET v_semilla = COALESCE(NULLIF(TRIM(p_semilla), ''), SHA2(CONCAT(UUID(), RAND()), 256));
+  SET v_semilla = COALESCE(NULLIF(TRIM(p_semilla), ''), LOWER(HEX(RANDOM_BYTES(32))));
 
   DROP TEMPORARY TABLE IF EXISTS tmp_orden_cedula;
   CREATE TEMPORARY TABLE tmp_orden_cedula (id_lista INT PRIMARY KEY, n INT NOT NULL);
@@ -2313,7 +2370,7 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RN19: la mesa ya fue sorteada (el cargo es irrenunciable).';
   END IF;
 
-  SET v_semilla = COALESCE(NULLIF(TRIM(p_semilla), ''), SHA2(CONCAT(UUID(), RAND()), 256));
+  SET v_semilla = COALESCE(NULLIF(TRIM(p_semilla), ''), LOWER(HEX(RANDOM_BYTES(32))));
   SELECT COUNT(*) INTO v_asignados FROM padron_electoral WHERE id_mesa = p_id_mesa;
 
   DROP TEMPORARY TABLE IF EXISTS tmp_sorteo;
@@ -2373,7 +2430,7 @@ BEGIN
   END;
 
   START TRANSACTION;
-  SET v_base = COALESCE(NULLIF(TRIM(p_semilla_base), ''), SHA2(CONCAT(UUID(), RAND()), 256));
+  SET v_base = COALESCE(NULLIF(TRIM(p_semilla_base), ''), LOWER(HEX(RANDOM_BYTES(32))));
 
   SET v_fin = 0;
   OPEN cur_mesas;
@@ -2511,7 +2568,7 @@ BEGIN
 
   -- 2. quién votó
   UPDATE padron_electoral
-     SET ya_voto = 1, fecha_votacion = NOW()
+     SET ya_voto = 1, fecha_votacion = DATE_FORMAT(NOW(), '%Y-%m-%d %H:00:00')
    WHERE id_proceso = p_id_proceso AND id_cargo = p_id_cargo AND id_docente = p_id_docente;
 
   -- 3. voto anónimo (sin id_docente)
@@ -2519,7 +2576,7 @@ BEGIN
   VALUES (p_id_proceso, p_id_cargo, IF(v_tipo = 'VALIDO', p_id_lista, NULL), v_tipo, v_mesa);
 
   -- 4. constancia de participación
-  SET p_token_constancia = SHA2(CONCAT(UUID(), RAND(), p_id_docente, NOW(6)), 256);
+  SET p_token_constancia = LOWER(HEX(RANDOM_BYTES(32)));
   INSERT INTO constancia_voto (id_proceso, id_docente, id_cargo, token_qr_hash)
   VALUES (p_id_proceso, p_id_docente, p_id_cargo, SHA2(p_token_constancia, 256));
 
@@ -3355,7 +3412,7 @@ BEGIN
 
   -- Votó: se marca solo aquí, dentro de la transacción del voto
   UPDATE padron_electoral
-     SET ya_voto = 1, fecha_votacion = NOW()
+     SET ya_voto = 1, fecha_votacion = DATE_FORMAT(NOW(), '%Y-%m-%d %H:00:00')
    WHERE id_proceso = v_proceso AND id_cargo = p_id_cargo AND id_docente = v_docente;
 
   -- Voto sin vínculo con el elector (RF69, RNF06)
@@ -3363,7 +3420,7 @@ BEGIN
   VALUES (v_proceso, p_id_cargo, IF(v_tipo = 'VALIDO', p_id_lista, NULL), v_tipo, v_mesa);
 
   -- generarConstancia(): prueba de participación (no del sentido del voto)
-  SET p_token_constancia = SHA2(CONCAT(UUID(), RAND(), v_docente, NOW(6)), 256);
+  SET p_token_constancia = LOWER(HEX(RANDOM_BYTES(32)));
   INSERT INTO constancia_voto (id_proceso, id_docente, id_cargo, token_qr_hash)
   VALUES (v_proceso, v_docente, p_id_cargo, SHA2(p_token_constancia, 256));
 
@@ -4529,7 +4586,7 @@ BEGIN
   END IF;
 
   SET v_ahora = NOW();
-  SET v_codigo = UPPER(LEFT(SHA2(CONCAT(p_id_mesa, '|', v_numero, '|', v_ahora, '|', UUID()), 256), 12));
+  SET v_codigo = UPPER(LEFT(SHA2(CONCAT(p_id_mesa, '|', v_numero, '|', v_ahora, '|', HEX(RANDOM_BYTES(16))), 256), 12));
 
   UPDATE escrutinio_mesa
      SET estado = 'ENTREGADA', fecha_entrega = v_ahora, recibido_por = v_recibe, ejemplares = p_ejemplares,
@@ -5974,7 +6031,7 @@ BEGIN
          ',"comunicar_a":["SUNEDU","Asamblea Universitaria","Consejo Universitario"]', ''),
       '}');
 
-  SET v_token = SHA2(CONCAT(UUID(), RAND(), p_id_proceso, 'COMPUTO', NOW(6)), 256);
+  SET v_token = LOWER(HEX(RANDOM_BYTES(32)));
   UPDATE computo_proceso
      SET estado = 'COMPUTADO', fecha_computo = v_ahora, mesas_total = v_mesas, mesas_computadas = v_computadas,
          mesas_no_instaladas = v_no_inst, mesas_anuladas = v_anuladas, actas_verificadas = v_actas,
@@ -6062,7 +6119,7 @@ BEGIN
   -- 16: acreditarGanadora(idLista) -> 17 listaAcreditada()
   INSERT INTO proclamacion_cargo (id_cargo, id_proceso, id_lista, votos, porcentaje_validos, codigo_credencial, fecha_proclamacion)
   SELECT c.id_cargo, c.id_proceso, c.id_lista_ganadora, r.total_votos, r.porcentaje_validos,
-         UPPER(LEFT(SHA2(CONCAT(c.id_cargo, '|', c.id_lista_ganadora, '|', v_res, '|', UUID()), 256), 12)), v_ahora
+         UPPER(LEFT(SHA2(CONCAT(c.id_cargo, '|', c.id_lista_ganadora, '|', v_res, '|', HEX(RANDOM_BYTES(16))), 256), 12)), v_ahora
     FROM cargo_electoral c
     JOIN resultado_electoral r ON r.id_cargo = c.id_cargo AND r.id_lista = c.id_lista_ganadora AND r.tipo_voto = 'VALIDO'
    WHERE c.id_proceso = p_id_proceso AND c.estado_resultado = 'ELEGIDO';
@@ -6108,7 +6165,7 @@ BEGIN
       ',"sin_proclamar":', COALESCE(v_sin, '[]'),
       ',"fundamento":', IF(NULLIF(TRIM(p_fundamento), '') IS NULL, 'null', JSON_QUOTE(TRIM(p_fundamento))),
       '}');
-  SET v_token = SHA2(CONCAT(UUID(), RAND(), p_id_proceso, 'PROCLAMACION', NOW(6)), 256);
+  SET v_token = LOWER(HEX(RANDOM_BYTES(32)));
 
   UPDATE computo_proceso
      SET estado = 'PROCLAMADO', numero_resolucion = v_res, miembros_pleno = p_miembros_pleno, presidente_ceunp = v_pres,
@@ -6345,6 +6402,34 @@ BEGIN
      AND NOT (OLD.estado = 'FINALIZADO' AND NEW.estado = 'ANULADO' AND @cus15_nulidad_total <=> OLD.id_proceso) THEN
     SIGNAL SQLSTATE '45000'
       SET MESSAGE_TEXT = 'Un proceso FINALIZADO o ANULADO no puede cambiar de estado.';
+  END IF;
+END$$
+
+-- RN31 / M3: el quórum de un proceso no puede ser menor que el mínimo legal (parámetro
+-- QUORUM_MINIMO_LEGAL_PCT, 60 % por defecto). Para una demostración el ADMIN puede bajar el
+-- parámetro de forma explícita, y ese cambio queda en el historial de parámetros (CUS18).
+CREATE TRIGGER trg_proceso_quorum_bi BEFORE INSERT ON proceso_electoral
+FOR EACH ROW
+BEGIN
+  IF NEW.quorum_minimo < COALESCE(fn_parametro_decimal('QUORUM_MINIMO_LEGAL_PCT'), 60) THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'RN31: el quorum del proceso no puede ser menor que el minimo legal (parametro QUORUM_MINIMO_LEGAL_PCT).';
+  END IF;
+  -- RN02 (auditoría M3): antes solo lo validaba Java. La segunda vuelta no tiene convocatoria propia.
+  IF NEW.fecha_convocatoria IS NOT NULL
+     AND DATEDIFF(DATE(NEW.fecha_inicio), NEW.fecha_convocatoria) NOT BETWEEN 30 AND 45 THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'RN02: la convocatoria debe publicarse entre 30 y 45 dias naturales antes del sufragio.';
+  END IF;
+END$$
+
+CREATE TRIGGER trg_proceso_quorum_bu BEFORE UPDATE ON proceso_electoral
+FOR EACH ROW
+BEGIN
+  IF NOT (NEW.quorum_minimo <=> OLD.quorum_minimo)
+     AND NEW.quorum_minimo < COALESCE(fn_parametro_decimal('QUORUM_MINIMO_LEGAL_PCT'), 60) THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'RN31: el quorum del proceso no puede ser menor que el minimo legal (parametro QUORUM_MINIMO_LEGAL_PCT).';
   END IF;
 END$$
 
@@ -6867,7 +6952,7 @@ BEGIN
       IF(v_decision = 'FUNDADA' AND v_alcance = 'TOTAL',
          ',"comunicar_a":["SUNEDU","Asamblea Universitaria","Consejo Universitario"]', ''),
       '}');
-  SET v_token = SHA2(CONCAT(UUID(), RAND(), p_id_nulidad, 'NULIDAD', NOW(6)), 256);
+  SET v_token = LOWER(HEX(RANDOM_BYTES(32)));
 
   UPDATE nulidad_electoral
      SET estado = v_decision, numero_resolucion = v_res, fundamento_resolucion = v_fund,
@@ -7813,7 +7898,7 @@ BEGIN
       ',"multas":', v_lista,
       ',"nota":', JSON_QUOTE('El sistema determina las multas; no las cobra. El docente puede justificar su inasistencia ante el CEUNP (Disp. Final 2.ª y 5.ª).'),
       '}');
-  SET v_token = SHA2(CONCAT(UUID(), RAND(), p_id_proceso, 'MULTAS', NOW(6)), 256);
+  SET v_token = LOWER(HEX(RANDOM_BYTES(32)));
 
   UPDATE reporte_multas
      SET estado = 'RESUELTO', numero_resolucion = v_res, fundamento = v_fund, miembros_pleno = p_miembros_pleno,
@@ -8540,11 +8625,15 @@ BEGIN
     SELECT CONCAT(rol, '') INTO v_rol FROM usuario WHERE id_usuario = p_id_usuario;
   END IF;
 
-  INSERT INTO verificacion_documento (codigo_hash, metodo, canal, tipo_documento, id_documento, id_proceso, id_mesa,
-                                      resultado, id_usuario, rol, ip, fecha)
-  VALUES (SHA2(COALESCE(v_codigo, LEFT(COALESCE(p_codigo, ''), 200)), 256), v_metodo, v_canal, v_tipo, v_id, v_proceso, v_mesa,
-          v_resultado, IF(v_rol IS NULL, NULL, p_id_usuario), v_rol, LEFT(p_ip, 45), NOW());
-  SET v_id_verif = LAST_INSERT_ID();
+  -- M8: una consulta anónima de un código que no existe no se registra (evita que el portal público
+  -- llene la tabla y la bitácora con intentos al azar); el límite por IP lo pone el backend.
+  IF p_id_usuario IS NOT NULL OR v_id IS NOT NULL THEN
+    INSERT INTO verificacion_documento (codigo_hash, metodo, canal, tipo_documento, id_documento, id_proceso, id_mesa,
+                                        resultado, id_usuario, rol, ip, fecha)
+    VALUES (SHA2(COALESCE(v_codigo, LEFT(COALESCE(p_codigo, ''), 200)), 256), v_metodo, v_canal, v_tipo, v_id, v_proceso, v_mesa,
+            v_resultado, IF(v_rol IS NULL, NULL, p_id_usuario), v_rol, LEFT(p_ip, 45), NOW());
+    SET v_id_verif = LAST_INSERT_ID();
+  END IF;
 
   -- 11 mostrarAutenticidad()
   SELECT v_id_verif AS id_verificacion, v_resultado AS resultado, v_metodo AS metodo, v_tipo AS tipo_documento,
@@ -8966,6 +9055,16 @@ BEGIN
   IF OLD.rol = 'ADMIN' AND OLD.activo = 1 AND (NEW.rol <> 'ADMIN' OR NEW.activo = 0)
      AND NOT EXISTS (SELECT 1 FROM usuario WHERE rol = 'ADMIN' AND activo = 1 AND id_usuario <> OLD.id_usuario) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'CUS18: debe quedar al menos un administrador activo.';
+  END IF;
+END$$
+
+-- A4: revocación de sesiones. Cambiar la contraseña o desactivar la cuenta invalida todos los
+-- tokens emitidos hasta ese momento, venga el cambio de la pantalla, del ADMIN o de un procedimiento.
+CREATE TRIGGER trg_usuario_revocar_bu BEFORE UPDATE ON usuario
+FOR EACH ROW
+BEGIN
+  IF NOT (NEW.password_hash <=> OLD.password_hash) OR (OLD.activo = 1 AND NEW.activo = 0) THEN
+    SET NEW.token_valido_desde = NOW(3);
   END IF;
 END$$
 
@@ -9982,6 +10081,9 @@ INSERT INTO parametro_global (clave, valor, descripcion) VALUES
   -- CUS16
   ('MULTA_PLAZO_JUSTIFICACION_DIAS', '10',
    'Días desde la notificación de la multa para presentar la justificación ante el CEUNP (RF106); 0 = sin plazo'),
+  -- RN31 (auditoría M3): quórum mínimo legal; bajarlo (p. ej. en una demostración) es un cambio explícito y auditado
+  ('QUORUM_MINIMO_LEGAL_PCT', '60',
+   'Quórum mínimo legal que puede fijar un proceso (RN31: más del 60 %). Solo se baja para demostraciones.'),
   -- CUS18
   ('SEGURIDAD_INTENTOS_MAXIMOS', '5',
    'Intentos fallidos de inicio de sesión antes de bloquear la cuenta temporalmente'),
@@ -10008,6 +10110,7 @@ INSERT INTO parametro_definicion (clave, grupo, etiqueta, tipo, minimo, maximo, 
   ('CEUNP_QUORUM_PLENO',                'CEUNP',     'Quórum del Pleno del CEUNP',           'ENTERO',  5, 9,      'miembros',     'RN36',         FALSE, 10),
   ('IMPUGNACION_PLAZO_APELACION_HORAS', 'CEUNP',     'Plazo para apelar ante el CEUNP',      'ENTERO',  0, 168,    'horas',        'RF81',         FALSE, 20),
   ('SEGUNDA_VUELTA_PLAZO_DIAS',         'CEUNP',     'Plazo para la segunda vuelta',         'ENTERO',  1, 60,     'días',         'RN33 · Art. 63', FALSE, 30),
+  ('QUORUM_MINIMO_LEGAL_PCT',           'CEUNP',     'Quórum mínimo legal de un proceso',    'DECIMAL', 0, 100,    '%',            'RN31',         TRUE,  40),
   ('SEGURIDAD_INTENTOS_MAXIMOS',        'SEGURIDAD', 'Intentos fallidos antes del bloqueo',  'ENTERO',  3, 10,     'intentos',     'RNF seguridad', FALSE, 10),
   ('SEGURIDAD_BLOQUEO_MINUTOS',         'SEGURIDAD', 'Duración del bloqueo de la cuenta',    'ENTERO',  1, 1440,   'minutos',      'RNF seguridad', FALSE, 20),
   ('SEGURIDAD_PASSWORD_MIN',            'SEGURIDAD', 'Longitud mínima de la contraseña',     'ENTERO',  8, 32,     'caracteres',   'RNF seguridad', FALSE, 30),

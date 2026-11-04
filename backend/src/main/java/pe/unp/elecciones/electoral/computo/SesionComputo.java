@@ -38,17 +38,7 @@ public class SesionComputo {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "RN32: solo se concluye la votación de un proceso en VOTACION.");
         }
-        List<Map<String, Object>> abiertas = dao.consultar("""
-                SELECT numero_mesa, estado FROM mesa_electoral
-                 WHERE id_proceso = ? AND estado IN ('INSTALADA', 'PENDIENTE')
-                 ORDER BY LENGTH(numero_mesa), numero_mesa
-                """, idProceso);
-        if (!abiertas.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "RN32: la votación concluye con todas las mesas cerradas. "
-                    + abiertas.stream().map(m -> "Mesa " + m.get("numeroMesa")
-                            + ("INSTALADA".equals(m.get("estado")) ? " con el sufragio abierto (CUS11)" : " sin instalar (CUS08)"))
-                    .collect(Collectors.joining("; ")) + ".");
-        }
+        // RN32 (todas las mesas cerradas) lo valida sp_cambiar_estado_proceso
         dao.llamar("sp_cambiar_estado_proceso", ProcedimientoDao.SIN_SALIDA, idProceso, "CERRADO", usuario.getId());
         return respuesta("Votación concluida: el proceso pasó a CERRADO. Verifique las actas e instale la sesión de cómputo.",
                 idProceso, usuario);

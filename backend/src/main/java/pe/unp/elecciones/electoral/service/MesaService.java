@@ -66,26 +66,6 @@ public class MesaService {
                 idMesa, idDocente) > 0;
     }
 
-    public List<Map<String, Object>> miembros(Integer idMesa) {
-        obtenerMesa(idMesa);
-        return dao.consultar("""
-                SELECT id_docente, dni, docente, facultad, rol, titular, orden_sorteo, asistio
-                  FROM v_miembros_mesa WHERE id_mesa = ? ORDER BY orden_sorteo
-                """, idMesa);
-    }
-
-    /** RN07 / RN28: instala la mesa y emite el acta de instalación. */
-    public Map<String, Object> instalar(Integer idMesa, Integer idUsuario) {
-        ProcedimientoDao.Resultado resultado =
-                dao.llamar("sp_instalar_mesa", ProcedimientoDao.SIN_SALIDA, idMesa, idUsuario);
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("mensaje", "Mesa instalada. Se emitió el acta de instalación.");
-        respuesta.put("mesa", obtenerMesa(idMesa));
-        respuesta.put("actas", resultado.filas());
-        return respuesta;
-    }
-
-
     /** RN04 / RN05 / RN30: comprueba que el DNI pertenece al padrón de la mesa. */
     public Map<String, Object> verificarElector(Integer idMesa, String dni) {
         obtenerMesa(idMesa);
@@ -149,21 +129,6 @@ public class MesaService {
         respuesta.put("mensaje", "Elector identificado. Puede pasar a la cabina de votación.");
         respuesta.put("elector", elector);
         return respuesta;
-    }
-
-    /** Asistencia de un miembro de mesa (insumo de la multa OMISO_MESA, RN35). */
-    public List<Map<String, Object>> registrarAsistenciaMiembro(Integer idMesa, Integer idDocente, boolean asistio) {
-        dao.llamar("sp_registrar_asistencia_miembro", ProcedimientoDao.SIN_SALIDA, idMesa, idDocente, asistio);
-        return miembros(idMesa);
-    }
-
-    /** Actas emitidas por la mesa (sin el token del QR, que solo se entrega al emitirlas). */
-    public List<Map<String, Object>> actas(Integer idMesa) {
-        obtenerMesa(idMesa);
-        return dao.consultar("""
-                SELECT id_acta, tipo, fecha_emision, estado, hash_integridad, contenido_json
-                  FROM acta_electoral WHERE id_mesa = ? ORDER BY id_acta
-                """, idMesa);
     }
 
     private static int numero(Object valor) {

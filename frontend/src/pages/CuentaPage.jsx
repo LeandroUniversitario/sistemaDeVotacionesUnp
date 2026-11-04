@@ -70,13 +70,15 @@ export default function CuentaPage({ onSessionExpired }) {
     }
     setSaving(true);
     try {
-      await apiRequest('/api/auth/password', {
+      const r = await apiRequest('/api/auth/password', {
         method: 'PATCH',
         body: JSON.stringify({
           passwordActual: form.passwordActual,
           passwordNueva: form.passwordNueva,
         }),
       });
+      // A4: el cambio de clave revoca los tokens anteriores; esta sesión sigue con el nuevo
+      if (r?.token) sessionStorage.setItem('accessToken', r.token);
       setForm({ passwordActual: '', passwordNueva: '', confirmar: '' });
       setFeedback({ type: 'success', text: 'Contraseña actualizada correctamente.' });
     } catch (error) {

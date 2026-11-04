@@ -155,7 +155,8 @@ export default function MiPaseQRPage({ onSessionExpired }) {
                 fontWeight: 700, fontSize: 15,
                 color: habilitado ? '#10b981' : '#ef4444',
               }}>
-                {habilitado ? '✓ Habilitado para votar' : '✗ No habilitado para votar'}
+                {!habilitado ? '✗ No habilitado para votar'
+                  : tieneProcesoActivo ? '✓ Habilitado para votar' : '✓ Docente habilitado'}
               </div>
               {!habilitado && motivoInhab && (
                 <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
@@ -164,7 +165,9 @@ export default function MiPaseQRPage({ onSessionExpired }) {
               )}
               {habilitado && (
                 <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-                  Estás en el padrón electoral activo.
+                  {tieneProcesoActivo
+                    ? 'Estás en el padrón del proceso electoral en curso.'
+                    : 'No hay una elección en curso en este momento; tu pase se genera cuando se apruebe el padrón de la próxima.'}
                 </div>
               )}
             </div>

@@ -1,7 +1,5 @@
 package pe.unp.elecciones.electoral.service;
 
-import java.sql.Types;
-import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,7 +10,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Ciclo de vida del proceso electoral sobre los procedimientos almacenados:
- * estados, padrón, calificación de listas, cómputo, segunda vuelta, nulidad y multas.
+ * cambio de estado (con las reglas en sp_cambiar_estado_proceso), calificación de listas y consultas
+ * públicas. El cómputo, la segunda vuelta, las nulidades y las multas viven en sus CUS (computo/, nulidades/, multas/).
  * Sin @Transactional a propósito (ver ProcedimientoDao).
  */
 @Service
@@ -45,49 +44,6 @@ public class ProcesoService {
         return obtener(idProceso);
     }
 
-    /** RN34: nulidad del proceso por causal. */
-    public Map<String, Object> anular(Integer idProceso, String motivo, Integer idUsuario) {
-        dao.llamar("sp_anular_proceso", ProcedimientoDao.SIN_SALIDA, idProceso, motivo, idUsuario);
-        return obtener(idProceso);
-    }
-
-    // ─── Padrón y participación ───────────────────────────────────────────────
-
-    /** RF05: genera (o regenera) el padrón de cada cargo. */
-    public Map<String, Object> generarPadron(Integer idProceso, Integer idUsuario) {
-        ProcedimientoDao.Resultado resultado =
-                dao.llamar("sp_generar_padron", ProcedimientoDao.SIN_SALIDA, idProceso, idUsuario);
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("mensaje", "Padrón electoral generado.");
-        respuesta.put("cargos", resultado.filas());
-        return respuesta;
-    }
-
-    public List<Map<String, Object>> padron(Integer idProceso) {
-        obtener(idProceso);
-        return dao.consultar("""
-                SELECT id_cargo, cargo, id_docente, dni, docente, categoria, facultad,
-                       habilitado_para_votar AS habilitado, ya_voto, fecha_votacion,
-                       motivo_inhabilitacion, id_mesa, numero_mesa, ubicacion
-                  FROM v_padron_detalle WHERE id_proceso = ?
-                 ORDER BY cargo, docente
-                """, idProceso);
-    }
-
-    /** RN31: participación global y por cargo, en tiempo real. */
-    public Map<String, Object> participacion(Integer idProceso) {
-        obtener(idProceso);
-        List<Map<String, Object>> global = dao.consultar(
-                "SELECT * FROM v_quorum_proceso WHERE id_proceso = ?", idProceso);
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("proceso", global.isEmpty() ? Map.of() : global.get(0));
-        respuesta.put("cargos", dao.consultar(
-                "SELECT * FROM v_participacion_cargo WHERE id_proceso = ? ORDER BY id_cargo", idProceso));
-        respuesta.put("cuadre", dao.consultar(
-                "SELECT * FROM v_cuadre_votos WHERE id_proceso = ? ORDER BY id_cargo", idProceso));
-        return respuesta;
-    }
-
     // ─── Listas y cédula ──────────────────────────────────────────────────────
 
     /** RN12: el CEUNP admite o excluye la fórmula completa. */
@@ -98,33 +54,6 @@ public class ProcesoService {
                        fecha_inscripcion, motivo_exclusion
                   FROM lista_electoral WHERE id_lista = ?
                 """, idLista);
-    }
-
-    /**
-     * RN18: cédula de votación. Listas ADMITIDAS de todos los cargos del proceso,
-     * en el orden sorteado. Es lo que consume la terminal de votación.
-     */
-    public List<Map<String, Object>> cedula(Integer idProceso) {
-        obtener(idProceso);
-        return dao.consultar("""
-                SELECT l.id_lista AS id, l.nombre, l.simbolo, l.orden_cedula,
-                       c.id_cargo, c.nombre AS cargo,
-                       (SELECT CONCAT(d.nombres, ' ', d.apellidos)
-                          FROM candidato ca
-                          JOIN docente d ON d.id_docente = ca.id_docente
-                         WHERE ca.id_lista = l.id_lista AND ca.estado_validacion = 'APROBADO'
-                         ORDER BY (ca.rol_en_lista IN ('RECTOR', 'DECANO')) DESC, ca.id_candidato
-                         LIMIT 1) AS candidato_rector,
-                       (SELECT GROUP_CONCAT(CONCAT(ca.rol_en_lista, ': ', d.nombres, ' ', d.apellidos)
-                                            ORDER BY ca.id_candidato SEPARATOR ' | ')
-                          FROM candidato ca
-                          JOIN docente d ON d.id_docente = ca.id_docente
-                         WHERE ca.id_lista = l.id_lista AND ca.estado_validacion = 'APROBADO') AS formula
-                  FROM lista_electoral l
-                  JOIN cargo_electoral c ON c.id_cargo = l.id_cargo
-                 WHERE c.id_proceso = ? AND l.estado = 'ADMITIDA'
-                 ORDER BY c.id_cargo, l.orden_cedula
-                """, idProceso);
     }
 
     /** RN15: candidatos aprobados de listas admitidas (portal de transparencia). */
@@ -140,30 +69,17 @@ public class ProcesoService {
     // ─── Resultados ───────────────────────────────────────────────────────────
 
     /**
-     * RN26 / RN31 / RN33: cómputo oficial, una sola vez. Con el CUS14 instalado lo hace
-     * sp_ejecutar_computo (exige la sesión de cómputo general, RF91); si no, el cómputo heredado.
-     */
-    public Map<String, Object> computarResultados(Integer idProceso, Integer idUsuario) {
-        dao.llamar(computoCus14Instalado() ? "sp_ejecutar_computo" : "sp_computar_resultados",
-                ProcedimientoDao.SIN_SALIDA, idProceso, idUsuario);
-        return resultados(idProceso);
-    }
-
-    /**
      * RF99: el portal muestra los resultados solo después de su publicación por el CEUNP (CUS14).
-     * Un proceso computado sin el CUS14 (cómputo heredado) se muestra como antes.
      */
     public Map<String, Object> resultadosPublicos(Integer idProceso) {
-        if (computoCus14Instalado()) {
-            List<Map<String, Object>> computo = dao.consultar(
-                    "SELECT estado FROM computo_proceso WHERE id_proceso = ?", idProceso);
-            if (!computo.isEmpty() && !"PUBLICADO".equals(String.valueOf(computo.get(0).get("estado")))) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "RF99: los resultados se muestran después de su publicación por el CEUNP.");
-            }
+        List<Map<String, Object>> computo = dao.consultar(
+                "SELECT estado FROM computo_proceso WHERE id_proceso = ?", idProceso);
+        if (computo.isEmpty() || !"PUBLICADO".equals(String.valueOf(computo.get(0).get("estado")))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "RF99: los resultados se muestran después de su publicación por el CEUNP.");
         }
         Map<String, Object> respuesta = resultados(idProceso);
-        if (computoCus14Instalado()) {
+        {
             List<Map<String, Object>> publicado = dao.consultar("""
                     SELECT resultado, participacion_pct, electores_habiles, votaron, numero_resolucion,
                            fecha_computo, fecha_proclamacion, fecha_publicacion
@@ -197,9 +113,6 @@ public class ProcesoService {
 
     /** RF99: procesos con resultados publicados en el portal. */
     public List<Map<String, Object>> resultadosPublicados() {
-        if (!computoCus14Instalado()) {
-            return List.of();
-        }
         return dao.consultar("""
                 SELECT id_proceso, proceso, tipo, estado_proceso, resultado, participacion_pct, numero_resolucion,
                        fecha_publicacion
@@ -209,18 +122,12 @@ public class ProcesoService {
 
     /** Destino del QR del acta general de cómputo y de la resolución de proclamación (CUS14). */
     public Map<String, Object> verificarActaComputo(String token) {
-        if (!computoCus14Instalado()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "El acta no existe o el código no es válido.");
-        }
         return primeraFila(dao.llamar("sp_verificar_acta_computo", ProcedimientoDao.SIN_SALIDA, tokenValido(token)),
                 "El acta no existe o el código no es válido.");
     }
 
     /** RF102: resoluciones de nulidad declaradas y publicadas en el portal (CUS15). */
     public List<Map<String, Object>> nulidadesPublicadas() {
-        if (!nulidadesCus15Instaladas()) {
-            return List.of();
-        }
         return dao.consultar("""
                 SELECT id_nulidad, id_proceso, proceso, tipo, estado_proceso, alcance, numero_mesa, causal,
                        numero_resolucion, fundamento_resolucion, fecha_resolucion, fecha_publicacion, comunicado_a
@@ -230,37 +137,14 @@ public class ProcesoService {
 
     /** Destino del QR de una resolución de nulidad (CUS15). */
     public Map<String, Object> verificarResolucionNulidad(String token) {
-        if (!nulidadesCus15Instaladas()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "La resolución no existe o el código no es válido.");
-        }
         return primeraFila(dao.llamar("sp_verificar_resolucion_nulidad", ProcedimientoDao.SIN_SALIDA, tokenValido(token)),
                 "La resolución no existe o el código no es válido.");
     }
 
     /** Destino del QR de la resolución de multas (CUS16). */
     public Map<String, Object> verificarResolucionMultas(String token) {
-        if (dao.entero("""
-                SELECT COUNT(*) FROM information_schema.routines
-                 WHERE routine_schema = DATABASE() AND routine_name = 'sp_verificar_resolucion_multas'
-                """) == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "La resolución no existe o el código no es válido.");
-        }
         return primeraFila(dao.llamar("sp_verificar_resolucion_multas", ProcedimientoDao.SIN_SALIDA, tokenValido(token)),
                 "La resolución no existe o el código no es válido.");
-    }
-
-    private boolean nulidadesCus15Instaladas() {
-        return dao.entero("""
-                SELECT COUNT(*) FROM information_schema.routines
-                 WHERE routine_schema = DATABASE() AND routine_name = 'sp_verificar_resolucion_nulidad'
-                """) > 0;
-    }
-
-    private boolean computoCus14Instalado() {
-        return dao.entero("""
-                SELECT COUNT(*) FROM information_schema.routines
-                 WHERE routine_schema = DATABASE() AND routine_name = 'sp_ejecutar_computo'
-                """) > 0;
     }
 
     /** Solo hay resultados después del cómputo: nunca se exponen conteos parciales. */
@@ -291,40 +175,6 @@ public class ProcesoService {
         return respuesta;
     }
 
-    /** RN33: crea el proceso hijo con las dos listas más votadas y el mismo padrón. */
-    public Map<String, Object> crearSegundaVuelta(Integer idProcesoPadre, LocalDateTime inicio,
-            LocalDateTime fin, Integer idUsuario) {
-        if (inicio == null || fin == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Indique fecha de inicio y de fin de la segunda vuelta.");
-        }
-        ProcedimientoDao.Resultado resultado = dao.llamar("sp_crear_segunda_vuelta",
-                new int[] {Types.INTEGER}, idProcesoPadre, inicio, fin, idUsuario);
-        Object idNuevo = resultado.salidas()[0];
-        if (!(idNuevo instanceof Number numero)) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "No se obtuvo el identificador de la segunda vuelta.");
-        }
-        return obtener(numero.intValue());
-    }
-
-    // ─── Multas (RN35) ────────────────────────────────────────────────────────
-
-    public Map<String, Object> generarMultas(Integer idProceso, Integer idUsuario) {
-        ProcedimientoDao.Resultado resultado =
-                dao.llamar("sp_generar_multas", ProcedimientoDao.SIN_SALIDA, idProceso, idUsuario);
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("mensaje", "Multas generadas.");
-        respuesta.put("resumen", resultado.filas());
-        return respuesta;
-    }
-
-    public List<Map<String, Object>> multas(Integer idProceso) {
-        obtener(idProceso);
-        return dao.consultar(
-                "SELECT * FROM v_multas_detalle WHERE id_proceso = ? ORDER BY docente, motivo", idProceso);
-    }
-
     /** CUS16: el docente ve sus multas cuando el Pleno ya las determinó (las generadas sin resolución aún pueden cambiar). */
     public List<Map<String, Object>> multasDeDocente(Integer idDocente) {
         return dao.consultar(
@@ -333,12 +183,6 @@ public class ProcesoService {
                  WHERE id_docente = ? AND (estado_reporte IS NULL OR estado_reporte = 'RESUELTO')
                  ORDER BY fecha_generacion DESC
                 """, idDocente);
-    }
-
-    public List<Map<String, Object>> actualizarMulta(Integer idMulta, String estadoPago,
-            String observacion, Integer idUsuario) {
-        dao.llamar("sp_actualizar_multa", ProcedimientoDao.SIN_SALIDA, idMulta, estadoPago, observacion, idUsuario);
-        return dao.consultar("SELECT * FROM v_multas_detalle WHERE id_multa = ?", idMulta);
     }
 
     // ─── Verificación por QR ──────────────────────────────────────────────────

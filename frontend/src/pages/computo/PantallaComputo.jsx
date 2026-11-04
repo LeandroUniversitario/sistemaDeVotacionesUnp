@@ -657,7 +657,7 @@ export default function PantallaComputo({ session, onSessionExpired }) {
           <div className="panel cv-form">
             <div className="cv-section-head">
               <div>
-                <h3>Participación por cargo (8-9 calcularParticipacion)</h3>
+                <h3>Participación por cargo</h3>
                 <p className="muted">La elección es válida si votó más del {pct(proceso.quorumMinimo)} de los electores hábiles (RN31). Si ningún cargo lo supera, se declara la nulidad total (A1).</p>
               </div>
             </div>
@@ -766,7 +766,7 @@ export default function PantallaComputo({ session, onSessionExpired }) {
               {detalle.resultados && (
                 <div className="table-wrap">
                   <table>
-                    <thead><tr><th>Cargo (14-15 determinarGanador)</th><th>Resultado</th><th>Lista</th><th className="n">Votos</th><th className="n">% válidos</th><th className="n">Participación</th></tr></thead>
+                    <thead><tr><th>Cargo</th><th>Resultado</th><th>Lista</th><th className="n">Votos</th><th className="n">% válidos</th><th className="n">Participación</th></tr></thead>
                     <tbody>
                       {detalle.resultados.cargos.map((c) => {
                         const filas = detalle.resultados.detalle.filter((r) => r.idCargo === c.idCargo && r.tipoVoto === 'VALIDO');
@@ -919,7 +919,7 @@ export default function PantallaComputo({ session, onSessionExpired }) {
               </div>
               <div className="table-wrap">
                 <table>
-                  <thead><tr><th>Cargo</th><th>Lista proclamada (17 listaAcreditada)</th><th className="n">Votos</th><th className="n">% válidos</th><th>Credencial</th><th /></tr></thead>
+                  <thead><tr><th>Cargo</th><th>Lista proclamada</th><th className="n">Votos</th><th className="n">% válidos</th><th>Credencial</th><th /></tr></thead>
                   <tbody>
                     {detalle.proclamados.map((p) => (
                       <tr key={p.idCargo} className="cp-puntera">
@@ -1048,7 +1048,7 @@ function FichaMesa({
         <div><dt>Calificación del CEUNP</dt><dd>{m.calificacion ? `${m.calificacion === 'NULIDAD' ? 'Nulidad' : 'Válida'}${m.resolucionCalificacion ? ` · ${m.resolucionCalificacion}` : ''}` : si(m.requiereCalificacion) ? 'Pendiente (A3)' : 'No requiere'}</dd></div>
       </dl>
 
-      <h4 className="cp-sub">Actas de la mesa (4-5 validarIntegridad / actasValidas)</h4>
+      <h4 className="cp-sub">Actas de la mesa</h4>
       <div className="table-wrap">
         <table>
           <thead><tr><th>Acta</th><th>Emisión</th><th>Huella SHA-256</th><th>Autenticidad (RF90)</th><th /></tr></thead>
@@ -1138,7 +1138,7 @@ function FichaMesa({
 
       {cargos.length > 0 && (
         <>
-          <h4 className="cp-sub">Conteo del acta de escrutinio (6-7 consolidarVotos)</h4>
+          <h4 className="cp-sub">Conteo del acta de escrutinio</h4>
           <div className="table-wrap">
             <table>
               <thead><tr><th>Cargo</th><th>Opción</th><th className="n">Cédula física</th><th className="n">Impugnados asignados</th><th className="n">Se computa</th><th className="n">Conteo digital</th></tr></thead>

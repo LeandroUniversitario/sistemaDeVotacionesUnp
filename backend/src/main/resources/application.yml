@@ -1,5 +1,7 @@
 server:
   port: 8080
+  error:
+    include-message: always   # los 401/403 del filtro JWT llegan con su motivo legible
 
 spring:
   application:
@@ -32,8 +34,17 @@ management:
 
 app:
   security:
-    jwt-secret: ${JWT_SECRET:change-this-development-secret-with-at-least-32-bytes}
+    # A4: sin valor por defecto. El backend no arranca sin JWT_SECRET (32 bytes aleatorios o más):
+    #   export JWT_SECRET="$(openssl rand -base64 48)"
+    jwt-secret: ${JWT_SECRET:}
+    # El frontend renueva el token mientras la sesión está en uso (POST /api/auth/renovar)
     jwt-expiration: ${JWT_EXPIRATION:PT2H}
+  # M8 / A3: límite de peticiones por IP para el login y el portal público
+  limites:
+    login-por-ip: ${LIMITE_LOGIN_IP:20}           # intentos fallidos por IP cada 15 minutos
+    publico-por-ip: ${LIMITE_PUBLICO_IP:120}      # consultas al portal público por IP por minuto
   # CUS18 · carpeta donde el ADMIN genera los respaldos de la base (relativa a la carpeta del backend)
   respaldo:
     directorio: ${RESPALDO_DIR:respaldos}
+    # B6: los respaldos se cifran con AES-256-GCM; sin esta clave no se generan
+    clave: ${RESPALDO_CLAVE:}

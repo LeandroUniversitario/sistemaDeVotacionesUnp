@@ -1,17 +1,11 @@
 package pe.unp.elecciones.electoral.dto;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import pe.unp.elecciones.electoral.domain.CategoriaDocente;
 import pe.unp.elecciones.electoral.domain.DocenteEstado;
-import pe.unp.elecciones.electoral.domain.NivelJurisdiccion;
-import pe.unp.elecciones.electoral.domain.ProcesoTipo;
-import pe.unp.elecciones.electoral.domain.TachaEstado;
 
 /**
  * DTOs de entrada (Request) para los endpoints del módulo electoral.
@@ -40,48 +34,5 @@ public final class ElectoralRequest {
             DocenteEstado estado,
             Integer idFacultad,
             Integer idDepartamento) {
-    }
-
-    public record ProcesoRequest(
-            @NotBlank String nombre,
-            @NotNull LocalDateTime fechaInicio,
-            @NotNull LocalDateTime fechaFin,
-            @NotNull ProcesoTipo tipo,
-            Integer idProcesoPadre,
-            @NotNull BigDecimal quorumMinimo,
-            LocalDate fechaConvocatoria) {   // RN02: 30-45 días antes de fecha_inicio
-    }
-
-    public record CargoRequest(
-            @NotBlank String nombre,
-            @NotNull NivelJurisdiccion nivelJurisdiccion,
-            Integer idJurisdiccion) {
-    }
-
-    public record ListaRequest(
-            @NotBlank String nombre,
-            String simbolo) {
-    }
-
-    public record CategoriaRequest(
-            @NotNull CategoriaDocente categoria,
-            Boolean puedeVotar,      // opcional: null = true
-            Boolean puedePostular) { // opcional: null = true
-    }
-
-    public record CandidatoRequest(
-            @NotNull Integer idDocente,
-            @NotBlank String rolEnLista) {
-    }
-
-    public record TachaRequest(
-            @NotNull Integer idDocenteDenunciante,
-            @NotNull Integer idCandidato,
-            @NotBlank String motivo) {
-    }
-
-    public record ResolucionTachaRequest(
-            @NotNull TachaEstado estado,
-            String resolucion) {     // opcional: fundamento del CEUNP
     }
 }

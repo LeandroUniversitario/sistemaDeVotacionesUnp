@@ -7,6 +7,8 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import pe.unp.elecciones.auth.PoliticaPassword;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,18 +46,24 @@ import java.util.regex.Pattern;
  * NUEVO: tras registrar cada docente, crea automaticamente su cuenta
  * de usuario con rol DOCENTE si no la tiene todavia:
  *   - Username: inicial primer nombre + primer apellido (sin tildes)
- *   - Password inicial: DNI (BCrypt) con debeCambiarPassword=true
+ *   - Password inicial: aleatoria (PoliticaPassword, SecureRandom) con debeCambiarPassword=true.
+ *     Nunca el DNI (auditoría A3). Las claves se devuelven una sola vez en «credenciales» para
+ *     entregarlas a cada docente por un canal aparte; en la base solo queda su hash BCrypt.
  */
 @Service
 public class ImportacionDocenteService {
+
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(ImportacionDocenteService.class);
 
     private final DocenteRepository docenteRepository;
     private final FacultadRepository facultadRepository;
     private final DepartamentoRepository departamentoRepository;
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PoliticaPassword politica;
 
-    public ImportacionDocenteService(DocenteRepository docenteRepository,
+    public ImportacionDocenteService(PoliticaPassword politica,
+                                      DocenteRepository docenteRepository,
                                       FacultadRepository facultadRepository,
                                       DepartamentoRepository departamentoRepository,
                                       UsuarioRepository usuarioRepository,
@@ -65,6 +73,7 @@ public class ImportacionDocenteService {
         this.departamentoRepository = departamentoRepository;
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
+        this.politica = politica;
     }
 
     /* ═══ leerDatos() ═══ */
@@ -86,6 +95,7 @@ public class ImportacionDocenteService {
     @Transactional
     private Map<String, Object> registrarMasivo(List<Map<String, Object>> filas) {
         int insertados = 0, actualizados = 0, usuariosCreados = 0;
+        List<Map<String, Object>> credenciales = new ArrayList<>();
         List<String> errores = new ArrayList<>();
 
         List<Facultad> todasFacultades = facultadRepository.findAll();
@@ -179,16 +189,25 @@ public class ImportacionDocenteService {
                 if (!yaTieneUsuario) {
                     String baseUsername  = generarUsernameBase(docenteGuardado.getNombres(), docenteGuardado.getApellidos());
                     String usernameFinal = resolverUsernameUnico(baseUsername);
-                    String passwordHash  = passwordEncoder.encode(docenteGuardado.getDni());
+                    String clave         = politica.generarProvisional();
+                    String passwordHash  = passwordEncoder.encode(clave);
 
                     Usuario nuevoUsuario = new Usuario(usernameFinal, passwordHash, Rol.DOCENTE, docenteGuardado.getId());
                     nuevoUsuario.setDebeCambiarPassword(true);
                     usuarioRepository.save(nuevoUsuario);
                     usuariosCreados++;
+                    Map<String, Object> credencial = new LinkedHashMap<>();
+                    credencial.put("docente", docenteGuardado.getNombres() + " " + docenteGuardado.getApellidos());
+                    credencial.put("email", docenteGuardado.getEmail());
+                    credencial.put("username", usernameFinal);
+                    credencial.put("claveProvisional", clave);
+                    credenciales.add(credencial);
                 }
 
             } catch (Exception e) {
-                errores.add("Fila " + (i + 2) + ": " + e.getMessage());
+                // B4: el detalle técnico va al log; al usuario, un motivo legible
+                LOG.warn("Importación de docentes, fila {}: {}", i + 2, e.toString());
+                errores.add("Fila " + (i + 2) + ": no se pudo registrar (revise el formato de sus columnas).");
             }
         }
 
@@ -198,6 +217,7 @@ public class ImportacionDocenteService {
         resultado.put("usuariosCreados", usuariosCreados);
         resultado.put("errores",         errores);
         resultado.put("total",           insertados + actualizados);
+        resultado.put("credenciales",    credenciales);
         return resultado;
     }
 

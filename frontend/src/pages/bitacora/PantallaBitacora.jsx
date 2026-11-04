@@ -36,8 +36,8 @@ import '../mesa/mesa-ejecutivo.css';
  */
 
 const PASOS = [
-  { codigo: 'REGISTROS', texto: 'Registros', nota: '1-9 buscarRegistros · mostrarDetalleJSON', icono: 'list' },
-  { codigo: 'ANALISIS', texto: 'Resumen de actividad', nota: '5 mostrarRegistros · módulo, día, hora y usuario', icono: 'graph' },
+  { codigo: 'REGISTROS', texto: 'Registros', nota: 'Búsqueda y detalle de cada registro', icono: 'list' },
+  { codigo: 'ANALISIS', texto: 'Resumen de actividad', nota: 'Por módulo, día, hora y usuario', icono: 'graph' },
   { codigo: 'INTEGRIDAD', texto: 'Integridad', nota: 'Sello SHA-256 encadenado', icono: 'shield' },
 ];
 const FILTROS_VACIOS = {
@@ -344,7 +344,7 @@ export default function PantallaBitacora({ session, onSessionExpired }) {
 
       <section className="cq-resumen">
         <div className="cq-kpi" style={{ '--cq-color': '#2563eb' }}>
-          <span>Registros <em>5 mostrarRegistros</em></span>
+          <span>Registros</span>
           <strong>{resultado ? Number(resultado.total).toLocaleString('es-PE') : '…'}<small> / {Number(cadena.sello?.totalRegistros ?? 0).toLocaleString('es-PE')}</small></strong>
           <small>{nFiltros ? `${nFiltros} filtro(s) aplicado(s)` : 'Toda la bitácora'}{resumen?.ultimo ? ` · último ${fecha(resumen.ultimo)}` : ''}</small>
         </div>
@@ -375,8 +375,8 @@ export default function PantallaBitacora({ session, onSessionExpired }) {
           <div className="panel cv-form">
             <div className="cv-section-head">
               <div>
-                <h3>1 ingresarFiltros · buscar en la bitácora</h3>
-                <p className="muted">Combine usuario, acción y rango de fechas (2 buscarRegistros). Cada búsqueda vuelve a validar que su cuenta sea de administrador activo (3 validarRolAdministrador).</p>
+                <h3>Buscar en la bitácora</h3>
+                <p className="muted">Combine usuario, acción y rango de fechas. Cada búsqueda vuelve a validar que su cuenta sea de administrador activo.</p>
               </div>
               <div className="cs-acciones-head">
                 <button type="button" className="cv-btn cv-btn-ghost" disabled={saving || !resultado?.total} onClick={exportar}
@@ -514,8 +514,8 @@ export default function PantallaBitacora({ session, onSessionExpired }) {
           <div className="panel cv-form">
             <div className="cv-section-head">
               <div>
-                <h3>5 mostrarRegistros · {resultado ? `${Number(resultado.total).toLocaleString('es-PE')} registro(s)` : 'buscando…'}</h3>
-                <p className="muted">{filtrosTexto} · elija un registro para ver su detalle (6 seleccionarRegistro).</p>
+                <h3>Registros · {resultado ? `${Number(resultado.total).toLocaleString('es-PE')} registro(s)` : 'buscando…'}</h3>
+                <p className="muted">{filtrosTexto} · elija un registro para ver su detalle.</p>
               </div>
               <div className="cs-acciones-head">
                 <select className="ad-select" value={orden} onChange={(e) => { setOrden(e.target.value); setPagina(0); }} aria-label="Orden">
@@ -721,7 +721,7 @@ export default function PantallaBitacora({ session, onSessionExpired }) {
 /** 6 seleccionarRegistro → 9 mostrarDetalleJSON: ficha del registro con su detalle, su sello y su contexto. */
 function FichaRegistro({ d, idLog, vista, setVista, admin, onIr, onCerrar, onFiltrar, onDescargar }) {
   if (!d || d.registro.idLog !== idLog) {
-    return <div className="panel cv-form ad-ficha"><p className="muted">7 obtenerDetalle · cargando el registro N.º {idLog}…</p></div>;
+    return <div className="panel cv-form ad-ficha"><p className="muted">Cargando el registro N.º {idLog}…</p></div>;
   }
   const x = d.registro;
   const selloOk = si(x.contenidoIntegro) && si(x.enlaceValido);
@@ -732,7 +732,7 @@ function FichaRegistro({ d, idLog, vista, setVista, admin, onIr, onCerrar, onFil
     <div className="panel cv-form ad-ficha bt-ficha">
       <div className="cv-section-head">
         <div>
-          <h3>9 mostrarDetalleJSON · registro N.º {x.idLog} <span className={`cv-estado ${selloOk ? 'votacion' : 'anulado'}`}>{selloOk ? 'Sello válido' : 'Sello no válido'}</span></h3>
+          <h3>Registro N.º {x.idLog} <span className={`cv-estado ${selloOk ? 'votacion' : 'anulado'}`}>{selloOk ? 'Sello válido' : 'Sello no válido'}</span></h3>
           <p className="muted">{x.etiqueta} · {fecha(x.fechaHora)}{x.descripcionAccion ? ` · ${x.descripcionAccion}` : ''}</p>
         </div>
         <div className="cs-acciones-head">

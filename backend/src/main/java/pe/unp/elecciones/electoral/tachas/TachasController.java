@@ -93,7 +93,7 @@ public class TachasController {
     // ─── 5-9: Resolver tacha ─────────────────────────────────────────────────
 
     @PostMapping("/{idTacha}/resolucion")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CEUNP')")
+    @PreAuthorize("hasRole('CEUNP')")
     public Map<String, Object> resolver(@PathVariable Integer idTacha,
             @Valid @RequestBody DatosResolucion datos, Authentication authentication) {
         return resolverTacha.guardarResolucion(idTacha, datos, usuarioActual.id(authentication));

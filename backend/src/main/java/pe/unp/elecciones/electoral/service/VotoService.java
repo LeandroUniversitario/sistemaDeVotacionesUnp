@@ -1,25 +1,15 @@
 package pe.unp.elecciones.electoral.service;
 
-import java.sql.Types;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
-import pe.unp.elecciones.electoral.dto.VotoRequest;
 
 /**
- * Emisión del voto (RF08, RF09, RN01, RN04, RN06, RN25).
- *
- * Toda la operación ocurre dentro de sp_emitir_voto, en una sola transacción:
- * bloquea la fila del padrón, marca que el docente votó, inserta el voto
- * anónimo y emite la constancia. Este servicio nunca escribe en la tabla voto
- * ni guarda la relación docente - lista.
- *
- * Sin @Transactional a propósito (ver ProcedimientoDao).
+ * Consultas del docente sobre su participación (cargos pendientes y constancias).
+ * El voto se emite solo en el terminal de la cabina (CUS10, RegistrarVoto), nunca con la sesión
+ * del docente.
  */
 @Service
 public class VotoService {
@@ -28,26 +18,6 @@ public class VotoService {
 
     public VotoService(ProcedimientoDao dao) {
         this.dao = dao;
-    }
-
-    /**
-     * @param idDocente docente autenticado; se toma de la sesión, nunca del cuerpo de la petición
-     */
-    public Map<String, Object> registrarVoto(VotoRequest request, Integer idDocente) {
-        if (request == null || request.procesoId() == null || request.cargoId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Debe indicar el proceso y el cargo por el que vota.");
-        }
-        String tipo = request.tipo() == null ? "" : request.tipo().trim().toUpperCase();
-        Integer idLista = "VALIDO".equals(tipo) ? request.listaElegidaId() : null;
-
-        ProcedimientoDao.Resultado resultado = dao.llamar("sp_emitir_voto", new int[] {Types.VARCHAR},
-                request.procesoId(), request.cargoId(), idDocente, idLista, tipo);
-
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("mensaje", "Voto registrado exitosamente");
-        respuesta.put("tokenConstancia", resultado.salidas()[0]);
-        return respuesta;
     }
 
     /** Cargos por los que el docente puede votar en los procesos que están en VOTACION. */

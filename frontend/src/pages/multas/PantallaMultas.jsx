@@ -426,8 +426,8 @@ export default function PantallaMultas({ onSessionExpired }) {
           <div className="panel cv-form">
             <div className="cv-section-head">
               <div>
-                <h3>1 solicitarReporteOmisos · docentes que no votaron y miembros de mesa que no asistieron</h3>
-                <p className="muted">Con el sufragio cerrado, el sistema cruza el padrón (4 consultarNoVotaron) y los miembros titulares de mesa (5 consultarInasistentes) y calcula la multa con la UIT vigente (3 obtenerUIT). No figuran los electores de mesas que no se instalaron, porque no pudieron votar. Puede volver a generar las multas hasta que el Pleno emita la resolución.</p>
+                <h3>Omisos: docentes que no votaron y miembros de mesa que no asistieron</h3>
+                <p className="muted">Con el sufragio cerrado, el sistema cruza el padrón y los miembros titulares de mesa y calcula la multa con la UIT vigente. No figuran los electores de mesas que no se instalaron, porque no pudieron votar. Puede volver a generar las multas hasta que el Pleno emita la resolución.</p>
               </div>
               <div className="cs-acciones-head">
                 <button type="button" className="cv-btn cv-btn-ghost" onClick={() => imprimirReporteOmisos(detalle)}>
@@ -437,7 +437,7 @@ export default function PantallaMultas({ onSessionExpired }) {
             </div>
 
             <div className="mu-parametros">
-              <div><span>3 obtenerUIT()</span><strong>{soles(par.uit)}</strong><small>Parámetro UIT (RF105)</small></div>
+              <div><span>UIT vigente</span><strong>{soles(par.uit)}</strong><small>Parámetro UIT (RF105)</small></div>
               <div><span>Omisión al sufragio</span><strong>{pct(par.pctElector)}</strong><small>{soles(par.montoElector)} · Art. 68</small></div>
               <div><span>Inasistencia a mesa</span><strong>{pct(par.pctMiembro)}</strong><small>{soles(par.montoMiembro)} · Art. 67</small></div>
               <div><span>Mesas instaladas</span><strong>{rm.instaladas} / {rm.total}</strong><small>{rm.noInstaladas} sin instalar · {rm.abiertas} abierta(s)</small></div>
@@ -457,7 +457,7 @@ export default function PantallaMultas({ onSessionExpired }) {
               <div className="cq-confirmar-emision" role="alert">
                 <div>
                   <strong>¿Generar {detalle.omisos.length} multa(s) por {soles(montoEstimado)}?</strong>
-                  <span>2 generarMultas · 6 insertar: {omisosVotacion.length} por omisión al sufragio y {omisosMesa.length} por inasistencia a la mesa, con la UIT de {soles(par.uit)}. {reporte ? 'Se actualizan las multas pendientes con los omisos actuales.' : 'Luego el Pleno las determina con su resolución.'}</span>
+                  <span>Se generarán {omisosVotacion.length} por omisión al sufragio y {omisosMesa.length} por inasistencia a la mesa, con la UIT de {soles(par.uit)}. {reporte ? 'Se actualizan las multas pendientes con los omisos actuales.' : 'Luego el Pleno las determina con su resolución.'}</span>
                 </div>
                 <div className="cv-actions">
                   <button type="button" className="cv-btn cv-btn-ghost" onClick={limpiarAccion}>Volver</button>
@@ -514,7 +514,7 @@ export default function PantallaMultas({ onSessionExpired }) {
           <div className="panel cv-form">
             <div className="cv-section-head">
               <div>
-                <h3>7 mostrarReporteMultas · resolución del Pleno</h3>
+                <h3>Reporte de multas · resolución del Pleno</h3>
                 <p className="muted">El Pleno del CEUNP, con quórum de {quorum} de sus 9 miembros, determina las multas generadas mediante resolución inapelable (RN35, RN36). La resolución lleva QR y huella SHA-256; luego las multas quedan fijas y se notifican al docente.</p>
               </div>
               {resuelto && (
@@ -662,7 +662,7 @@ export default function PantallaMultas({ onSessionExpired }) {
           <div className="panel cv-form">
             <div className="cv-section-head">
               <div>
-                <h3>8 registrarJustificacion · multas del proceso</h3>
+                <h3>Justificaciones · multas del proceso</h3>
                 <p className="muted">El docente presenta su justificación dentro de los {par.plazoJustificacion} días de notificado; el Pleno la admite o la deniega (RF106). En casos no previstos el CEUNP puede exonerar de oficio (RN40). El pago se registra con el recibo de Tesorería: el sistema no cobra la multa.</p>
               </div>
             </div>
@@ -990,7 +990,7 @@ function FichaMulta({
 
       {accion === 'DESCARGO' && (
         <form className="ig-form mu-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
-          <h4>8 registrarJustificacion(id_multa, sustento) · 9 justificar()</h4>
+          <h4>Registrar la justificación</h4>
           <div className="cq-chips" role="group" aria-label="Tipo de descargo">
             {[['JUSTIFICACION', 'Justificación del docente (RF106)'], ['EXONERACION', 'Exoneración de oficio (RN40)']].map(([v, t]) => (
               <button key={v} type="button" className={`cq-chip${descargo.tipo === v ? ' on' : ''}`}
@@ -1061,7 +1061,7 @@ function FichaMulta({
             <div className="cq-confirmar-emision" role="alert">
               <div>
                 <strong>{exoneracion ? `¿Exonerar la multa de ${m.docente}?` : descargo.decision === 'ADMITIDA' ? `¿Admitir la justificación de ${m.docente}?` : `¿Denegar la justificación de ${m.docente}?`}</strong>
-                <span>10 actualizarEstado: la multa {exoneracion ? 'queda exonerada' : descargo.decision === 'ADMITIDA' ? 'queda justificada' : 'sigue pendiente de pago'}. Resolución {descargo.numeroResolucion}, inapelable (RN36).</span>
+                <span>La multa {exoneracion ? 'queda exonerada' : descargo.decision === 'ADMITIDA' ? 'queda justificada' : 'sigue pendiente de pago'}. Resolución {descargo.numeroResolucion}, inapelable (RN36).</span>
               </div>
               <div className="cv-actions">
                 <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setConfirmando(false)}>Volver</button>

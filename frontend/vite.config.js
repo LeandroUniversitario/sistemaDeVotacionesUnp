@@ -25,8 +25,10 @@ export default defineConfig(({ command }) => ({
     __IP_RED_LOCAL__: JSON.stringify(command === 'serve' ? ipRedLocal() : ''),
   },
   server: {
-    // Escucha también en la red local para que el celular abra la página del QR.
-    host: true,
+    // B5: el servidor de desarrollo escucha solo en este equipo. Para probar los QR con un celular
+    // de la misma red, arránquelo con npm run dev:red (vite --host). En producción se sirve
+    // el build (npm run build) detrás de un proxy con HTTPS, nunca el servidor de desarrollo.
+    host: 'localhost',
     port: 5173,
     proxy: {
       '/api': 'http://localhost:8080'

@@ -40,9 +40,9 @@ const ROLES = ['ADMIN', 'CEUNP', 'MIEMBRO_MESA', 'PERSONERO', 'DOCENTE'];
 const COLOR_ROL = { ADMIN: '#e11d48', CEUNP: '#2563eb', DOCENTE: '#059669', PERSONERO: '#d97706', MIEMBRO_MESA: '#7c3aed' };
 const SUFIJO_ROL = { ADMIN: '.admin', CEUNP: '.ceunp', DOCENTE: '', PERSONERO: '.personero', MIEMBRO_MESA: '.mesa' };
 const PASOS = [
-  { codigo: 'USUARIOS', texto: 'Cuentas y roles', nota: '1-4 crearUsuario · verificarDocente', icono: 'users' },
-  { codigo: 'PARAMETROS', texto: 'Parámetros', nota: '5-9 actualizarParametro · historial', icono: 'settings' },
-  { codigo: 'RESPALDO', texto: 'Respaldo de la base', nota: '10-13 generarRespaldo · huella', icono: 'download' },
+  { codigo: 'USUARIOS', texto: 'Cuentas y roles', nota: 'Altas, roles y estado de las cuentas', icono: 'users' },
+  { codigo: 'PARAMETROS', texto: 'Parámetros', nota: 'Valores vigentes e historial', icono: 'settings' },
+  { codigo: 'RESPALDO', texto: 'Respaldo de la base', nota: 'Respaldo cifrado y su huella', icono: 'download' },
 ];
 const ESTADOS = [
   ['TODAS', 'Todas'], ['ACTIVAS', 'Activas'], ['INACTIVAS', 'Inactivas'], ['BLOQUEADAS', 'Bloqueadas'], ['PROVISIONAL', 'Clave provisional'],
@@ -422,7 +422,7 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
       {!ocultarTabs && (
       <section className="cq-resumen">
         <div className="cq-kpi" style={{ '--cq-color': '#2563eb' }}>
-          <span>Cuentas activas <em>4 mostrarUsuario</em></span>
+          <span>Cuentas activas</span>
           <strong>{resumen.activos}<small> / {resumen.total}</small></strong>
           <small>{resumen.inactivos} inactiva(s) · {resumen.sinAcceso} sin ingresar aún</small>
         </div>
@@ -432,12 +432,12 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
           <small>{resumen.provisionales} con contraseña provisional</small>
         </div>
         <div className="cq-kpi" style={{ '--cq-color': '#7c3aed' }}>
-          <span>Parámetros <em>8 registrarAuditoria</em></span>
+          <span>Parámetros</span>
           <strong>{detalle.parametros.length}</strong>
           <small>{detalle.historial.length ? `Último cambio ${fecha(detalle.historial[0].fecha)}` : 'Sin cambios registrados'}</small>
         </div>
         <div className="cq-kpi" style={{ '--cq-color': !ultimo || diasSinRespaldo > 7 ? '#d97706' : '#059669' }}>
-          <span>Último respaldo <em>13 mostrarRespaldo</em></span>
+          <span>Último respaldo</span>
           <strong className="cp-etapa">{ultimo ? (diasSinRespaldo === 0 ? 'Hoy' : `Hace ${diasSinRespaldo} día(s)`) : 'Sin respaldo'}</strong>
           <small>{ultimo ? `${bytes(ultimo.tamanoBytes)} · ${ultimo.filas} filas` : 'Genere uno antes de la jornada'}</small>
         </div>
@@ -736,7 +736,7 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
             <div className="cv-section-head">
               <div>
                 <h3>Copia de seguridad de la base de datos</h3>
-                <p className="muted">El sistema lee la base de forma consistente (sin detener la votación) y genera un archivo .sql con todas las tablas y sus datos, funciones, vistas, procedimientos y triggers (11 generarRespaldo). Registra el archivo con su huella SHA-256 en la bitácora (12 registrarAuditoria). Contiene datos personales y contraseñas cifradas: descárguelo y guárdelo en un medio seguro.</p>
+                <p className="muted">El sistema lee la base de forma consistente (sin detener la votación) y genera un archivo .sql con todas las tablas y sus datos, funciones, vistas, procedimientos y triggers, cifrado con AES-256 (clave RESPALDO_CLAVE del servidor). Registra el archivo con su huella SHA-256 en la bitácora. Aunque está cifrado, guárdelo en un medio seguro.</p>
               </div>
             </div>
             {accion !== 'RESPALDO' ? (
@@ -763,7 +763,7 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
                   <div className="cq-confirmar-emision" role="alert">
                     <div>
                       <strong>¿Generar ahora el respaldo completo de la base?</strong>
-                      <span>11 generarRespaldo: se guarda en la carpeta «{detalle.directorioRespaldos}» del servidor y queda registrado con su huella.</span>
+                      <span>Se guarda en la carpeta «{detalle.directorioRespaldos}» del servidor y queda registrado con su huella.</span>
                     </div>
                     <div className="cv-actions">
                       <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setConfirmando(false)}>Volver</button>
@@ -778,7 +778,7 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
 
             {ultimoRespaldo && (
               <div className="ad-respaldo" role="status">
-                <h4>13 mostrarRespaldo · {ultimoRespaldo.nombreArchivo}</h4>
+                <h4>Último respaldo · {ultimoRespaldo.nombreArchivo}</h4>
                 <div className="mu-parametros">
                   <div><span>Tablas</span><strong>{ultimoRespaldo.tablas}</strong><small>{ultimoRespaldo.filas} filas</small></div>
                   <div><span>Vistas</span><strong>{ultimoRespaldo.vistas}</strong><small>consultas y reportes</small></div>

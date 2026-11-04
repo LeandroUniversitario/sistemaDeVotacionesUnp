@@ -22,7 +22,7 @@ import pe.unp.elecciones.electoral.service.MesaService;
 
 @RestController
 @RequestMapping("/api/mesas")
-@PreAuthorize("hasAnyRole('ADMIN', 'CEUNP', 'MIEMBRO_MESA')")
+@PreAuthorize("hasAnyRole('CEUNP', 'MIEMBRO_MESA')")
 public class MesaController {
 
     private final MesaService mesaService;
@@ -45,42 +45,6 @@ public class MesaController {
         return mesaService.listarMesas(procesoId);
     }
 
-    @GetMapping("/{id}")
-    public Map<String, Object> obtenerMesa(@PathVariable Integer id, Authentication authentication) {
-        exigirAcceso(id, authentication);
-        return mesaService.obtenerMesa(id);
-    }
-
-    @GetMapping("/{id}/miembros")
-    public List<Map<String, Object>> miembros(@PathVariable Integer id, Authentication authentication) {
-        exigirAcceso(id, authentication);
-        return mesaService.miembros(id);
-    }
-
-    @GetMapping("/{id}/actas")
-    public List<Map<String, Object>> actas(@PathVariable Integer id, Authentication authentication) {
-        exigirAcceso(id, authentication);
-        return mesaService.actas(id);
-    }
-
-    @PostMapping("/{id}/instalar")
-    public Map<String, Object> instalar(@PathVariable Integer id, Authentication authentication) {
-        Usuario usuario = exigirAcceso(id, authentication);
-        return mesaService.instalar(id, usuario.getId());
-    }
-
-    /**
-     * Ya no se cierra la mesa en un solo paso: según CUS11 el presidente cierra la votación, marca
-     * NO VOTÓ y emite el acta de sufragio (POST /api/cierre/mesas/{id}/...). El acta de escrutinio
-     * corresponde al CUS12.
-     */
-    @PostMapping("/{id}/cerrar")
-    public Map<String, Object> cerrar(@PathVariable Integer id, Authentication authentication) {
-        exigirAcceso(id, authentication);
-        throw new ResponseStatusException(HttpStatus.GONE,
-                "CUS11: el sufragio se cierra en «Cerrar sufragio» (cierre, marca NO VOTÓ y acta de sufragio).");
-    }
-
     @GetMapping("/{id}/verificar-elector")
     public Map<String, Object> verificarElector(
             @PathVariable Integer id,
@@ -100,16 +64,6 @@ public class MesaController {
         return mesaService.registrarIdentificacionElector(id, request.dni(), usuario.getId());
     }
 
-    /** Asistencia de los propios miembros de mesa (la registra el CEUNP). */
-    @PostMapping("/{id}/miembros/{idDocente}/asistencia")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CEUNP')")
-    public List<Map<String, Object>> asistenciaMiembro(
-            @PathVariable Integer id,
-            @PathVariable Integer idDocente,
-            @RequestBody AsistenciaRequest request) {
-        return mesaService.registrarAsistenciaMiembro(id, idDocente, request.asistio());
-    }
-
     /** Un MIEMBRO_MESA solo opera la mesa a la que fue sorteado. */
     private Usuario exigirAcceso(Integer idMesa, Authentication authentication) {
         Usuario usuario = usuarioActual.requerido(authentication);
@@ -122,6 +76,4 @@ public class MesaController {
     public record DniRequest(String dni) {
     }
 
-    public record AsistenciaRequest(boolean asistio) {
-    }
 }

@@ -65,16 +65,13 @@ public class AuthController {
     public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest requestHttp) {
         Usuario usuario = usuarioRepository.findByUsername(request.username()).orElse(null);
 
-        if (usuario != null) {
-            if (!usuario.isActivo()) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                        "Acceso denegado. Su cuenta se encuentra inactiva. Contacte con el Administrador o CEUNP");
-            }
-            if (usuario.getBloqueadoHasta() != null && usuario.getBloqueadoHasta().isAfter(LocalDateTime.now())) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                        "Cuenta bloqueada temporalmente por demasiados intentos fallidos. Intente nuevamente en "
-                                + usuarioService.parametroEntero("SEGURIDAD_BLOQUEO_MINUTOS", 15) + " minutos");
-            }
+        // B1: un solo mensaje para cuenta inexistente, inactiva, bloqueada o clave incorrecta, para no
+        // revelar qué cuentas existen. El motivo real queda en la bitácora.
+        if (usuario != null && (!usuario.isActivo()
+                || (usuario.getBloqueadoHasta() != null && usuario.getBloqueadoHasta().isAfter(LocalDateTime.now())))) {
+            auditoriaService.registrar(usuario.getId(), null, usuario.isActivo() ? "LOGIN_BLOQUEADO" : "LOGIN_INACTIVO",
+                    requestHttp.getRemoteAddr(), requestHttp.getHeader("User-Agent"), null);
+            throw credencialesInvalidas();
         }
 
         try {
@@ -105,9 +102,27 @@ public class AuthController {
                 auditoriaService.registrar(usuario.getId(), null, "LOGIN_FAILED",
                         requestHttp.getRemoteAddr(), requestHttp.getHeader("User-Agent"), null);
             }
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                    "Credenciales incorrectas. Por favor, verifique su usuario y contrasena");
+            throw credencialesInvalidas();
         }
+    }
+
+    private static ResponseStatusException credencialesInvalidas() {
+        return new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                "No se pudo iniciar sesión. Verifique su usuario y contraseña; si el problema continúa, "
+                        + "su cuenta puede estar bloqueada temporalmente o inactiva: contacte al CEUNP.");
+    }
+
+    /**
+     * A4: renovación de la sesión. Con un token vigente (el filtro ya comprobó firma, expiración,
+     * cuenta activa y revocación) se emite uno nuevo, para que las sesiones de la jornada (8:00 a
+     * 15:00, RN06) no se corten a las 2 horas.
+     */
+    @PostMapping("/renovar")
+    public LoginResponse renovar(Authentication authentication) {
+        Usuario usuario = usuarioRepository.findByUsername(authentication.getName())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no disponible"));
+        return new LoginResponse(jwtService.generateToken(usuario), usuario.getUsername(), usuario.getRol().name(),
+                usuario.isDebeCambiarPassword());
     }
 
     @GetMapping("/me")
@@ -155,11 +170,20 @@ public class AuthController {
         return resp;
     }
 
+    /**
+     * Cambio de la clave propia. Revoca todos los tokens anteriores (trg_usuario_revocar_bu) y devuelve
+     * uno nuevo para que esta sesión continúe.
+     */
     @PatchMapping("/password")
-    public void changePassword(
+    public LoginResponse changePassword(
             @Valid @RequestBody ChangePasswordRequest request,
-            Authentication authentication) {
-        usuarioService.cambiarPassword(authentication.getName(), request.passwordActual(), request.passwordNueva());
+            Authentication authentication,
+            HttpServletRequest requestHttp) {
+        usuarioService.cambiarPassword(authentication.getName(), request.passwordActual(), request.passwordNueva(),
+                requestHttp.getRemoteAddr(), requestHttp.getHeader("User-Agent"));
+        Usuario usuario = usuarioRepository.findByUsername(authentication.getName()).orElseThrow();
+        return new LoginResponse(jwtService.generateToken(usuario), usuario.getUsername(), usuario.getRol().name(),
+                usuario.isDebeCambiarPassword());
     }
 
     /**

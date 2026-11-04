@@ -86,7 +86,7 @@
 /* ── Foto del padrón y del candidato (RF62, RF68) ───────────────── */
 .vt-foto { display: block; width: 36px; height: 36px; flex: none; border-radius: 50%; object-fit: cover; background: var(--gray-100); }
 .vt-foto.grande { width: 96px; height: 116px; border-radius: 10px; }
-.vt-foto-vacia { display: grid; place-items: center; font-weight: 800; font-size: .8rem; color: var(--cv-blue); background: var(--cv-blue-soft); }
+.vt-foto-vacia { display: grid; place-items: center; overflow: hidden; text-align: center; overflow-wrap: anywhere; line-height: 1.1; font-weight: 800; font-size: .8rem; color: var(--cv-blue); background: var(--cv-blue-soft); }
 .vt-foto-vacia.grande { font-size: 1.6rem; }
 .vt-ficha { display: flex; gap: 14px; align-items: center; }
 .vt-ficha .in-cand-body strong { font-size: 1.02rem; }
@@ -113,3 +113,7 @@
 .vt-kiosco .vt-resumen li strong { font-size: 1.05rem; }
 .vt-opcion .vt-foto.grande { width: 64px; height: 78px; font-size: 1.3rem; }
 .vt-opcion-cuerpo > div { padding-right: 18px; }
+
+/* CUS10 · Cabina en pantalla completa (/cabina): sin menú lateral ni sesión de persona */
+.cabina-kiosco { min-height: 100vh; padding: 24px 16px; background: var(--bg, #f5f7fb); box-sizing: border-box; }
+.cabina-kiosco .vt-cabina { max-width: 1100px; margin: 0 auto; }

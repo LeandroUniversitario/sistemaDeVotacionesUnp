@@ -66,12 +66,14 @@ public class InscripcionController {
 
     // ─── 1-4: Lista ───────────────────────────────────────────────────────────
 
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @PostMapping("/listas")
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, Object> guardarLista(@Valid @RequestBody DatosLista datos, Authentication authentication) {
         return registrarDatosLista.guardarLista(datos, usuarioActual.id(authentication));
     }
 
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @DeleteMapping("/listas/{idLista}")
     public Map<String, Object> retirarLista(@PathVariable Integer idLista, Authentication authentication) {
         return registrarDatosLista.retirarLista(idLista, usuarioActual.id(authentication));
@@ -87,6 +89,7 @@ public class InscripcionController {
 
     // ─── 9-12: Grabar candidato ──────────────────────────────────────────────
 
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @PostMapping("/listas/{idLista}/candidatos")
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, Object> grabarCandidato(@PathVariable Integer idLista,
@@ -94,6 +97,7 @@ public class InscripcionController {
         return agregarCandidato.grabarCandidato(idLista, datos, usuarioActual.id(authentication));
     }
 
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @DeleteMapping("/candidatos/{idCandidato}")
     public Map<String, Object> quitarCandidato(@PathVariable Integer idCandidato, Authentication authentication) {
         return agregarCandidato.quitarCandidato(idCandidato, usuarioActual.id(authentication));

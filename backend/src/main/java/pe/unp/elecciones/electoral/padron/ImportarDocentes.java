@@ -64,7 +64,8 @@ public class ImportarDocentes {
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
-            throw badRequest("No se pudo leer el archivo: " + e.getMessage());
+            org.slf4j.LoggerFactory.getLogger(ImportarDocentes.class).warn("Importación rechazada: {}", e.toString());
+            throw badRequest("No se pudo leer el archivo. Verifique que use la plantilla y sus columnas.");
         }
 
         Map<String, Object> detalle = new LinkedHashMap<>();
@@ -93,6 +94,8 @@ public class ImportarDocentes {
         respuesta.put("actualizados", actualizados);
         respuesta.put("usuariosCreados", usuariosCreados);
         respuesta.put("errores", errores == null ? List.of() : errores);
+        // A3: claves provisionales aleatorias de las cuentas creadas; se muestran una sola vez
+        respuesta.put("credenciales", resultado.getOrDefault("credenciales", List.of()));
         respuesta.put("resumen", consulta.resumenDocentes());
         return respuesta;
     }

@@ -11,6 +11,8 @@ import java.util.Map;
 @RequestMapping("/api/docentes")
 public class ImportacionDocenteController {
 
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(ImportacionDocenteController.class);
+
     private final ImportacionDocenteService importService;
 
     public ImportacionDocenteController(ImportacionDocenteService importService) {
@@ -35,7 +37,10 @@ public class ImportacionDocenteController {
             }
             return ResponseEntity.ok(resultado);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Error procesando archivo: " + e.getMessage()));
+            // B4: no se devuelve el mensaje interno de la excepción
+            LOG.warn("Importación de docentes rechazada: {}", e.toString());
+            return ResponseEntity.badRequest().body(Map.of("error",
+                    "No se pudo leer el archivo. Verifique que use la plantilla (.xlsx o .csv) y sus columnas."));
         }
     }
 

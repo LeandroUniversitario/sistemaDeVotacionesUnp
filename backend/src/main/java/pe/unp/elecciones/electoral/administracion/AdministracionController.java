@@ -155,7 +155,7 @@ public class AdministracionController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.attachment().filename(ruta.getFileName().toString()).build().toString())
-                .contentType(new MediaType("application", "sql"))
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)   // B6: el respaldo va cifrado
                 .body(new FileSystemResource(ruta));
     }
 

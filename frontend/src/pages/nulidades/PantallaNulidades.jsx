@@ -516,7 +516,7 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
                 <div><dt>Actas entregadas</dt><dd>{mesa.mesa.fechaEntrega ? fecha(mesa.mesa.fechaEntrega) : '—'}</dd></div>
                 <div><dt>Recursos</dt><dd>{mesa.recursos.length}</dd></div>
               </dl>
-              <h4 className="cp-sub">{mesa.mesa.estado === 'ANULADA' ? '4 mostrarMesaExcluida(): votos excluidos del cómputo' : 'Votos de la mesa (se excluirían si se declara la nulidad)'}</h4>
+              <h4 className="cp-sub">{mesa.mesa.estado === 'ANULADA' ? 'Votos excluidos del cómputo' : 'Votos de la mesa (se excluirían si se declara la nulidad)'}</h4>
               <div className="table-wrap">
                 <table>
                   <thead><tr><th>Cargo</th><th>Opción</th><th className="n">Votos</th></tr></thead>
@@ -777,7 +777,7 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
 
             {proceso.tipo === 'PRIMERA_VUELTA' && !detalle.segundaVuelta && cargosSegunda.some((c) => c.estadoResultado === 'SEGUNDA_VUELTA') && (
               <div className="ig-form cp-segunda">
-                <h4>10 convocarSegundaVuelta(id_proceso, fechas)</h4>
+                <h4>Convocar la segunda vuelta</h4>
                 {!acciones.convocarSegundaVuelta ? (
                   <p className="ig-texto">{acciones.motivoNoSegunda ?? (anulado ? 'La elección está anulada: no se convoca segunda vuelta.' : 'La segunda vuelta la convoca el CEUNP.')}</p>
                 ) : (
@@ -803,7 +803,7 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
                       <div className="cq-confirmar-emision" role="alert">
                         <div>
                           <strong>¿Convocar la segunda vuelta del {fecha(segunda.fechaInicio)} al {fecha(segunda.fechaFin)}?</strong>
-                          <span>11 crearSegundaVuelta: se crea un proceso nuevo con las dos listas más votadas de cada cargo, sus candidatos y el mismo padrón.</span>
+                          <span>Se crea un proceso nuevo con las dos listas más votadas de cada cargo, sus candidatos y el mismo padrón.</span>
                         </div>
                         <div className="cv-actions">
                           <button type="button" className="cv-btn cv-btn-ghost" onClick={limpiarAccion}>Volver</button>
@@ -823,7 +823,7 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
             <div className="panel cv-form">
               <div className="cv-section-head">
                 <div>
-                  <h3>15 mostrarSegundaVuelta()</h3>
+                  <h3>Segunda vuelta convocada</h3>
                   <p className="muted">Procesos de segunda vuelta convocados desde esta elección. Su preparación (mesas, miembros y cédula) continúa en Convocatoria y cronograma; el cómputo, en Cómputo y proclamación.</p>
                 </div>
               </div>
@@ -877,7 +877,7 @@ function FormRecurso({ alcance, mesa, recurso, setRecurso, personeros, saving, c
 
   return (
     <form className="ig-form nl-recurso" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
-      <h4>{parcial ? `1 ingresarNulidadParcial · mesa ${mesa.numeroMesa}` : '5 ingresarNulidadTotal · toda la elección'}</h4>
+      <h4>{parcial ? `Nulidad parcial · mesa ${mesa.numeroMesa}` : 'Nulidad total · toda la elección'}</h4>
       <div className="cv-field">
         <span className="cv-label">Causal ({parcial ? 'Art. 64' : 'Art. 65'})</span>
         <div className="cq-chips" role="group" aria-label="Causal">
@@ -1044,7 +1044,7 @@ function Expediente({
 
       {n.estado !== 'PRESENTADA' && (
         <>
-          <h4 className="cp-sub">9 mostrarResolucionNulidad()</h4>
+          <h4 className="cp-sub">Resolución de nulidad</h4>
           <dl className="mx-datos cp-meta">
             <div><dt>Resolución</dt><dd>{n.numeroResolucion}</dd></div>
             <div><dt>Fecha</dt><dd>{fecha(n.fechaResolucion)}</dd></div>
@@ -1084,7 +1084,7 @@ function Expediente({
         </div>
       ) : (
         <form className="ig-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
-          <h4>{parcial ? '2 anularMesa · resolución del Pleno' : '6 anularProceso · resolución del Pleno'}</h4>
+          <h4>{parcial ? 'Anular la mesa · resolución del Pleno' : 'Anular el proceso · resolución del Pleno'}</h4>
           {sinMateria && <p className="ig-texto">La {parcial && n.estadoMesa === 'ANULADA' ? 'mesa' : 'elección'} ya fue anulada: el recurso solo puede declararse improcedente por sustracción de la materia.</p>}
           {participacion && <p className="ig-texto">La falta de participación quedó determinada por el cómputo oficial: la nulidad solo se declara fundada (RN31).</p>}
           <div className="im-estados cq-chips" role="group" aria-label="Decisión">

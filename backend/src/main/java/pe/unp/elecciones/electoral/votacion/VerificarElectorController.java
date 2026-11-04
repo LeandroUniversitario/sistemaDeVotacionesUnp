@@ -48,7 +48,7 @@ import pe.unp.elecciones.electoral.votacion.VotacionDto.SolicitudVerificacion;
  */
 @RestController
 @RequestMapping("/api/sufragio/mesas")
-@PreAuthorize("hasAnyRole('ADMIN', 'CEUNP', 'MIEMBRO_MESA')")
+@PreAuthorize("hasAnyRole('CEUNP', 'MIEMBRO_MESA')") // ADMIN fuera de la jornada (auditoría C2)
 public class VerificarElectorController {
 
     private final VerificarElector verificarElector;

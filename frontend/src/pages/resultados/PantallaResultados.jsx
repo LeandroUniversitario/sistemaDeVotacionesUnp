@@ -286,7 +286,7 @@ export default function PantallaResultados({ session, publico = false, codigoIni
     <div className={`pd-shell cq-shell cs-shell ig-shell cp-shell nl-shell rs-shell mx${publico ? ' rs-publico' : ''}`}>
       <section className="in-head">
         <label className="cv-field in-proceso">
-          <span className="cv-label">1 seleccionarProceso · proceso electoral</span>
+          <span className="cv-label">Proceso electoral</span>
           <select value={idProceso ?? ''} onChange={(e) => cambiarProceso(Number(e.target.value))} disabled={!procesos.length}>
             {!procesos.length && <option value="">Sin resultados publicados</option>}
             {procesos.map((x) => (
@@ -300,7 +300,7 @@ export default function PantallaResultados({ session, publico = false, codigoIni
           <MenuIcon name={p ? 'trophy' : 'lock'} size={18} />
           <div>
             <strong>{p ? (p.origen === 'CUS14' ? `Resultados publicados · ${fecha(p.fechaPublicacion)}` : `Cómputo oficial · ${fecha(p.fechaComputo)}`) : 'Sin resultados que mostrar'}</strong>
-            <span>{p ? `3 verificarComputoCerrado: ${p.origen === 'CUS14' ? `cómputo publicado por el CEUNP${p.numeroResolucion ? ` · ${p.numeroResolucion}` : ''}` : 'cómputo heredado (sin sesión de cómputo)'} · RF99` : 'RF99: los resultados se muestran después de su publicación por el CEUNP.'}</span>
+            <span>{p ? `${p.origen === 'CUS14' ? `Cómputo publicado por el CEUNP${p.numeroResolucion ? ` · ${p.numeroResolucion}` : ''}` : 'Cómputo heredado (sin sesión de cómputo)'}` : 'RF99: los resultados se muestran después de su publicación por el CEUNP.'}</span>
           </div>
         </div>
         <button type="button" className="cv-btn cv-btn-ghost" onClick={refrescar} disabled={saving}>
@@ -376,7 +376,7 @@ export default function PantallaResultados({ session, publico = false, codigoIni
           <div className="panel cv-form">
             <div className="cv-section-head">
               <div>
-                <h3>4 consultarResultados · resultados por cargo</h3>
+                <h3>Resultados por cargo</h3>
                 <p className="muted">Votos de cada lista sobre los votos válidos, con los votos en blanco y nulos. {p.origen === 'CUS14' ? 'Son los resultados del cómputo general que el CEUNP proclamó y publicó.' : 'Resultados del cómputo oficial.'} Ninguna cifra revela el voto de un docente.</p>
               </div>
               <div className="cs-acciones-head">
@@ -525,12 +525,12 @@ export default function PantallaResultados({ session, publico = false, codigoIni
           <div className="panel cv-form">
             <div className="cv-section-head">
               <div>
-                <h3>7 escanearQR · verificar la autenticidad de un acta</h3>
+                <h3>Verificar la autenticidad de un acta</h3>
                 <p className="muted">Lea con la cámara o la pistola lectora el QR de cualquier documento del proceso (actas de instalación, sufragio y escrutinio, acta general de cómputo, resolución de proclamación, de nulidad o de multas, o la constancia de voto). Si el QR no se puede leer, escriba la huella SHA-256 impresa al pie del documento. El sistema recalcula la huella del documento digital y la compara con la registrada al emitirlo (RF55).</p>
               </div>
             </div>
             <EscanerQR onCodigo={(c) => verificar(c)} deshabilitado={verificando} />
-            {verificando && <p className="muted">8 verificarActa · 9 consultarPorToken · 10 recalcularHash…</p>}
+            {verificando && <p className="muted">Verificando el documento y recalculando su huella…</p>}
           </div>
 
           {verificacion && (
@@ -539,7 +539,7 @@ export default function PantallaResultados({ session, publico = false, codigoIni
                 <div className="cq-resultado-head">
                   <span className="cq-resultado-icono"><MenuIcon name={infoVer.icono} size={22} /></span>
                   <div>
-                    <strong>11 mostrarAutenticidad · {infoVer.titulo}</strong>
+                    <strong>{infoVer.titulo}</strong>
                     <span>{verificacion.mensaje}</span>
                   </div>
                 </div>
@@ -559,7 +559,7 @@ export default function PantallaResultados({ session, publico = false, codigoIni
 
               {verificacion.hashGuardado && (
                 <div className="rs-hashes">
-                  <h4>10 recalcularHash()</h4>
+                  <h4>Huella recalculada</h4>
                   <div><span>Huella registrada al emitir</span><code>{verificacion.hashGuardado}</code></div>
                   <div><span>Huella recalculada ahora</span><code className={si(verificacion.contenidoIntegro) ? 'ok' : 'mal'}>{verificacion.hashRecalculado}</code></div>
                 </div>
@@ -856,7 +856,7 @@ function ContenidoDocumento({ verificacion }) {
     const grupos = verificacion.cifras.reduce((g, c) => ({ ...g, [c.grupo]: [...(g[c.grupo] ?? []), c] }), {});
     return (
       <div className="rs-contenido">
-        <h4>9 consultarPorToken · contenido del documento digital</h4>
+        <h4>Contenido del documento digital</h4>
         <div className="rs-grupos">
           {Object.entries(grupos).map(([grupo, lineas]) => (
             <div key={grupo} className="rs-grupo">

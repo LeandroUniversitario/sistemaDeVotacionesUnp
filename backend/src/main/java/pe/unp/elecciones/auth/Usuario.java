@@ -51,6 +51,10 @@ public class Usuario {
     @Column(name = "debe_cambiar_password", nullable = false)
     private boolean debeCambiarPassword = false;
 
+    /** A4: los JWT emitidos antes de esta fecha ya no valen (la fija trg_usuario_revocar_bu). */
+    @Column(name = "token_valido_desde", insertable = false, updatable = false)
+    private LocalDateTime tokenValidoDesde;
+
     protected Usuario() {
     }
 
@@ -93,6 +97,7 @@ public class Usuario {
     public LocalDateTime getBloqueadoHasta()    { return bloqueadoHasta; }
     public LocalDateTime getUltimoAcceso()      { return ultimoAcceso; }
     public boolean isDebeCambiarPassword()      { return debeCambiarPassword; }
+    public LocalDateTime getTokenValidoDesde()  { return tokenValidoDesde; }
 
     public void setDebeCambiarPassword(boolean debeCambiarPassword) {
         this.debeCambiarPassword = debeCambiarPassword;

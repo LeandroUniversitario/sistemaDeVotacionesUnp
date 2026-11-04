@@ -27,6 +27,10 @@ export default function CambiarPasswordObligatorioPage({ token, username, onCamb
       setError('La nueva contraseña debe tener al menos 8 caracteres.');
       return;
     }
+    if (!/\p{L}/u.test(form.passwordNueva) || !/[0-9]/.test(form.passwordNueva)) {
+      setError('La nueva contraseña debe combinar letras y números.');
+      return;
+    }
     if (form.passwordNueva !== form.confirmar) {
       setError('La confirmación no coincide con la nueva contraseña.');
       return;
@@ -56,7 +60,10 @@ export default function CambiarPasswordObligatorioPage({ token, username, onCamb
         throw new Error(msg);
       }
 
-      onCambiado(); // avisa al componente padre que ya puede entrar al dashboard
+      // A4: el cambio de clave revoca el token provisional; se continúa con el nuevo
+      const nuevo = await resp.json().catch(() => null);
+      if (nuevo?.token) sessionStorage.setItem('accessToken', nuevo.token);
+      onCambiado(nuevo?.token); // avisa al componente padre que ya puede entrar al dashboard
     } catch (err) {
       setError(err.message);
     } finally {
@@ -79,7 +86,7 @@ export default function CambiarPasswordObligatorioPage({ token, username, onCamb
           Tu contraseña actual es provisional. Por seguridad, debes
           establecer una contraseña personal antes de continuar.
           <br />
-          <em>Es la que te entregó el administrador o, si tu cuenta se creó al importar el padrón, tu DNI.</em>
+          <em>Es la clave provisional que te entregó el CEUNP o el administrador.</em>
         </p>
 
         {error && (
@@ -89,7 +96,7 @@ export default function CambiarPasswordObligatorioPage({ token, username, onCamb
         )}
 
         <form className="login-form" onSubmit={handleSubmit}>
-          {/* Contraseña actual (DNI) */}
+          {/* Contraseña provisional */}
           <div className="login-field">
             <label htmlFor="ocp-actual">Contraseña provisional</label>
             <span className="input-with-icon">

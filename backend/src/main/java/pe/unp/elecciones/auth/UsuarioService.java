@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import pe.unp.elecciones.electoral.repository.ParametroGlobalRepository;
+import pe.unp.elecciones.electoral.service.AuditoriaService;
 
 /**
  * Cuenta propia: listado y cambio de la contraseña del usuario que inició sesión.
@@ -20,9 +21,13 @@ public class UsuarioService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final ParametroGlobalRepository parametros;
+    private final PoliticaPassword politica;
+    private final AuditoriaService auditoriaService;
 
     public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder,
-            ParametroGlobalRepository parametros) {
+            ParametroGlobalRepository parametros, PoliticaPassword politica, AuditoriaService auditoriaService) {
+        this.politica = politica;
+        this.auditoriaService = auditoriaService;
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
         this.parametros = parametros;
@@ -33,23 +38,29 @@ public class UsuarioService {
         return usuarioRepository.findAll();
     }
 
-    @Transactional
-    public void cambiarPassword(String username, String passwordActual, String passwordNueva) {
-        int minimo = parametroEntero("SEGURIDAD_PASSWORD_MIN", 8);
-        if (passwordNueva == null || passwordNueva.length() < minimo) {
-            throw badRequest("La nueva contraseña debe tener al menos " + minimo + " caracteres");
-        }
+    /**
+     * Cambio de la clave propia con la política única (B2). Fallar la clave actual cuenta como intento
+     * fallido y puede bloquear la cuenta, igual que en el login.
+     */
+    @Transactional(noRollbackFor = ResponseStatusException.class)
+    public void cambiarPassword(String username, String passwordActual, String passwordNueva, String ip, String agente) {
         Usuario usuario = usuarioRepository.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED, "Usuario no disponible"));
         if (!passwordEncoder.matches(passwordActual, usuario.getPasswordHash())) {
+            usuario.registrarIntentoFallido(parametroEntero("SEGURIDAD_INTENTOS_MAXIMOS", 5),
+                    parametroEntero("SEGURIDAD_BLOQUEO_MINUTOS", 15));
+            usuarioRepository.save(usuario);
+            auditoriaService.registrar(usuario.getId(), null, "CAMBIO_CLAVE_FALLIDO", ip, agente, null);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La contraseña actual no es correcta");
         }
+        politica.validar(passwordNueva);
         if (passwordEncoder.matches(passwordNueva, usuario.getPasswordHash())) {
             throw badRequest("La nueva contraseña debe ser distinta de la actual");
         }
         usuario.cambiarPassword(passwordEncoder.encode(passwordNueva));
         usuarioRepository.save(usuario);
+        auditoriaService.registrar(usuario.getId(), null, "CAMBIO_CLAVE", ip, agente, null);
     }
 
     /** CUS18: valor entero de un parámetro de seguridad (parametro_global). */

@@ -48,16 +48,43 @@ public class EjecutarSorteo {
         this.consulta = consulta;
     }
 
-    /** 7: generarAleatoriedad(semilla) — si no se ingresó semilla, genera 256 bits aleatorios. */
-    public String generarAleatoriedad(String semilla) {
-        if (semilla != null && !semilla.isBlank()) {
-            String limpia = semilla.trim();
-            if (!limpia.matches("[\\p{Print}]{1,128}")) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "La semilla solo admite caracteres imprimibles (máximo 128).");
-            }
-            return limpia;
+    /** Semilla definitiva de un sorteo y los datos para verificarla después. */
+    public record Semilla(String semilla, String secretoServidor, String aporteOperador, String compromiso) {
+    }
+
+    /**
+     * M2 · Compromiso del sorteo (commit-reveal). El servidor fija un secreto por ámbito y antes del
+     * sorteo solo publica su SHA-256. Así el operador no puede probar semillas en la vista previa
+     * hasta dar con el resultado que le conviene.
+     */
+    public String compromiso(String ambito) {
+        String secreto = nuevoSecreto();
+        dao.ejecutar("""
+                INSERT IGNORE INTO sorteo_compromiso (ambito, secreto, compromiso) VALUES (?, ?, SHA2(?, 256))
+                """, ambito, secreto, secreto);
+        return String.valueOf(dao.consultar("SELECT compromiso FROM sorteo_compromiso WHERE ambito = ?", ambito)
+                .get(0).get("compromiso"));
+    }
+
+    /**
+     * 7: generarAleatoriedad(semilla). Semilla = SHA-256(secreto del servidor | aporte del operador).
+     * El aporte puede ser público (por ejemplo, el número de una lotería acordado en el acto). Tras
+     * usarse, el secreto se revela en la respuesta y se descarta: el siguiente sorteo usa uno nuevo.
+     */
+    public Semilla semillaDefinitiva(String ambito, String aporteOperador) {
+        String aporte = aporteOperador == null ? "" : aporteOperador.trim();
+        if (!aporte.isEmpty() && !aporte.matches("[\\p{Print}]{1,128}")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "La semilla solo admite caracteres imprimibles (máximo 128).");
         }
+        String compromiso = compromiso(ambito);
+        String secreto = String.valueOf(dao.consultar("SELECT secreto FROM sorteo_compromiso WHERE ambito = ?", ambito)
+                .get(0).get("secreto"));
+        dao.ejecutar("DELETE FROM sorteo_compromiso WHERE ambito = ?", ambito);
+        return new Semilla(sha256(secreto + "|" + aporte), secreto, aporte, compromiso);
+    }
+
+    private static String nuevoSecreto() {
         byte[] bytes = new byte[32];
         AZAR.nextBytes(bytes);
         return HexFormat.of().formatHex(bytes);

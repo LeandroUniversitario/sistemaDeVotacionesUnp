@@ -19,6 +19,26 @@ export async function apiRequest(path, options = {}) {
     sessionStorage.removeItem('accessToken');
     throw new Error('SESSION_EXPIRED');
   }
+  return leerRespuesta(response);
+}
+
+/**
+ * Peticiones del equipo de la cabina (CUS10): sin sesión de persona, con el secreto de dispositivo
+ * que se emitió al conectar el terminal. Un 401 significa que el equipo fue desconectado o reconectado
+ * en otro lugar.
+ */
+export async function cabinaRequest(path, secreto, options = {}) {
+  const headers = {
+    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    'X-Terminal-Secreto': secreto,
+    ...options.headers,
+  };
+  const response = await fetch(path, { ...options, headers });
+  if (response.status === 401) throw new Error('TERMINAL_DESCONECTADO');
+  return leerRespuesta(response);
+}
+
+async function leerRespuesta(response) {
   if (!response.ok) {
     let message = 'No se pudo completar la operación.';
     try {

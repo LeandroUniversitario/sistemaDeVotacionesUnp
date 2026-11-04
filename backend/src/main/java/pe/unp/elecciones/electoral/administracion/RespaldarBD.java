@@ -53,18 +53,19 @@ import pe.unp.elecciones.electoral.service.ProcedimientoDao;
  *   12 registrarAuditoria() → sp_registrar_respaldo: respaldo_bd con la huella SHA-256 y log_auditoria
  *   13 mostrarRespaldo()    → v_respaldos: archivo, tamaño, objetos, filas y huella
  *
- * <p>El archivo se restaura con phpMyAdmin (Importar, con la base elecciones_unp elegida) o con
- * {@code mysql -u root elecciones_unp < archivo.sql}. Los triggers se crean al final, después de los
+ * <p>El archivo se escribe cifrado (AES-256-GCM, ver {@link CifradoRespaldo}): primero se descifra
+ * con RESPALDO_CLAVE y luego se restaura con phpMyAdmin o {@code mysql -u root elecciones_unp < archivo.sql}. Los triggers se crean al final, después de los
  * datos, para que las reglas de la base no rechacen la carga. La huella permite comprobar después
  * que el archivo no fue alterado.
  */
 @Service
 public class RespaldarBD {
 
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(RespaldarBD.class);
     private static final DateTimeFormatter NOMBRE = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
     private static final Pattern DEFINER = Pattern.compile("\\s*DEFINER\\s*=\\s*(`[^`]*`|'[^']*'|[^\\s@]+)@(`[^`]*`|'[^']*'|[^\\s]+)",
             Pattern.CASE_INSENSITIVE);
-    private static final Pattern ARCHIVO = Pattern.compile("^respaldo_elecciones_unp_\\d{8}_\\d{6}\\.sql$");
+    private static final Pattern ARCHIVO = Pattern.compile("^respaldo_elecciones_unp_\\d{8}_\\d{6}\\.sql(\\.enc)?$");
     private static final int FILAS_POR_INSERT = 200;
 
     private final DataSource dataSource;
@@ -73,9 +74,13 @@ public class RespaldarBD {
     private final Bitacora bitacora;
     private final Path directorio;
     private final ReentrantLock enCurso = new ReentrantLock();
+    /** B6: clave de cifrado de los respaldos (RESPALDO_CLAVE); sin ella no se generan respaldos. */
+    private final String clave;
 
     public RespaldarBD(DataSource dataSource, ProcedimientoDao dao, AdministracionConsulta consulta, Bitacora bitacora,
-            @Value("${app.respaldo.directorio:respaldos}") String directorio) {
+            @Value("${app.respaldo.directorio:respaldos}") String directorio,
+            @Value("${app.respaldo.clave:}") String clave) {
+        this.clave = clave == null ? "" : clave;
         this.dataSource = dataSource;
         this.dao = dao;
         this.consulta = consulta;
@@ -96,6 +101,11 @@ public class RespaldarBD {
 
     public Map<String, Object> generar(AdministracionDto.SolicitudRespaldo datos, Usuario admin, String ip) {
         consulta.verificarInstalacion();
+        if (clave.length() < 16) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Para generar respaldos defina en el servidor la variable RESPALDO_CLAVE (al menos 16 caracteres): "
+                            + "el archivo se cifra porque contiene datos personales y credenciales.");
+        }
         if (!enCurso.tryLock()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya se está generando un respaldo; espere a que termine.");
         }
@@ -103,7 +113,7 @@ public class RespaldarBD {
         try {
             Files.createDirectories(directorio);
             LocalDateTime inicio = LocalDateTime.now().withNano(0);
-            String nombre = "respaldo_elecciones_unp_" + NOMBRE.format(inicio) + ".sql";
+            String nombre = "respaldo_elecciones_unp_" + NOMBRE.format(inicio) + ".sql.enc";
             Path destino = directorio.resolve(nombre);
             if (Files.exists(destino)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un respaldo de este segundo; vuelva a intentarlo.");
@@ -113,7 +123,8 @@ public class RespaldarBD {
             Conteo conteo = new Conteo();
             try (OutputStream archivo = Files.newOutputStream(temporal);
                     DigestOutputStream conHuella = new DigestOutputStream(archivo, sha);
-                    Writer out = new BufferedWriter(new OutputStreamWriter(conHuella, StandardCharsets.UTF_8), 1 << 16);
+                    OutputStream cifrado = CifradoRespaldo.cifrar(conHuella, clave.toCharArray());
+                    Writer out = new BufferedWriter(new OutputStreamWriter(cifrado, StandardCharsets.UTF_8), 1 << 16);
                     Connection cn = dataSource.getConnection()) {
                 volcar(cn, out, conteo, admin, inicio, datos == null ? null : datos.motivo());
             }
@@ -127,14 +138,18 @@ public class RespaldarBD {
             Map<String, Object> respaldo = r.filas().isEmpty() ? Map.of() : r.filas().get(0);
             Map<String, Object> respuesta = new LinkedHashMap<>(consulta.respuesta("Respaldo generado: " + nombre + " ("
                     + conteo.tablas + " tablas, " + conteo.filas + " filas, " + conteo.vistas + " vistas, " + conteo.rutinas
-                    + " rutinas y " + conteo.disparadores + " triggers). Guárdelo fuera del servidor.", admin));
+                    + " rutinas y " + conteo.disparadores + " triggers), cifrado con AES-256. Guárdelo fuera del servidor; "
+                    + "para restaurarlo se descifra con RESPALDO_CLAVE (ver CifradoRespaldo).", admin));
             respuesta.put("respaldo", respaldo);
             return respuesta;
         } catch (IOException e) {
+            LOG.error("Respaldo: no se pudo escribir en {}", directorio, e);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "No se pudo escribir el respaldo en " + directorio + ": " + e.getMessage());
+                    "No se pudo escribir el respaldo en la carpeta del servidor. Revise el registro del backend.");
         } catch (SQLException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "No se pudo leer la base de datos: " + e.getMessage());
+            LOG.error("Respaldo: no se pudo leer la base", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "No se pudo leer la base de datos. Revise el registro del backend.");
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         } finally {
@@ -184,7 +199,8 @@ public class RespaldarBD {
                 calculada = HexFormat.of().formatHex(((DigestInputStream) in).getMessageDigest().digest());
                 tamano = Files.size(ruta);
             } catch (IOException e) {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "No se pudo leer el respaldo: " + e.getMessage());
+                LOG.error("Respaldo: no se pudo leer {}", ruta, e);
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "No se pudo leer el archivo del respaldo.");
             } catch (NoSuchAlgorithmException e) {
                 throw new IllegalStateException(e);
             }

@@ -75,12 +75,14 @@ public class ConvocatoriaController {
 
     // ─── 1-4: Registrar proceso y cronograma ─────────────────────────────────
 
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, Object> registrar(@Valid @RequestBody DatosProceso datos, Authentication authentication) {
         return registrarProceso.guardarProceso(datos, usuarioActual.id(authentication));
     }
 
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @PutMapping("/{idProceso}/cronograma")
     public Map<String, Object> actualizarCronograma(
             @PathVariable Integer idProceso,
@@ -91,6 +93,7 @@ public class ConvocatoriaController {
 
     // ─── 5-8: Cargos electorales ──────────────────────────────────────────────
 
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @PostMapping("/{idProceso}/cargos")
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, Object> agregarCargo(
@@ -100,6 +103,7 @@ public class ConvocatoriaController {
         return agregarCargo.guardarCargo(idProceso, datos, usuarioActual.id(authentication));
     }
 
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @DeleteMapping("/{idProceso}/cargos/{idCargo}")
     public Map<String, Object> quitarCargo(
             @PathVariable Integer idProceso,
@@ -110,6 +114,7 @@ public class ConvocatoriaController {
 
     // ─── 9-12: Publicar convocatoria ─────────────────────────────────────────
 
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @PostMapping("/{idProceso}/publicar")
     public Map<String, Object> publicar(@PathVariable Integer idProceso, Authentication authentication) {
         return publicarConvocatoria.cambiarEstado(idProceso, PublicarConvocatoria.ESTADO_PUBLICADA,

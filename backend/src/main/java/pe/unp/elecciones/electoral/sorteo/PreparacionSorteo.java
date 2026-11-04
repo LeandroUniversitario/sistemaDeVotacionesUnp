@@ -61,14 +61,17 @@ public class PreparacionSorteo {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "RN18: el cargo no tiene listas ADMITIDAS; califique las listas antes de sortear la cédula.");
         }
-        String usada = ejecutarSorteo.generarAleatoriedad(semilla);
-        dao.llamar("sp_sortear_orden_cedula", ProcedimientoDao.SIN_SALIDA, idCargo, usada, idUsuario);
+        EjecutarSorteo.Semilla usada = ejecutarSorteo.semillaDefinitiva("CEDULA:" + idCargo, semilla);
+        dao.llamar("sp_sortear_orden_cedula", ProcedimientoDao.SIN_SALIDA, idCargo, usada.semilla(), idUsuario);
 
         Integer idProceso = ((Number) cargo.get(0).get("idProceso")).intValue();
         Map<String, Object> respuesta = new LinkedHashMap<>();
         respuesta.put("mensaje", "Orden de la cédula sorteado para " + cargo.get(0).get("nombre") + " ("
                 + admitidas + " lista" + (admitidas == 1 ? "" : "s") + ").");
-        respuesta.put("semilla", usada);
+        respuesta.put("semilla", usada.semilla());
+        respuesta.put("secretoServidor", usada.secretoServidor());
+        respuesta.put("aporteOperador", usada.aporteOperador());
+        respuesta.put("compromiso", usada.compromiso());
         respuesta.put("cargos", consulta.cedula(idProceso));
         return respuesta;
     }

@@ -67,6 +67,20 @@ function descargarCsv(nombre, filas) {
   URL.revokeObjectURL(url);
 }
 
+/** A3: las claves provisionales se entregan una sola vez, en un CSV para repartir por canal privado. */
+function descargarCredenciales(credenciales) {
+  const celda = (v) => `"${String(v ?? '').replaceAll('"', '""')}"`;
+  const filas = [['Docente', 'Correo', 'Usuario', 'Clave provisional'],
+    ...credenciales.map((c) => [c.docente, c.email, c.username, c.claveProvisional])];
+  const csv = '\ufeff' + filas.map((f) => f.map(celda).join(';')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'claves_provisionales.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function PadronPage({ session, onChange, onSessionExpired }) {
   const esAdmin = session?.rol === 'ADMIN';
 
@@ -384,6 +398,18 @@ export default function PadronPage({ session, onChange, onSessionExpired }) {
                     <summary>Ver {importacion.errores.length} fila(s) con error</summary>
                     <ul>{importacion.errores.map((e) => <li key={e}>{e}</li>)}</ul>
                   </details>
+                )}
+                {importacion.credenciales?.length > 0 && (
+                  <div className="tc-aviso so-aviso" role="note">
+                    <p>
+                      <strong>{importacion.credenciales.length} cuenta(s) nueva(s) con clave provisional aleatoria.</strong> Descargue la
+                      lista ahora (no se vuelve a mostrar) y entregue a cada docente su clave por un canal privado. Al ingresar,
+                      el sistema le exigirá cambiarla.
+                    </p>
+                    <button type="button" className="cv-btn cv-btn-soft" onClick={() => descargarCredenciales(importacion.credenciales)}>
+                      Descargar claves provisionales (CSV)
+                    </button>
+                  </div>
                 )}
                 {!esAdmin && (
                   <div className="cv-actions">

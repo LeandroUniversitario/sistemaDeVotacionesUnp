@@ -67,10 +67,18 @@ public class SorteoMesaController {
         r.put("parametros", consulta.parametros());
         r.put("mesas", consulta.mesas(idProceso));
         r.put("miembros", consulta.miembros(idProceso));
-        r.put("cedula", consulta.cedula(idProceso));
+        List<Map<String, Object>> cedula = consulta.cedula(idProceso);
+        for (Map<String, Object> cargo : cedula) {
+            // M2: el compromiso del sorteo de la cédula se publica antes de sortear
+            if (!Boolean.TRUE.equals(cargo.get("sorteado")) && !((List<?>) cargo.get("listas")).isEmpty()) {
+                cargo.put("compromiso", ejecutarSorteo.compromiso("CEDULA:" + cargo.get("id")));
+            }
+        }
+        r.put("cedula", cedula);
         return r;
     }
 
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @PostMapping("/procesos/{idProceso}/mesas")
     public Map<String, Object> conformarMesas(@PathVariable Integer idProceso,
             @Valid @RequestBody DatosMesas datos, Authentication authentication) {
@@ -87,37 +95,53 @@ public class SorteoMesaController {
 
     // ─── 6-12: ingresarSemilla(semilla) ──────────────────────────────────────
 
-    /** Calcula el resultado con la semilla, sin grabar nada. */
+    /**
+     * Vista previa: mesas pendientes y elegibles de cada una, sin miembros. Los miembros no se pueden
+     * calcular antes de sortear porque la semilla incluye el secreto del servidor (M2, commit-reveal);
+     * aquí solo se publica su compromiso SHA-256.
+     */
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @PostMapping("/procesos/{idProceso}/vista-previa")
     public Map<String, Object> vistaPrevia(@PathVariable Integer idProceso, @Valid @RequestBody DatosSemilla datos) {
         exigirSorteable(idProceso);
-        String semilla = ejecutarSorteo.generarAleatoriedad(datos.semilla());
+        List<Map<String, Object>> mesas = ejecutarSorteo.sortearMesasPendientes(idProceso, "previa");
+        mesas.forEach(m -> {
+            m.remove("semillaMesa");
+            m.put("miembros", List.of());
+        });
         Map<String, Object> r = new LinkedHashMap<>();
-        r.put("semillaBase", semilla);
-        r.put("mesas", ejecutarSorteo.sortearMesasPendientes(idProceso, semilla));
+        r.put("compromiso", ejecutarSorteo.compromiso("MESAS:" + idProceso));
+        r.put("mesas", mesas);
         return r;
     }
 
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @PostMapping("/procesos/{idProceso}/sortear")
     public Map<String, Object> sortear(@PathVariable Integer idProceso, @Valid @RequestBody DatosSemilla datos,
             Authentication authentication) {
         exigirSorteable(idProceso);
-        String semilla = ejecutarSorteo.generarAleatoriedad(datos.semilla());                 // 7
-        List<Map<String, Object>> sorteados = ejecutarSorteo.sortearMesasPendientes(idProceso, semilla);
-        if (sorteados.isEmpty()) {
+        List<Map<String, Object>> pendientes = ejecutarSorteo.sortearMesasPendientes(idProceso, "control");
+        if (pendientes.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "RN19: todas las mesas ya fueron sorteadas; el cargo de miembro de mesa es irrenunciable.");
         }
-        for (Map<String, Object> mesa : sorteados) {
+        for (Map<String, Object> mesa : pendientes) {
             if (!Boolean.TRUE.equals(mesa.get("suficientes"))) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "RN19: la mesa " + mesa.get("numeroMesa")
                         + " solo tiene " + mesa.get("elegibles") + " docentes elegibles; se necesitan 6.");
             }
         }
-        return grabarMiembrosMesa.guardarResultados(idProceso, semilla, sorteados,                // 8
-                usuarioActual.id(authentication));
+        EjecutarSorteo.Semilla semilla = ejecutarSorteo.semillaDefinitiva("MESAS:" + idProceso, datos.semilla()); // 7
+        List<Map<String, Object>> sorteados = ejecutarSorteo.sortearMesasPendientes(idProceso, semilla.semilla());
+        Map<String, Object> r = new LinkedHashMap<>(grabarMiembrosMesa.guardarResultados(idProceso, semilla.semilla(),
+                sorteados, usuarioActual.id(authentication)));                                          // 8
+        r.put("secretoServidor", semilla.secretoServidor());
+        r.put("aporteOperador", semilla.aporteOperador());
+        r.put("compromiso", semilla.compromiso());
+        return r;
     }
 
+    @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
     @PostMapping("/cargos/{idCargo}/orden-cedula")
     public Map<String, Object> ordenCedula(@PathVariable Integer idCargo, @Valid @RequestBody DatosSemilla datos,
             Authentication authentication) {

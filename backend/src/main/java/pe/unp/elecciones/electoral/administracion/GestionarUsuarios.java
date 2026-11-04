@@ -1,6 +1,5 @@
 package pe.unp.elecciones.electoral.administracion;
 
-import java.security.SecureRandom;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -9,6 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import pe.unp.elecciones.auth.PoliticaPassword;
 import pe.unp.elecciones.auth.Usuario;
 import pe.unp.elecciones.electoral.service.ProcedimientoDao;
 
@@ -27,14 +27,14 @@ import pe.unp.elecciones.electoral.service.ProcedimientoDao;
 @Service
 public class GestionarUsuarios {
 
-    private static final String ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-    private static final SecureRandom AZAR = new SecureRandom();
-
     private final ProcedimientoDao dao;
     private final AdministracionConsulta consulta;
+    private final PoliticaPassword politica;
     private final PasswordEncoder passwordEncoder;
 
-    public GestionarUsuarios(ProcedimientoDao dao, AdministracionConsulta consulta, PasswordEncoder passwordEncoder) {
+    public GestionarUsuarios(ProcedimientoDao dao, AdministracionConsulta consulta, PasswordEncoder passwordEncoder,
+            PoliticaPassword politica) {
+        this.politica = politica;
         this.dao = dao;
         this.consulta = consulta;
         this.passwordEncoder = passwordEncoder;
@@ -114,35 +114,14 @@ public class GestionarUsuarios {
 
     // ─── Contraseñas ─────────────────────────────────────────────────────────
 
-    /** Contraseña escrita por el Admin: longitud mínima del parámetro, letras y números. */
+    /** Contraseña escrita por el Admin: la misma política que el cambio propio (B2). */
     String validarClave(String clave) {
-        int minimo = consulta.entero("SEGURIDAD_PASSWORD_MIN", 8);
-        if (clave.length() < minimo) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "La contraseña debe tener al menos " + minimo + " caracteres.");
-        }
-        if (!clave.matches(".*[A-Za-z].*") || !clave.matches(".*[0-9].*")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La contraseña debe combinar letras y números.");
-        }
-        if (clave.isBlank() || !clave.equals(clave.trim())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La contraseña no puede empezar ni terminar con espacios.");
-        }
-        return clave;
+        return politica.validar(clave);
     }
 
-    /** Provisional: al menos 10 caracteres sin letras ni números que se confundan, con mayúscula, minúscula y número. */
+    /** Provisional aleatoria (SecureRandom). */
     String generarClave() {
-        int largo = Math.max(10, consulta.entero("SEGURIDAD_PASSWORD_MIN", 8));
-        while (true) {
-            StringBuilder sb = new StringBuilder(largo);
-            for (int i = 0; i < largo; i++) {
-                sb.append(ALFABETO.charAt(AZAR.nextInt(ALFABETO.length())));
-            }
-            String clave = sb.toString();
-            if (clave.matches(".*[A-Z].*") && clave.matches(".*[a-z].*") && clave.matches(".*[0-9].*")) {
-                return clave;
-            }
-        }
+        return politica.generarProvisional();
     }
 
     private static String rol(String rol) {

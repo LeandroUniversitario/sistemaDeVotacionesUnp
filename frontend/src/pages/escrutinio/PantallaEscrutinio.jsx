@@ -76,7 +76,7 @@ function conteoInicial(cargos) {
   return form;
 }
 
-export default function PantallaEscrutinio({ session, onSessionExpired }) {
+export default function PantallaEscrutinio({ session, onSessionExpired, onIrImpugnaciones }) {
   const esMiembro = session.rol === 'MIEMBRO_MESA';
   const puedeOperar = esMiembro || session.rol === 'CEUNP';
 
@@ -434,7 +434,11 @@ export default function PantallaEscrutinio({ session, onSessionExpired }) {
             <div className="cq-kpi" style={{ '--cq-color': '#f59e0b' }}>
               <span>Votos impugnados <em>A4</em></span>
               <strong>{impugnados}</strong>
-              <small>pendientes de resolver (CUS13)</small>
+              <small>
+                {impugnados > 0 && onIrImpugnaciones
+                  ? <button type="button" className="cv-btn cv-btn-ghost vt-mini" onClick={onIrImpugnaciones}>Resolver en «Impugnaciones de la mesa»</button>
+                  : 'pendientes de resolver (CUS13)'}
+              </small>
             </div>
           </section>
 

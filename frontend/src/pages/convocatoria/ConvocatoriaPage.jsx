@@ -253,6 +253,25 @@ export default function ConvocatoriaPage({ onChange, onSessionExpired }) {
     }
   }
 
+  // ─── A5: abrir la votación (INSCRIPCION → VOTACION) ─────────────────────
+  // Las reglas (padrón, listas admitidas, orden de cédula sorteado, mesas con 6 miembros) las valida
+  // sp_cambiar_estado_proceso; si falta algo, su mensaje se muestra tal cual.
+  async function abrirVotacion() {
+    setSaving(true);
+    setFeedback(null);
+    try {
+      await apiRequest(`/api/procesos/${seleccion}/estado`, { method: 'PATCH', body: JSON.stringify({ estado: 'VOTACION' }) });
+      await abrirConvocatoria(seleccion);
+      setFeedback({ type: 'success', text: 'Votación abierta: las mesas ya pueden instalarse y recibir electores en el horario del sufragio.' });
+      cargarLista();
+      onChange?.();
+    } catch (error) {
+      manejarError(error);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   // ─── Render ─────────────────────────────────────────────────────────────
   const proceso = detalle?.proceso;
   const editable = seleccion === 'nuevo' || detalle?.editable;
@@ -342,7 +361,12 @@ export default function ConvocatoriaPage({ onChange, onSessionExpired }) {
             </header>
 
             {!editable && proceso ? (
-              <VistaPublicada proceso={proceso} cargos={cargos} />
+              <>
+                <VistaPublicada proceso={proceso} cargos={cargos} />
+                {proceso.estado === 'INSCRIPCION' && (
+                  <AbrirVotacion proceso={proceso} saving={saving} onAbrir={abrirVotacion} />
+                )}
+              </>
             ) : (
               <>
                 <nav className="cv-steps" aria-label="Pasos de la convocatoria">
@@ -613,6 +637,39 @@ export default function ConvocatoriaPage({ onChange, onSessionExpired }) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A5: paso de INSCRIPCION a VOTACION, con confirmación. */
+function AbrirVotacion({ proceso, saving, onAbrir }) {
+  const [confirmar, setConfirmar] = useState(false);
+  return (
+    <div className="panel cv-form">
+      <div className="cv-section-head">
+        <div>
+          <h3>Abrir la votación</h3>
+          <p className="muted">
+            Cuando el padrón esté aprobado, las listas calificadas, el orden de la cédula sorteado y las mesas con sus seis
+            miembros, abra la votación. El sistema verifica cada requisito y le indica si falta alguno.
+          </p>
+        </div>
+      </div>
+      {!confirmar ? (
+        <div className="cv-actions">
+          <button type="button" className="cv-btn cv-btn-primary" disabled={saving} onClick={() => setConfirmar(true)}>
+            <MenuIcon name="vote" size={15} /> Abrir la votación
+          </button>
+        </div>
+      ) : (
+        <div className="cv-actions">
+          <span className="cv-actions-note">¿Abrir la votación de «{proceso.nombre}»? La inscripción queda cerrada.</span>
+          <button type="button" className="cv-btn cv-btn-ghost" disabled={saving} onClick={() => setConfirmar(false)}>Cancelar</button>
+          <button type="button" className="cv-btn cv-btn-success" disabled={saving} onClick={async () => { await onAbrir(); setConfirmar(false); }}>
+            {saving ? 'Abriendo…' : 'Sí, abrir'}
+          </button>
         </div>
       )}
     </div>

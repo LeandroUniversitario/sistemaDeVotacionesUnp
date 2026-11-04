@@ -1,0 +1,19 @@
+# Perfil de producción (auditoría B5). Actívelo con SPRING_PROFILES_ACTIVE=prod.
+# Exige credenciales de base de datos explícitas y se sirve detrás de un proxy inverso con HTTPS
+# (por ejemplo, nginx con el frontend compilado en /, y /api hacia este backend).
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+server:
+  forward-headers-strategy: framework   # respeta X-Forwarded-For/Proto del proxy (IP real para los límites)
+  error:
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

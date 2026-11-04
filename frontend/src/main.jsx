@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage';
 import CambiarPasswordObligatorioPage from './pages/CambiarPasswordObligatorioPage';
 import PortalResultados from './pages/resultados/PortalResultados';
 import CredencialPublica from './pages/credenciales/CredencialPublica';
+import TerminalVotacion from './pages/votacion/TerminalVotacion';
 import './styles.css';
 import './theme/ejecutivo.css'; // capa de diseño ejecutivo: va al final para prevalecer
 
@@ -15,7 +16,7 @@ import './theme/ejecutivo.css'; // capa de diseño ejecutivo: va al final para p
  *
  *   1. LoginPage            - sin sesion activa
  *   2. CambiarPasswordObligatorioPage - sesion iniciada PERO debeCambiarPassword=true
- *      (docente recien importado que usa su DNI como clave provisional)
+ *      (cuenta con clave provisional aleatoria; el backend tambien bloquea el resto de la API)
  *   3. DashboardPage        - sesion normal, password ya elegida por el usuario
  */
 function App() {
@@ -57,10 +58,24 @@ function App() {
     setSession(null);
   }
 
-  /** El docente cambio su clave exitosamente -> entrar al dashboard */
-  function handlePasswordCambiada() {
-    setSession(prev => ({ ...prev, debeCambiarPassword: false }));
+  /** El docente cambio su clave exitosamente -> entrar al dashboard (con el token nuevo) */
+  function handlePasswordCambiada(nuevoToken) {
+    setSession(prev => ({ ...prev, token: nuevoToken ?? prev.token, debeCambiarPassword: false }));
   }
+
+  // A4: renovación de la sesión mientras la aplicación está abierta (la jornada dura más que el token)
+  useEffect(() => {
+    if (!session) return undefined;
+    const timer = setInterval(async () => {
+      try {
+        const r = await apiRequest('/api/auth/renovar', { method: 'POST' });
+        if (r?.token) sessionStorage.setItem('accessToken', r.token);
+      } catch (e) {
+        if (e.message === 'SESSION_EXPIRED') handleLogout();
+      }
+    }, 20 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [session?.username]);
 
   if (verificando) {
     // Pantalla de splash minima mientras se verifica el token
@@ -96,7 +111,15 @@ function App() {
 const portalPublico = /^\/(verificar|resultados)(\/|$)/.test(window.location.pathname);
 // CUS07 · Destino del QR de una credencial (/credencial/{código}): datos del titular, sin sesión
 const credencialPublica = window.location.pathname.startsWith('/credencial/');
+// CUS10 · Cabina de votación: pantalla completa, sin menú ni sesión de persona (secreto del equipo)
+const cabina = /^\/cabina\/?$/.test(window.location.pathname);
+
+function Cabina() {
+  return <main className="cabina-kiosco"><TerminalVotacion modo="cabina" /></main>;
+}
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>{credencialPublica ? <CredencialPublica /> : portalPublico ? <PortalResultados /> : <App />}</StrictMode>,
+  <StrictMode>
+    {cabina ? <Cabina /> : credencialPublica ? <CredencialPublica /> : portalPublico ? <PortalResultados /> : <App />}
+  </StrictMode>,
 );

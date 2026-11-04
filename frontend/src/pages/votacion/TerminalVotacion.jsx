@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { apiRequest } from '../../api/apiClient';
+import { apiRequest, cabinaRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
 import { imprimirCedula } from './ImpresoraCedula';
 import '../convocatoria/convocatoria.css';
@@ -10,7 +10,7 @@ import '../mesa/mesa-ejecutivo.css';
 const BLANCO = 'BLANCO';
 const CLAVE_TERMINAL = 'siceunp.terminalVotacion';
 
-function leerTerminal() {
+export function leerTerminal() {
   try { return JSON.parse(localStorage.getItem(CLAVE_TERMINAL)) ?? null; } catch { return null; }
 }
 function guardarTerminal(valor) {
@@ -26,17 +26,22 @@ function FotoCandidato({ lista }) {
   if (rector?.urlFoto && !error) {
     return <img className="vt-foto grande" src={rector.urlFoto} alt={`Candidato: ${rector.nombre}`} onError={() => setError(true)} />;
   }
-  return <div className="vt-foto vt-foto-vacia grande" aria-hidden="true">{lista.simbolo ?? lista.nombre.charAt(0)}</div>;
+  // El símbolo suele ser un texto («Estrella azul»): si no cabe, se muestra la inicial de la lista.
+  const simbolo = lista.simbolo && [...lista.simbolo.trim()].length <= 3 ? lista.simbolo.trim() : lista.nombre.charAt(0);
+  return <div className="vt-foto vt-foto-vacia grande" aria-hidden="true">{simbolo}</div>;
 }
 
 /**
- * CUS10 · «TerminalVotacion» (equipo de la cabina). El docente NO inicia sesión: el equipo queda
- * abierto con la cuenta de la mesa y solo vota quien el Secretario habilitó (7 habilitarTerminal()).
+ * CUS10 · «TerminalVotacion» (equipo de la cabina). El docente NO inicia sesión y el equipo tampoco
+ * conserva la sesión del miembro de mesa: al conectarlo recibe un secreto de dispositivo, se cierra la
+ * sesión de la persona y la cabina queda en /cabina, sin menú (auditoría C2 y M1). Solo vota quien el
+ * Secretario habilitó (7 habilitarTerminal()), y solo esta cabina puede tomar esa habilitación.
  *   8 elegirOpcion() → 9 registrarVoto(opción) → 11 imprimirCedula(opción) → 12 confirmarImpresion()
  *   → 13 liberarTerminal(): la elección se borra de la memoria y el terminal vuelve a quedar libre.
  * El terminal nunca recibe ni envía datos del elector (RF69) y no conserva el voto (RNF07).
  */
-export default function TerminalVotacion({ onSessionExpired }) {
+export default function TerminalVotacion({ onSessionExpired, modo = 'conexion' }) {
+  const enCabina = modo === 'cabina';
   const [config, setConfig] = useState(leerTerminal);
   const [mesas, setMesas] = useState([]);
   const [formulario, setFormulario] = useState({ idMesa: '', nombre: 'Cabina 1' });
@@ -52,22 +57,27 @@ export default function TerminalVotacion({ onSessionExpired }) {
 
   const fallo = useCallback((e) => {
     if (e.message === 'SESSION_EXPIRED') onSessionExpired?.();
+    else if (e.message === 'TERMINAL_DESCONECTADO') { guardarTerminal(null); setConfig(null); }
     else setError(e.message);
   }, [onSessionExpired]);
 
+  /** Peticiones de la cabina: con el secreto del equipo, nunca con la sesión de una persona. */
+  const cabina = useCallback((ruta, opciones) => cabinaRequest(`/api/cabina/terminales/${config.idTerminal}${ruta}`,
+    config.secreto, opciones), [config]);
+
   useEffect(() => {
-    if (config) return;
+    if (config || enCabina) return;
     apiRequest('/api/sufragio/mesas').then((data) => {
       setMesas(data);
       const instalada = data.find((m) => m.estado === 'INSTALADA') ?? data[0];
       if (instalada) setFormulario((f) => ({ ...f, idMesa: String(instalada.id) }));
     }).catch(fallo);
-  }, [config, fallo]);
+  }, [config, enCabina, fallo]);
 
   const consultar = useCallback(async () => {
-    if (!config || pasoRef.current !== 'ESPERA') return;
+    if (!enCabina || !config || pasoRef.current !== 'ESPERA') return;
     try {
-      const r = await apiRequest(`/api/sufragio/terminales/${config.idTerminal}`);
+      const r = await cabina('');
       setEstado(r);
       if (r.estado === 'HABILITADO' && r.token && pasoRef.current === 'ESPERA') {
         setHabilitacion({ idHabilitacion: r.idHabilitacion, token: r.token, cargos: r.cargos });
@@ -76,14 +86,13 @@ export default function TerminalVotacion({ onSessionExpired }) {
         setPaso('ELEGIR');
       }
     } catch (e) {
-      if (e.message === 'SESSION_EXPIRED') onSessionExpired?.();
-      else setError(e.message);
+      fallo(e);
     }
-  }, [config, onSessionExpired]);
+  }, [config, enCabina, cabina, fallo]);
 
   // Mientras está libre, el terminal espera que la mesa lo habilite.
   useEffect(() => {
-    if (!config || paso !== 'ESPERA') return undefined;
+    if (!enCabina || !config || paso !== 'ESPERA') return undefined;
     consultar();
     const timer = setInterval(consultar, 3000);
     return () => clearInterval(timer);
@@ -97,9 +106,11 @@ export default function TerminalVotacion({ onSessionExpired }) {
       const r = await apiRequest('/api/sufragio/terminales', {
         method: 'POST', body: JSON.stringify({ idMesa: Number(formulario.idMesa), nombre: formulario.nombre }),
       });
-      const nuevo = { idTerminal: r.terminal.id, nombre: r.terminal.nombre, mesa: r.mesa.numero };
+      const nuevo = { idTerminal: r.terminal.id, nombre: r.terminal.nombre, mesa: r.mesa.numero, secreto: r.secreto };
       guardarTerminal(nuevo);
-      setConfig(nuevo);
+      // M1: el equipo de la cabina no conserva la sesión del miembro de mesa.
+      sessionStorage.removeItem('accessToken');
+      window.location.assign('/cabina');
     } catch (e) {
       fallo(e);
     } finally {
@@ -131,7 +142,7 @@ export default function TerminalVotacion({ onSessionExpired }) {
       const votos = cargos.map((c) => (marcas[c.idCargo] === BLANCO
         ? { cargoId: c.idCargo, tipo: 'BLANCO', listaId: null }
         : { cargoId: c.idCargo, tipo: 'VALIDO', listaId: marcas[c.idCargo] }));
-      const r = await apiRequest(`/api/sufragio/terminales/${config.idTerminal}/voto`, {
+      const r = await cabina('/voto', {
         method: 'POST', body: JSON.stringify({ idHabilitacion: habilitacion.idHabilitacion, token: habilitacion.token, votos }),
       });
       setHabilitacion(null);       // la habilitación ya se consumió
@@ -140,7 +151,7 @@ export default function TerminalVotacion({ onSessionExpired }) {
       setPaso('IMPRESION');
       imprimirCedula(r);           // 11 imprimirCedula(opción)
     } catch (e) {
-      if (e.message === 'SESSION_EXPIRED') { onSessionExpired?.(); return; }
+      if (e.message === 'TERMINAL_DESCONECTADO') { fallo(e); return; }
       // A5: se revirtió todo; si la habilitación ya no vale, el terminal vuelve a esperar
       setError(`${e.message} No se registró ningún voto ni se imprimió cédula. Avise al Presidente de mesa.`);
       if (/habilitaci/i.test(e.message)) {
@@ -160,13 +171,49 @@ export default function TerminalVotacion({ onSessionExpired }) {
     setOcupado(true);
     setImpresion(null);
     try {
-      await apiRequest(`/api/sufragio/terminales/${config.idTerminal}/liberar`, { method: 'POST' });
+      await cabina('/liberar', { method: 'POST' });
     } catch (e) {
       fallo(e);
     } finally {
       setOcupado(false);
       setPaso('ESPERA');
     }
+  }
+
+  // ─── Cabina sin conexión: debe conectarla un miembro de la mesa ─────────
+  if (enCabina && !config) {
+    return (
+      <div className="pd-shell vt-cabina mx">
+        <div className="panel vt-espera fuera">
+          <MenuIcon name="lock" size={44} />
+          <h2>Terminal sin conectar</h2>
+          <p>Un miembro de la mesa debe iniciar sesión en este equipo y conectarlo desde «Terminal de votación».</p>
+          <a className="cv-btn cv-btn-primary" href="/">Ir al inicio de sesión</a>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Panel de la mesa: equipo ya conectado como cabina ──────────────────
+  if (!enCabina && config) {
+    return (
+      <div className="pd-shell vt-cabina mx">
+        <div className="panel cv-form">
+          <div className="cv-section-head">
+            <div>
+              <h3>Este equipo está conectado como {config.nombre} · Mesa {config.mesa}</h3>
+              <p className="muted">Abra la cabina para que los electores voten aquí. La cabina no usa su sesión.</p>
+            </div>
+          </div>
+          <div className="vt-pie">
+            <button type="button" className="cv-btn cv-btn-ghost" onClick={desconectar}>Desconectar este equipo</button>
+            <a className="cv-btn cv-btn-primary" href="/cabina" onClick={() => sessionStorage.removeItem('accessToken')}>
+              <MenuIcon name="vote" size={15} /> Abrir cabina
+            </a>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // ─── Configuración del equipo ──────────────────────────────────────────
@@ -177,7 +224,7 @@ export default function TerminalVotacion({ onSessionExpired }) {
           <div className="cv-section-head">
             <div>
               <h3>Conectar este equipo como terminal de votación</h3>
-              <p className="muted">Hágalo en el equipo de la cabina. Luego el elector no inicia sesión: el Secretario lo habilita desde «Verificar elector».</p>
+              <p className="muted">Hágalo en el equipo de la cabina. Al conectarlo se cierra su sesión en este equipo y queda solo la cabina, sin menú. El elector no inicia sesión: el Secretario lo habilita desde «Verificar elector».</p>
             </div>
           </div>
           {error && <div className="alert error">{error}</div>}
@@ -203,9 +250,6 @@ export default function TerminalVotacion({ onSessionExpired }) {
         <h3>{config.nombre} · Mesa {config.mesa}</h3>
         <p className="muted">{estado?.mesa?.proceso ?? 'Terminal de votación'}</p>
       </div>
-      {paso === 'ESPERA' && (
-        <button type="button" className="cv-btn cv-btn-ghost vt-mini" onClick={desconectar}>Desconectar terminal</button>
-      )}
     </div>
   );
 

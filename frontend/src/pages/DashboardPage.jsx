@@ -1,36 +1,36 @@
-﻿import { useEffect, useRef, useState } from 'react';
+﻿import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../api/apiClient';
 import MenuIcon from '../components/MenuIcon';
 import ProcessTable from '../components/ProcessTable';
-import DocentesPage from './DocentesPage';
-import CuentaPage from './CuentaPage';
-import MiembroMesaPage from './MiembroMesaPage';
-import PantallaVerificacion from './votacion/PantallaVerificacion';
-import TerminalVotacion from './votacion/TerminalVotacion';
-import CargosExcluidosPage from './CargosExcluidosPage';
-import ConvocatoriaPage from './convocatoria/ConvocatoriaPage';
-import PadronPage from './padron/PadronPage';
-import InscripcionPage from './inscripcion/InscripcionPage';
-import TachasGestionPage from './tachas/TachasGestionPage';
-import PersonerosPage from './personeros/PersonerosPage';
-import SorteoMesaPage from './sorteo/SorteoMesaPage';
-import CredencialesPage from './credenciales/CredencialesPage';
-import MisCredencialesPage from './credenciales/MisCredencialesPage';
-import VerificarCredencialPanel from './credenciales/VerificarCredencialPanel';
-import MiPaseQRPage from './MiPaseQRPage';
-import ListasDocentePage from './ListasDocentePage';
-import InstalacionMesaPage from './instalacion/InstalacionMesaPage';
-import PantallaCierreSufragio from './cierre/PantallaCierreSufragio';
-import PantallaImpugnaciones from './impugnaciones/PantallaImpugnaciones';
-import PantallaComputo from './computo/PantallaComputo';
-import PantallaNulidades from './nulidades/PantallaNulidades';
-import PantallaMultas from './multas/PantallaMultas';
-import MisMultas from './multas/MisMultas';
-import PantallaEscrutinio from './escrutinio/PantallaEscrutinio';
-import PantallaResultados from './resultados/PantallaResultados';
-import PantallaAdministrador from './administracion/PantallaAdministrador';
+const DocentesPage = lazy(() => import('./DocentesPage'));
+const CuentaPage = lazy(() => import('./CuentaPage'));
+const MiembroMesaPage = lazy(() => import('./MiembroMesaPage'));
+const PantallaVerificacion = lazy(() => import('./votacion/PantallaVerificacion'));
+const TerminalVotacion = lazy(() => import('./votacion/TerminalVotacion'));
+const CargosExcluidosPage = lazy(() => import('./CargosExcluidosPage'));
+const ConvocatoriaPage = lazy(() => import('./convocatoria/ConvocatoriaPage'));
+const PadronPage = lazy(() => import('./padron/PadronPage'));
+const InscripcionPage = lazy(() => import('./inscripcion/InscripcionPage'));
+const TachasGestionPage = lazy(() => import('./tachas/TachasGestionPage'));
+const PersonerosPage = lazy(() => import('./personeros/PersonerosPage'));
+const SorteoMesaPage = lazy(() => import('./sorteo/SorteoMesaPage'));
+const CredencialesPage = lazy(() => import('./credenciales/CredencialesPage'));
+const MisCredencialesPage = lazy(() => import('./credenciales/MisCredencialesPage'));
+const VerificarCredencialPanel = lazy(() => import('./credenciales/VerificarCredencialPanel'));
+const MiPaseQRPage = lazy(() => import('./MiPaseQRPage'));
+const ListasDocentePage = lazy(() => import('./ListasDocentePage'));
+const InstalacionMesaPage = lazy(() => import('./instalacion/InstalacionMesaPage'));
+const PantallaCierreSufragio = lazy(() => import('./cierre/PantallaCierreSufragio'));
+const PantallaImpugnaciones = lazy(() => import('./impugnaciones/PantallaImpugnaciones'));
+const PantallaComputo = lazy(() => import('./computo/PantallaComputo'));
+const PantallaNulidades = lazy(() => import('./nulidades/PantallaNulidades'));
+const PantallaMultas = lazy(() => import('./multas/PantallaMultas'));
+const MisMultas = lazy(() => import('./multas/MisMultas'));
+const PantallaEscrutinio = lazy(() => import('./escrutinio/PantallaEscrutinio'));
+const PantallaResultados = lazy(() => import('./resultados/PantallaResultados'));
+const PantallaAdministrador = lazy(() => import('./administracion/PantallaAdministrador'));
 import './administracion/administracion.css';
-import PantallaBitacora from './bitacora/PantallaBitacora';
+const PantallaBitacora = lazy(() => import('./bitacora/PantallaBitacora'));
 
 // ─── Mapas de iconos por sección ─────────────────────────────────────────
 const MENU_ICONS = {
@@ -66,6 +66,11 @@ const MENU_POR_ROL = {
     { key: 'sorteos', label: 'Sorteos', icon: 'sorteo', color: '#eab308' },
     { key: 'personeros', label: 'Personeros', icon: 'person', color: '#8b5cf6' },
     { key: 'credenciales', label: 'Credenciales y QR', icon: 'qr', color: '#10b981' },
+    // M4: el CEUNP supervisa la jornada y puede cerrar el sufragio (CUS08, CUS11, CUS12)
+    { group: 'Jornada electoral' },
+    { key: 'instalacion', label: 'Instalación de mesas', icon: 'shield', color: '#0ea5e9' },
+    { key: 'cierre', label: 'Cierre del sufragio', icon: 'lock', color: '#f43f5e' },
+    { key: 'escrutinio', label: 'Escrutinio de mesas', icon: 'table', color: '#2563eb' },
     { group: 'Resultados' },
     { key: 'impugnaciones', label: 'Impugnaciones y apelaciones', icon: 'scale', color: '#ef4444' },
     { key: 'computo', label: 'Cómputo y proclamación', icon: 'trophy', color: '#6366f1' },
@@ -87,6 +92,8 @@ const MENU_POR_ROL = {
     { key: 'terminal', label: 'Terminal de votación', icon: 'vote', color: '#6366f1' },
     { key: 'cierre', label: 'Cerrar sufragio', icon: 'lock', color: '#f43f5e' },
     { key: 'escrutinio', label: 'Realizar escrutinio', icon: 'table', color: '#2563eb' },
+    // A1 · CUS13: la mesa decide sobre las impugnaciones de sus votos
+    { key: 'impugnaciones', label: 'Impugnaciones de la mesa', icon: 'scale', color: '#ef4444' },
     { key: 'verificar-qr', label: 'Verificar credencial QR', icon: 'scan', color: '#10b981' },
     { group: 'Resultados' },
     { key: 'mis-multas', label: 'Mis multas', icon: 'coins', color: '#d97706' },
@@ -193,12 +200,25 @@ function leerGruposCerrados() {
  * @param {{ session: object, onLogout: function }} props
  */
 export default function DashboardPage({ session, onLogout }) {
-  const [section, setSection] = useState(() => {
+  // UX: cada sección tiene su URL (#/seccion), así el botón Atrás y los enlaces funcionan sin salir de la app
+  const seccionInicial = () => {
+    const desdeUrl = window.location.hash.replace(/^#\/?/, '');
+    if (desdeUrl) return desdeUrl;
     if (session.rol === 'CEUNP') return 'candidaturas';
     if (session.rol === 'MIEMBRO_MESA') return 'mesa';
     if (session.rol === 'DOCENTE') return 'pase';
     return 'resumen';
-  });
+  };
+  const [section, setSeccion] = useState(seccionInicial);
+  const setSection = (nueva) => {
+    if (nueva !== section) window.history.pushState(null, '', `#/${nueva}`);
+    setSeccion(nueva);
+  };
+  useEffect(() => {
+    const alVolver = () => setSeccion(seccionInicial());
+    window.addEventListener('popstate', alVolver);
+    return () => window.removeEventListener('popstate', alVolver);
+  }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Rediseño: menú lateral en móvil, grupos desplegables y menú de usuario
   const [navAbierta, setNavAbierta] = useState(false);
@@ -400,6 +420,8 @@ export default function DashboardPage({ session, onLogout }) {
 
       {/* ── Contenido principal ───────────────────────────────────── */}
       <main className="content">
+        {/* UX: cada pantalla se carga al abrirla (el paquete inicial deja de pesar 1,2 MB) */}
+        <Suspense fallback={<div className="spinner" aria-label="Cargando" />}>
         <header className="topbar">
           <button
             type="button"
@@ -481,7 +503,7 @@ export default function DashboardPage({ session, onLogout }) {
             <>
               <section className="cq-resumen" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '16px', marginBottom: '1.5rem' }}>
                 <div className="cq-kpi" style={{ '--cq-color': '#2563eb' }}>
-                  <span>Cuentas activas <em>4 mostrarUsuario</em></span>
+                  <span>Cuentas activas</span>
                   <strong>{adminStatsLoading ? '…' : res.activos}<small> / {res.total}</small></strong>
                   <small>{res.inactivos} inactiva(s) · {res.sinAcceso} sin ingresar aún</small>
                 </div>
@@ -491,12 +513,12 @@ export default function DashboardPage({ session, onLogout }) {
                   <small>{res.provisionales} con contraseña provisional</small>
                 </div>
                 <div className="cq-kpi" style={{ '--cq-color': '#7c3aed' }}>
-                  <span>Parámetros <em>8 registrarAuditoria</em></span>
+                  <span>Parámetros</span>
                   <strong>{adminStatsLoading ? '…' : paramsCount}</strong>
                   <small>{det?.historial?.length ? 'Historial disponible' : 'Sin cambios registrados'}</small>
                 </div>
                 <div className="cq-kpi" style={{ '--cq-color': !resp ? '#d97706' : '#059669' }}>
-                  <span>Último respaldo <em>13 mostrarRespaldo</em></span>
+                  <span>Último respaldo</span>
                   <strong className="cp-etapa">{adminStatsLoading ? '…' : (resp ? 'Respaldado' : 'Sin respaldo')}</strong>
                   <small>{resp ? resp.nombreArchivo : 'Genere uno antes de la jornada'}</small>
                 </div>
@@ -664,7 +686,7 @@ export default function DashboardPage({ session, onLogout }) {
 
         {/* CUS12 · Realizar escrutinio y conciliar (Presidente y secretario de mesa; el CEUNP supervisa y el ADMIN consulta) */}
         {section === 'escrutinio' && ['MIEMBRO_MESA', 'CEUNP', 'ADMIN'].includes(session.rol) && (
-          <PantallaEscrutinio session={session} onSessionExpired={onLogout} />
+          <PantallaEscrutinio session={session} onSessionExpired={onLogout} onIrImpugnaciones={() => setSection('impugnaciones')} />
         )}
 
         {/* CUS09 · Verificar elector con QR (Secretario de mesa; CEUNP supervisa) */}
@@ -694,7 +716,7 @@ export default function DashboardPage({ session, onLogout }) {
         )}
 
         {/* CUS13 · Gestionar impugnaciones y apelaciones (personero de mesa impugna, el CEUNP falla) */}
-        {section === 'impugnaciones' && ['PERSONERO', 'CEUNP', 'ADMIN'].includes(session.rol) && (
+        {section === 'impugnaciones' && ['PERSONERO', 'MIEMBRO_MESA', 'CEUNP', 'ADMIN'].includes(session.rol) && (
           <PantallaImpugnaciones session={session} onSessionExpired={onLogout} />
         )}
 
@@ -719,6 +741,7 @@ export default function DashboardPage({ session, onLogout }) {
         {section === 'verificar-qr' && <VerificarCredencialPanel onSessionExpired={onLogout} />}
 
         </div>
+              </Suspense>
       </main>
     </div>
   );
