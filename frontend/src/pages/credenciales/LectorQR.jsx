@@ -261,6 +261,29 @@ function emitirPitidoExito() {
  *   2. Carga o captura de archivo de imagen / foto del QR.
  *   3. Pistola lectora USB/Bluetooth o pegado directo de texto.
  */
+/**
+ * Realza el contraste de una imagen para facilitar la lectura de QR desde pantallas de celular
+ * con brillo excesivo o reflejos.
+ */
+function realzarContraste(d) {
+  let min = 255;
+  let max = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    const l = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000;
+    if (l < min) min = l;
+    if (l > max) max = l;
+  }
+  const rango = max - min;
+  if (rango > 15 && rango < 210) {
+    const factor = 255 / rango;
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = Math.min(255, Math.max(0, (d[i] - min) * factor));
+      d[i + 1] = Math.min(255, Math.max(0, (d[i + 1] - min) * factor));
+      d[i + 2] = Math.min(255, Math.max(0, (d[i + 2] - min) * factor));
+    }
+  }
+}
+
 export function EscanerQR({ onCodigo, deshabilitado }) {
   const [codigo, setCodigo] = useState('');
   const [camara, setCamara] = useState(false);
@@ -300,10 +323,22 @@ export function EscanerQR({ onCodigo, deshabilitado }) {
       try {
         let constraints;
         if (dispositivoActual) {
-          constraints = { video: { deviceId: { exact: dispositivoActual } } };
+          constraints = {
+            video: {
+              deviceId: { exact: dispositivoActual },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            }
+          };
         } else {
-          // Prefiere cámara trasera (celulares) o cualquier cámara disponible (laptops)
-          constraints = { video: { facingMode: { ideal: 'environment' } } };
+          // Prefiere cámara trasera (celulares) o cualquier cámara disponible (laptops) en HD
+          constraints = {
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            }
+          };
         }
 
         try {
@@ -326,31 +361,100 @@ export function EscanerQR({ onCodigo, deshabilitado }) {
           await video.play().catch(() => {});
         }
 
+        // Detector nativo por hardware si el navegador lo soporta (Chrome, Edge, Android)
+        let detector = null;
+        if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+          try {
+            detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+          } catch {
+            detector = null;
+          }
+        }
+
         // Canvas auxiliar fuera de pantalla para decodificar con jsQR
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
         let ultimoEscaneo = 0;
-        const scanLoop = (timestamp) => {
+        let escaneando = false;
+
+        const scanLoop = async (timestamp) => {
           if (!activo) return;
 
-          // Escanear cada ~100ms para balancear respuesta inmediata y bajo uso de CPU
-          if (timestamp - ultimoEscaneo > 100) {
+          // Escanear cada ~80ms para balancear respuesta inmediata y bajo uso de CPU
+          if (timestamp - ultimoEscaneo > 80 && !escaneando) {
             ultimoEscaneo = timestamp;
             if (video && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0) {
-              canvas.width = video.videoWidth;
-              canvas.height = video.videoHeight;
-              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-              const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-              const qr = jsQR(imgData.data, imgData.width, imgData.height, {
-                inversionAttempts: 'attemptBoth',
-              });
+              escaneando = true;
+              try {
+                // 1. Intento con detector nativo por hardware (instantáneo y resistente a reflejos de pantalla)
+                if (detector) {
+                  try {
+                    const barcodes = await detector.detect(video);
+                    if (barcodes?.length > 0 && barcodes[0].rawValue?.trim()) {
+                      emitirPitidoExito();
+                      setCamara(false);
+                      onCodigoRef.current(barcodes[0].rawValue.trim());
+                      return;
+                    }
+                  } catch {
+                    // Continuar con el motor jsQR si falla el detector nativo
+                  }
+                }
 
-              if (qr && qr.data && qr.data.trim()) {
-                emitirPitidoExito();
-                setCamara(false);
-                onCodigoRef.current(qr.data.trim());
-                return;
+                // 2. Motor jsQR: primer intento con recorte central (área de la mira visual)
+                const vw = video.videoWidth;
+                const vh = video.videoHeight;
+                const minDim = Math.min(vw, vh);
+                const cropSize = Math.round(minDim * 0.82);
+                const sx = Math.round((vw - cropSize) / 2);
+                const sy = Math.round((vh - cropSize) / 2);
+                const targetSize = Math.min(cropSize, 480);
+
+                canvas.width = targetSize;
+                canvas.height = targetSize;
+                ctx.drawImage(video, sx, sy, cropSize, cropSize, 0, 0, targetSize, targetSize);
+                let imgData = ctx.getImageData(0, 0, targetSize, targetSize);
+                let qr = jsQR(imgData.data, targetSize, targetSize, {
+                  inversionAttempts: 'attemptBoth',
+                });
+
+                // 3. Si no detecta en el centro, probar cuadro completo con resolución equilibrada
+                if (!qr) {
+                  const scale = Math.min(1, 600 / Math.max(vw, vh));
+                  const fw = Math.round(vw * scale);
+                  const fh = Math.round(vh * scale);
+                  canvas.width = fw;
+                  canvas.height = fh;
+                  ctx.drawImage(video, 0, 0, fw, fh);
+                  imgData = ctx.getImageData(0, 0, fw, fh);
+                  qr = jsQR(imgData.data, fw, fh, {
+                    inversionAttempts: 'attemptBoth',
+                  });
+                }
+
+                // 4. Si aún no detecta, intentar con realce de contraste (para pantallas de celular con brillo)
+                if (!qr) {
+                  canvas.width = targetSize;
+                  canvas.height = targetSize;
+                  ctx.drawImage(video, sx, sy, cropSize, cropSize, 0, 0, targetSize, targetSize);
+                  imgData = ctx.getImageData(0, 0, targetSize, targetSize);
+                  realzarContraste(imgData.data);
+                  qr = jsQR(imgData.data, targetSize, targetSize, {
+                    inversionAttempts: 'attemptBoth',
+                  });
+                }
+
+                if (qr && qr.data && qr.data.trim()) {
+                  emitirPitidoExito();
+                  setCamara(false);
+                  onCodigoRef.current(qr.data.trim());
+                  return;
+                }
+              } catch {
+                // continuar el bucle
+              } finally {
+                escaneando = false;
               }
             }
           }
