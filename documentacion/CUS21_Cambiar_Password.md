@@ -8,6 +8,15 @@
 
 ---
 
+## 🔐 Contexto de Activación Obligatoria
+
+La pantalla `PantallaCambiarPassword` se dispara automáticamente tras iniciar sesión (CUS00) cuando la entidad `Usuario` tiene la bandera `debe_cambiar_password = 1` (`TRUE`). Este escenario se presenta en:
+1. **Docentes importados del padrón (CUS02):** Al importar masivamente el padrón (ej. `100 Docentes.xlsx`), el sistema genera contraseñas provisionales aleatorias seguras (Auditoría A3) descargadas en `claves_provisionales.csv`. Al iniciar sesión con dicha clave provisional (no con el DNI), el sistema fuerza la definición de una contraseña personal.
+2. **Cuentas creadas por la administración (CUS18):** Al crear un usuario con clave provisional generada o ingresada por el administrador.
+3. **Restablecimiento de credenciales (CUS18):** Cuando el administrador aplica «Restablecer contraseña» sobre una cuenta bloqueada u olvidada.
+
+---
+
 ## 🖥️ Botones y Elementos de la Interfaz (`PantallaCambiarPassword`)
 
 En la pantalla `CambiarPasswordObligatorioPage.jsx` existen las siguientes acciones/botones directos del usuario:

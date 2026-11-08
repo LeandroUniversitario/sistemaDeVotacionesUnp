@@ -75,7 +75,13 @@ A continuación se detalla la equivalencia exacta de los **15 mensajes** del dia
 4. Se verifica el hash BCrypt:
    * **Contraseña errónea:** Incrementa `intentos_fallidos`, registra `LOGIN_FAILED` en `: LogAuditoria` y rechaza con HTTP 401. Si alcanza el tope, bloquea la cuenta.
    * **Contraseña correcta:** Restablece `intentos_fallidos = 0`, actualiza `ultimo_acceso`, registra `LOGIN_SUCCESS` en `: LogAuditoria` y genera el token JWT.
-5. El usuario es redirigido a su panel de control según su rol.
+5. Verificación de contraseña provisional (`debe_cambiar_password = 1`):
+   * Si la cuenta requiere cambio obligatorio de clave (por ejemplo, docentes creados en la importación masiva CUS02 o cuentas restablecidas en CUS18), el sistema entrega el token pero redirige de inmediato a la interfaz `PantallaCambiarPassword` (`CambiarPasswordObligatorioPage.jsx` - CUS21). El usuario no podrá acceder al panel de control ni a ningún servicio comicial hasta definir una nueva contraseña definitiva.
+   * Si no requiere cambio obligatorio, el usuario es redirigido a su panel de control según su rol.
+
+> [!IMPORTANT]
+> **Aviso sobre credenciales iniciales de docentes:**
+> De acuerdo con la auditoría de seguridad A3, **el DNI no es la contraseña de los docentes**. Las cuentas creadas al importar el padrón se inicializan con contraseñas provisionales aleatorias robustas generadas por el sistema (`PoliticaPassword`), las cuales se descargan en el archivo `claves_provisionales.csv` desde el módulo de importación. Si un docente intenta identificarse usando su DNI como clave, el sistema rechazará la solicitud mostrando el error *«Credenciales incorrectas»*. El docente debe ingresar con la clave provisional asignada y cambiarla obligatoriamente en su primer acceso.
 
 ### Flujo 2: Restauración de sesión previa (Mensajes 1 al 4)
 1. El usuario abre el sistema en el navegador o recarga la página ($F5$).

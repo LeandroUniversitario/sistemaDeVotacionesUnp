@@ -170,6 +170,17 @@ const SECTION_DESCRIPTIONS = {
 };
 
 // ─── Agrupa el menú plano en secciones desplegables ───────────────────────
+function formatFechaAcceso(fecha) {
+  if (!fecha) return 'Nunca';
+  try {
+    const d = new Date(fecha);
+    if (isNaN(d.getTime())) return String(fecha);
+    return new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(d);
+  } catch {
+    return String(fecha);
+  }
+}
+
 function agruparMenu(items) {
   const grupos = [];
   for (const item of items) {
@@ -179,6 +190,14 @@ function agruparMenu(items) {
   }
   return grupos;
 }
+
+const COLOR_ROL = {
+  ADMIN: '#e11d48',
+  CEUNP: '#2563eb',
+  MIEMBRO_MESA: '#7c3aed',
+  PERSONERO: '#d97706',
+  DOCENTE: '#059669',
+};
 
 const ROL_LEGIBLE = {
   ADMIN: 'Administrador del sistema',
@@ -523,47 +542,417 @@ export default function DashboardPage({ session, onLogout }) {
         {/* Resumen — varía según el rol */}
         {section === 'resumen' && isAdmin && (() => {
           const det = adminStats?.detalle;
-          const res = det?.resumen ?? { total: 0, activos: 0, inactivos: 0, bloqueadas: 0, provisionales: 0, sinAcceso: 0 };
-          const pol = det?.politicaSeguridad ?? { intentosMaximos: 5 };
-          const paramsCount = det?.parametros?.length ?? 17;
-          const resp = det?.respaldos?.[0];
+          const res = det?.resumen ?? { total: 0, activos: 0, inactivos: 0, bloqueadas: 0, provisionales: 0, sinAcceso: 0, porRol: {} };
+          const porRol = res.porRol ?? {};
+          const pol = det?.politica ?? det?.politicaSeguridad ?? { intentosMaximos: 5, bloqueoMinutos: 15, passwordMin: 8 };
+          const params = det?.parametros ?? [];
+          const paramsCount = params.length || 18;
+          const respaldos = det?.respaldos ?? [];
+          const resp = respaldos[0];
+          const usuarios = det?.usuarios ?? [];
+
+          // Parámetros clave destacados para la supervisión ejecutiva
+          const uitParam = params.find((p) => p.clave === 'UIT')?.valor ?? '5,150.00';
+          const quorumParam = params.find((p) => p.clave === 'QUORUM_MINIMO_LEGAL_PCT')?.valor ?? '60';
+          const multaVotoPct = params.find((p) => p.clave === 'MULTA_ELECTOR_OMISO_PCT')?.valor ?? '2.5';
+          const multaMesaPct = params.find((p) => p.clave === 'MULTA_MIEMBRO_MESA_OMISO_PCT')?.valor ?? '3.0';
+          const plazoApelacion = params.find((p) => p.clave === 'IMPUGNACION_PLAZO_APELACION_HORAS')?.valor ?? '24';
+          const uitNum = parseFloat(String(uitParam).replace(/,/g, '')) || 5150;
+          const montoMultaVoto = (uitNum * (parseFloat(multaVotoPct) || 2.5) / 100).toFixed(2);
+          const montoMultaMesa = (uitNum * (parseFloat(multaMesaPct) || 3.0) / 100).toFixed(2);
+
           return (
-            <>
-              <section className="cq-resumen" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '16px', marginBottom: '1.5rem' }}>
-                <div className="cq-kpi" style={{ '--cq-color': '#2563eb' }}>
+            <div style={{ display: 'grid', gap: '20px' }}>
+              {/* KPIs superiores */}
+              <section className="cq-resumen" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                <div className="cq-kpi" style={{ '--cq-color': '#2563eb', cursor: 'pointer' }} onClick={() => setSection('cuentas')} title="Ir a Cuentas y roles">
                   <span>Cuentas activas</span>
                   <strong>{adminStatsLoading ? '…' : res.activos}<small> / {res.total}</small></strong>
                   <small>{res.inactivos} inactiva(s) · {res.sinAcceso} sin ingresar aún</small>
                 </div>
-                <div className="cq-kpi" style={{ '--cq-color': res.bloqueadas ? '#e11d48' : '#059669' }}>
+                <div className="cq-kpi" style={{ '--cq-color': res.bloqueadas ? '#e11d48' : '#059669', cursor: 'pointer' }} onClick={() => setSection('cuentas')} title="Ir a Cuentas y roles">
                   <span>Bloqueadas <em>{pol.intentosMaximos} intentos</em></span>
                   <strong>{adminStatsLoading ? '…' : res.bloqueadas}</strong>
                   <small>{res.provisionales} con contraseña provisional</small>
                 </div>
-                <div className="cq-kpi" style={{ '--cq-color': '#7c3aed' }}>
+                <div className="cq-kpi" style={{ '--cq-color': '#7c3aed', cursor: 'pointer' }} onClick={() => setSection('parametros')} title="Ir a Parámetros del sistema">
                   <span>Parámetros</span>
                   <strong>{adminStatsLoading ? '…' : paramsCount}</strong>
-                  <small>{det?.historial?.length ? 'Historial disponible' : 'Sin cambios registrados'}</small>
+                  <small>{det?.historial?.length ? `${det.historial.length} cambios en historial` : 'Sin cambios registrados'}</small>
                 </div>
-                <div className="cq-kpi" style={{ '--cq-color': !resp ? '#d97706' : '#059669' }}>
+                <div className="cq-kpi" style={{ '--cq-color': !resp ? '#d97706' : '#059669', cursor: 'pointer' }} onClick={() => setSection('respaldo')} title="Ir a Respaldo de la base">
                   <span>Último respaldo</span>
                   <strong className="cp-etapa">{adminStatsLoading ? '…' : (resp ? 'Respaldado' : 'Sin respaldo')}</strong>
                   <small>{resp ? resp.nombreArchivo : 'Genere uno antes de la jornada'}</small>
                 </div>
               </section>
-              <section className="panel">
-                <div className="panel-heading">
+
+              {/* Panel de administración enriquecido con módulos y métricas */}
+              <section className="panel" style={{ padding: '24px' }}>
+                <div className="panel-heading" style={{ borderBottom: '1px solid var(--border, #e2e8f0)', paddingBottom: '16px', marginBottom: '22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
                   <div>
-                    <h2>Panel de administración</h2>
-                    <p className="muted">Gestión de usuarios, roles, parámetros del sistema, respaldos y auditoría.</p>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <MenuIcon name="dashboard" size={20} /> Panel de administración general
+                    </h2>
+                    <p className="muted" style={{ margin: '4px 0 0', fontSize: '.88rem' }}>
+                      Gestión integral de usuarios, roles, parámetros del sistema, respaldos cifrados y auditoría de seguridad.
+                    </p>
                   </div>
-                  <button className="text-button" onClick={() => setSection('cuentas')}>Gestionar cuentas y roles</button>
+                  <button
+                    className="cv-btn cv-btn-primary"
+                    onClick={() => setSection('cuentas')}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <MenuIcon name="users" size={16} /> Gestionar cuentas y roles
+                  </button>
                 </div>
-                <p style={{ padding: '1.5rem', color: 'var(--text-muted)', fontSize: 14 }}>
-                  Desde este panel puedes administrar las cuentas de acceso al sistema, configurar parámetros globales (multas, UIT, plazos), generar respaldos de la base y revisar la bitácora de auditoría con todas las acciones registradas.
-                </p>
+
+                {/* 4 Módulos de administración rápida con tarjetas ejecutivas */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                  {/* Módulo 1: Cuentas y roles */}
+                  <div
+                    onClick={() => setSection('cuentas')}
+                    style={{
+                      border: '1px solid var(--border, #e2e8f0)',
+                      borderTop: '4px solid #2563eb',
+                      borderRadius: '12px',
+                      padding: '18px',
+                      background: 'var(--surface, #fff)',
+                      cursor: 'pointer',
+                      transition: 'all .2s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      boxShadow: 'var(--shadow-xs, 0 1px 3px rgba(0,0,0,0.04))',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.12)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-xs, 0 1px 3px rgba(0,0,0,0.04))'; }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#dbeafe', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <MenuIcon name="users" size={20} />
+                        </div>
+                        <span style={{ fontSize: '.75rem', fontWeight: 700, padding: '3px 9px', borderRadius: '999px', background: '#eff6ff', color: '#2563eb' }}>
+                          {res.total} cuentas
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 6px', color: 'var(--text-main, #0f172a)' }}>Cuentas y roles</h3>
+                      <p style={{ fontSize: '.84rem', color: 'var(--text-muted, #64748b)', margin: '0 0 14px', lineHeight: 1.45 }}>
+                        Altas, asignación de roles (ADMIN, CEUNP, Mesas, Personeros), desbloqueo y restablecimiento de claves.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid var(--border, #f1f5f9)', fontSize: '.82rem', fontWeight: 600, color: '#2563eb' }}>
+                      <span>{res.activos} activas · {res.bloqueadas} bloqueadas</span>
+                      <span>Ir a Cuentas →</span>
+                    </div>
+                  </div>
+
+                  {/* Módulo 2: Parámetros del sistema */}
+                  <div
+                    onClick={() => setSection('parametros')}
+                    style={{
+                      border: '1px solid var(--border, #e2e8f0)',
+                      borderTop: '4px solid #7c3aed',
+                      borderRadius: '12px',
+                      padding: '18px',
+                      background: 'var(--surface, #fff)',
+                      cursor: 'pointer',
+                      transition: 'all .2s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      boxShadow: 'var(--shadow-xs, 0 1px 3px rgba(0,0,0,0.04))',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(124,58,237,0.12)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-xs, 0 1px 3px rgba(0,0,0,0.04))'; }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#ede9fe', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <MenuIcon name="settings" size={20} />
+                        </div>
+                        <span style={{ fontSize: '.75rem', fontWeight: 700, padding: '3px 9px', borderRadius: '999px', background: '#f5f3ff', color: '#7c3aed' }}>
+                          {paramsCount} reglas
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 6px', color: 'var(--text-main, #0f172a)' }}>Parámetros del sistema</h3>
+                      <p style={{ fontSize: '.84rem', color: 'var(--text-muted, #64748b)', margin: '0 0 14px', lineHeight: 1.45 }}>
+                        UIT anual, multas de sufragio y mesa (CUS16), quórum legal del 60% (RN31) y plazos del proceso.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid var(--border, #f1f5f9)', fontSize: '.82rem', fontWeight: 600, color: '#7c3aed' }}>
+                      <span>UIT S/ {uitParam} · RN31 {quorumParam}%</span>
+                      <span>Configurar →</span>
+                    </div>
+                  </div>
+
+                  {/* Módulo 3: Respaldo de la base */}
+                  <div
+                    onClick={() => setSection('respaldo')}
+                    style={{
+                      border: '1px solid var(--border, #e2e8f0)',
+                      borderTop: '4px solid #0891b2',
+                      borderRadius: '12px',
+                      padding: '18px',
+                      background: 'var(--surface, #fff)',
+                      cursor: 'pointer',
+                      transition: 'all .2s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      boxShadow: 'var(--shadow-xs, 0 1px 3px rgba(0,0,0,0.04))',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(8,145,178,0.12)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-xs, 0 1px 3px rgba(0,0,0,0.04))'; }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#cffafe', color: '#0891b2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <MenuIcon name="download" size={20} />
+                        </div>
+                        <span style={{ fontSize: '.75rem', fontWeight: 700, padding: '3px 9px', borderRadius: '999px', background: '#ecfeff', color: '#0891b2' }}>
+                          {respaldos.length} copia(s)
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 6px', color: 'var(--text-main, #0f172a)' }}>Respaldo de la base</h3>
+                      <p style={{ fontSize: '.84rem', color: 'var(--text-muted, #64748b)', margin: '0 0 14px', lineHeight: 1.45 }}>
+                        Copias de seguridad completas cifradas en AES-256-GCM y verificación de huella de integridad SHA-256.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid var(--border, #f1f5f9)', fontSize: '.82rem', fontWeight: 600, color: '#0891b2' }}>
+                      <span>{resp ? 'Respaldo verificado' : 'Generar copia'}</span>
+                      <span>Respaldar →</span>
+                    </div>
+                  </div>
+
+                  {/* Módulo 4: Bitácora y auditoría */}
+                  <div
+                    onClick={() => setSection('bitacora')}
+                    style={{
+                      border: '1px solid var(--border, #e2e8f0)',
+                      borderTop: '4px solid #14b8a6',
+                      borderRadius: '12px',
+                      padding: '18px',
+                      background: 'var(--surface, #fff)',
+                      cursor: 'pointer',
+                      transition: 'all .2s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      boxShadow: 'var(--shadow-xs, 0 1px 3px rgba(0,0,0,0.04))',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(20,184,166,0.12)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-xs, 0 1px 3px rgba(0,0,0,0.04))'; }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#ccfbf1', color: '#14b8a6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <MenuIcon name="eye" size={20} />
+                        </div>
+                        <span style={{ fontSize: '.75rem', fontWeight: 700, padding: '3px 9px', borderRadius: '999px', background: '#f0fdfa', color: '#14b8a6' }}>
+                          {adminStats.bitacora ?? 0} logs
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 6px', color: 'var(--text-main, #0f172a)' }}>Bitácora de auditoría</h3>
+                      <p style={{ fontSize: '.84rem', color: 'var(--text-muted, #64748b)', margin: '0 0 14px', lineHeight: 1.45 }}>
+                        Trazabilidad inmutable CUS19 de accesos, intentos fallidos, cambios en datos maestros y firmas de actas.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid var(--border, #f1f5f9)', fontSize: '.82rem', fontWeight: 600, color: '#14b8a6' }}>
+                      <span>Registro inmutable</span>
+                      <span>Consultar →</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desglose de usuarios por rol */}
+                <div style={{ marginBottom: '24px', background: 'var(--surface-alt, #f8fafc)', padding: '16px 20px', borderRadius: '12px', border: '1px solid var(--border, #e2e8f0)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '.84rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-muted, #64748b)' }}>
+                      Distribución de cuentas por rol en el sistema
+                    </span>
+                    <button className="text-button" onClick={() => setSection('cuentas')} style={{ fontSize: '.82rem' }}>
+                      Administrar roles →
+                    </button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+                    {[
+                      { rol: 'ADMIN', label: 'Administrador', color: '#e11d48' },
+                      { rol: 'CEUNP', label: 'Comité Electoral', color: '#2563eb' },
+                      { rol: 'MIEMBRO_MESA', label: 'Miembro de Mesa', color: '#7c3aed' },
+                      { rol: 'PERSONERO', label: 'Personero', color: '#d97706' },
+                      { rol: 'DOCENTE', label: 'Docente Elector', color: '#059669' },
+                    ].map((item) => (
+                      <div
+                        key={item.rol}
+                        onClick={() => setSection('cuentas')}
+                        style={{
+                          background: '#fff',
+                          border: '1px solid var(--border, #e2e8f0)',
+                          borderLeft: `4px solid ${item.color}`,
+                          borderRadius: '8px',
+                          padding: '10px 14px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '2px',
+                          transition: 'transform .15s ease',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
+                      >
+                        <span style={{ fontSize: '.72rem', fontWeight: 650, color: 'var(--text-muted, #64748b)' }}>{item.label}</span>
+                        <strong style={{ fontSize: '1.25rem', color: 'var(--text-main, #0f172a)' }}>
+                          {porRol[item.rol] ?? 0}
+                        </strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dos columnas operativas: Cuentas supervisadas & Parámetros y seguridad */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+                  {/* Columna Izquierda: Cuentas supervisadas */}
+                  <div style={{ border: '1px solid var(--border, #e2e8f0)', borderRadius: '12px', padding: '18px', background: '#fff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                      <h3 style={{ fontSize: '.95rem', fontWeight: 700, margin: 0, color: 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <MenuIcon name="users" size={16} /> Cuentas registradas ({usuarios.length})
+                      </h3>
+                      <button className="text-button" onClick={() => setSection('cuentas')} style={{ fontSize: '.82rem' }}>
+                        Ver todas
+                      </button>
+                    </div>
+
+                    {usuarios.length === 0 ? (
+                      <p style={{ fontSize: '.85rem', color: 'var(--text-muted, #64748b)', padding: '16px 0', textAlign: 'center' }}>
+                        No hay usuarios registrados aún.
+                      </p>
+                    ) : (
+                      <div className="table-wrap" style={{ margin: 0 }}>
+                        <table style={{ fontSize: '.82rem' }}>
+                          <thead>
+                            <tr>
+                              <th>Usuario</th>
+                              <th>Rol</th>
+                              <th>Estado</th>
+                              <th>Último acceso</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {usuarios.slice(0, 5).map((u) => {
+                              const rolColor = COLOR_ROL[u.rol] || '#64748b';
+                              return (
+                                <tr key={u.idUsuario || u.username}>
+                                  <td>
+                                    <strong>{u.username}</strong>
+                                    {u.docente && (
+                                      <div style={{ fontSize: '.75rem', color: 'var(--text-muted, #64748b)' }}>{u.docente}</div>
+                                    )}
+                                  </td>
+                                  <td>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      padding: '2px 8px',
+                                      borderRadius: '999px',
+                                      fontSize: '.72rem',
+                                      fontWeight: 650,
+                                      color: rolColor,
+                                      background: `${rolColor}15`,
+                                    }}>
+                                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: rolColor }} />
+                                      {u.rol}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    {u.bloqueada ? (
+                                      <span style={{ color: '#e11d48', fontWeight: 600 }}>Bloqueada</span>
+                                    ) : u.debeCambiarPassword ? (
+                                      <span style={{ color: '#d97706', fontWeight: 600 }}>Provisional</span>
+                                    ) : u.activo ? (
+                                      <span style={{ color: '#059669', fontWeight: 600 }}>Activa</span>
+                                    ) : (
+                                      <span style={{ color: '#94a3b8' }}>Inactiva</span>
+                                    )}
+                                  </td>
+                                  <td style={{ color: 'var(--text-muted, #64748b)' }}>
+                                    {formatFechaAcceso(u.ultimoAcceso)}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Columna Derecha: Parámetros del sistema y seguridad */}
+                  <div style={{ border: '1px solid var(--border, #e2e8f0)', borderRadius: '12px', padding: '18px', background: '#fff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                      <h3 style={{ fontSize: '.95rem', fontWeight: 700, margin: 0, color: 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <MenuIcon name="shield" size={16} /> Parámetros y reglas vigentes
+                      </h3>
+                      <button className="text-button" onClick={() => setSection('parametros')} style={{ fontSize: '.82rem' }}>
+                        Modificar reglas
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'grid', gap: '8px' }}>
+                      {[
+                        { label: 'Unidad Impositiva Tributaria (UIT)', val: `S/ ${uitParam}`, nota: 'Base de cálculo legal anual' },
+                        { label: 'Quórum mínimo legal (RN31)', val: `${quorumParam}%`, nota: 'Participación requerida del padrón' },
+                        { label: 'Multa omisión sufragio (RN35)', val: `${multaVotoPct}% (S/ ${montoMultaVoto})`, nota: 'CUS16 reportar multas' },
+                        { label: 'Multa inasistencia mesa (RN35)', val: `${multaMesaPct}% (S/ ${montoMultaMesa})`, nota: 'Presidente, secretario o vocal' },
+                        { label: 'Plazo para apelar al CEUNP (RF81)', val: `${plazoApelacion} horas`, nota: 'CUS13 impugnaciones' },
+                        { label: 'Intentos fallidos antes de bloqueo', val: `${pol.intentosMaximos} intentos`, nota: 'Seguridad de acceso' },
+                        { label: 'Duración de bloqueo temporal', val: `${pol.bloqueoMinutos || 15} minutos`, nota: 'Levantamiento automático' },
+                      ].map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderRadius: '6px', background: idx % 2 === 0 ? 'var(--surface-alt, #f8fafc)' : 'transparent', fontSize: '.82rem' }}>
+                          <div>
+                            <span style={{ fontWeight: 600, color: 'var(--text-main, #0f172a)' }}>{item.label}</span>
+                            <div style={{ fontSize: '.72rem', color: 'var(--text-muted, #64748b)' }}>{item.nota}</div>
+                          </div>
+                          <span style={{ fontWeight: 700, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{item.val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Accesos directos complementarios en el pie del panel */}
+                <div style={{ borderTop: '1px solid var(--border, #e2e8f0)', paddingTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                  <span style={{ fontSize: '.84rem', color: 'var(--text-muted, #64748b)' }}>
+                    Otras herramientas de administración del sistema:
+                  </span>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      className="cv-btn cv-btn-ghost"
+                      onClick={() => setSection('padron')}
+                      style={{ fontSize: '.82rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <MenuIcon name="list" size={14} /> Padrón e importación
+                    </button>
+                    <button
+                      className="cv-btn cv-btn-ghost"
+                      onClick={() => setSection('cargos-excluidos')}
+                      style={{ fontSize: '.82rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <MenuIcon name="shield" size={14} /> Excepciones Sorteo
+                    </button>
+                    <button
+                      className="cv-btn cv-btn-ghost"
+                      onClick={() => setSection('resultados')}
+                      style={{ fontSize: '.82rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <MenuIcon name="trophy" size={14} /> Resultados y actas
+                    </button>
+                  </div>
+                </div>
               </section>
-            </>
+            </div>
           );
         })()}
 

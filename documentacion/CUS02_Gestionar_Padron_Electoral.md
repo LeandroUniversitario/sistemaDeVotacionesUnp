@@ -15,7 +15,10 @@ El caso de uso CUS02 abarca dos fases operativas complementarias según el rol d
 
 1. **Creación Masiva e Importación de Usuarios Docentes (Rol: Administrador):**
    - Carga masiva de docentes vía archivo Excel (`.xlsx`) o CSV.
-   - Creación automática y actualización (UPSERT) de registros en la tabla `docente` y generación de sus cuentas de usuario iniciales con credenciales provisionales en la tabla `usuario`.
+   - Creación automática y actualización (UPSERT) de registros en la tabla `docente` y generación de sus cuentas de usuario iniciales en la tabla `usuario`.
+   - **Seguridad en credenciales (Auditoría A3):** Las cuentas de docentes creadas **NO usan el DNI como contraseña**. Se les asigna una **contraseña provisional aleatoria y segura** generada por `PoliticaPassword.generarProvisional()` ($\ge 10$ caracteres alfanuméricos sin caracteres ambiguos), almacenada exclusivamente mediante su hash BCrypt.
+   - **Exportación de credenciales:** La respuesta de importación permite al Administrador descargar inmediatamente el archivo `claves_provisionales.csv` con los campos `[Docente, Correo, Usuario, Clave provisional]` para distribuirlos de forma privada y segura.
+   - **Primer ingreso obligatorio:** Toda cuenta importada queda marcada con `debe_cambiar_password = 1`, exigiendo el cambio obligatorio de clave en el primer acceso (CUS21). **Ingresar con el DNI como contraseña es rechazado con "Credenciales incorrectas"**.
    - Consulta rápida de docentes ya registrados mediante la opción *«Mostrar Docentes Registrados»*.
 
 2. **Depuración y Aprobación del Padrón Electoral (Rol: CEUNP):**
@@ -35,7 +38,8 @@ El caso de uso CUS02 abarca dos fases operativas complementarias según el rol d
 |---|---|---|
 | **1. Carga de archivo** | `PadronPage.subirArchivoPadron` (Paso Carga / Admin) | `POST /api/padron/importar` (multipart `archivo`, solo `ADMIN`) |
 | **2. Parseo y validación** | Notificación y resumen de filas | `ImportarDocentes.leerDatos` → `ImportacionDocenteService` |
-| **3. Registro masivo** | Tabla de resultados (nuevos, actualizados, errores) | `ImportacionDocenteService.registrarMasivo` (UPSERT en `docente` y creación en `usuario`) |
+| **3. Registro masivo** | Tabla de resultados (nuevos, actualizados, errores) | `ImportacionDocenteService.registrarMasivo` (UPSERT en `docente` y creación en `usuario` con `PoliticaPassword`) |
+| **3.1 Descarga de credenciales** | Botón «Descargar claves provisionales (CSV)» | `PadronPage.descargarCredenciales` emite `claves_provisionales.csv` desde la respuesta del endpoint |
 | **4. Mostrar docentes registrados** | Visualización directa de docentes registrados | `PadronPage` (modo Admin, consulta `/api/padron/depurado`) |
 | **5. Depurar padrón** | `PadronPage.depurarPadron` (Paso Depuración / CEUNP) | `POST /api/padron/depurar` (`FiltrarHabilitados.procesarReglas`) |
 | **6. Aplicar reglas** | Tarjetas de habilitados vs inhabilitados con filtros | `PadronConsulta.MOTIVO_SQL` (evalúa RN03, RN05, completitud) |
@@ -61,6 +65,10 @@ El caso de uso CUS02 abarca dos fases operativas complementarias según el rol d
   - **Acciones inferiores:** Botones *«Plantilla CSV»*, *«Mostrar Docentes Registrados»* y *«Subir archivo»*.
   - **Consulta de Docentes Registrados:** Al pulsar *«Mostrar Docentes Registrados»*, la interfaz presenta la tabla de **Docentes registrados** (DNI, Docente, Categoría, Dedicación, Facultad, Estado) con botón de retorno *«Subir nuevo padrón»*, sin forzar acciones de depuración electoral.
   - **Panel lateral:** Resumen de resultados en tiempo real (nuevos registrados, cuentas actualizadas, advertencias y detalle de errores).
+  - **Panel de resultados y descarga de credenciales:** Tras culminar la importación masiva, el panel lateral muestra el botón de acción primordial: **«Descargar claves provisionales (CSV)»**.
+    - Descarga el archivo `claves_provisionales.csv` con columnas: `Docente`, `Correo`, `Usuario` y `Clave provisional`.
+    - **Aviso de seguridad fundamental:** Debido a las políticas de seguridad (Auditoría A3), las contraseñas nunca se generan con el DNI ni se guardan en texto plano en la base de datos (solo se guarda su hash BCrypt). La descarga del CSV es la **única oportunidad** para que el Administrador obtenga las claves en claro para distribuirlas a los docentes.
+    - Las cuentas importadas poseen el flag `debe_cambiar_password = 1`, forzando a cada docente a cambiar su clave temporal al primer inicio de sesión. Si el docente ingresa su DNI como contraseña, el sistema denegará el acceso con *«Credenciales incorrectas»*.
 
 ### B. Vista «Padrón electoral» (`PadronPage.jsx` - Rol CEUNP)
 - **Ruta de acceso:** Menú lateral «Padrón electoral».
@@ -159,15 +167,25 @@ Para asegurar la integridad referencial con las tablas `facultad` y `departament
    - No deben existir mesas de sufragio creadas aún (la creación de mesas bloquea la regeneración del padrón).
    - Cada cargo comicial debe contar con al menos un elector previsto.
 6. **Auditoría Centralizada:** Cada operación sensible (`IMPORTAR_DOCENTES`, `DEPURAR_PADRON`, `GENERAR_PADRON`, `CREAR_DOCENTE`, `EDITAR_DOCENTE`) registra automáticamente su evento en la tabla `log_auditoria` con usuario, fecha/hora y detalle JSON.
+7. **RN-SEG-01 / Auditoría A3 (Política de Contraseñas Provisionales en Importación Masiva):**
+   - **Prohibición estricta del DNI como clave:** Por principio de seguridad informática y mitigación de accesos no autorizados, queda prohibido emplear el número de DNI o cualquier dato predecible como contraseña inicial.
+   - **Generación aleatoria robusta:** Cada cuenta de docente creada en el proceso masivo recibe una contraseña provisional aleatoria generada mediante `PoliticaPassword.generarProvisional()`, cumpliendo con longitud $\ge 10$, inclusión de caracteres alfanuméricos combinados y exclusión de caracteres confusos (`0, O, 1, l, I`).
+   - **Cifrado unidireccional:** La contraseña se transforma inmediatamente en un hash criptográfico BCrypt (costo 10) antes de persistirse en la columna `password_hash` de la tabla `usuario`. Nunca se guarda en texto plano en la base de datos.
+   - **Entrega de credenciales temporales:** Las contraseñas en texto claro existen en memoria del servidor únicamente durante la generación del lote de importación y se retornan una sola vez al frontend en la respuesta JSON para la descarga obligatoria de `claves_provisionales.csv`.
+   - **Cambio forzoso en primer ingreso:** Toda cuenta importada se inicializa con `debe_cambiar_password = 1`. Al iniciar sesión con su clave provisional por primera vez (CUS00), el docente es conducido mandatoriamente a la pantalla de cambio de contraseña (CUS21).
+   - **Rechazo por uso de DNI:** Si un docente intenta autenticarse digitando su DNI en el campo de contraseña, el sistema lo rechazará indefectiblemente con *«Credenciales incorrectas»*.
 
 ---
 
 ## 7. Verificación del Flujo de Trabajo
 
-### Flujo Administrador (Creación masiva de cuentas):
+### Flujo Administrador (Creación masiva de cuentas y distribución de credenciales):
 1. Iniciar sesión como `admin` e ingresar al menú **«Padrón e importación»**.
 2. Arrastrar el archivo `base-de-datos/100 Docentes.xlsx` o seleccionar la opción *«Mostrar Docentes Registrados»*.
 3. Verificar en el panel lateral que se procesaron los registros y que se generaron las cuentas de acceso iniciales.
+4. **Descargar claves provisionales:** Hacer clic en el botón **«Descargar claves provisionales (CSV)»** para guardar el archivo `claves_provisionales.csv` generado.
+5. **Distribución segura:** Entregar a cada docente su nombre de usuario (`username`) y contraseña provisional mediante un canal institucional privado (correo corporativo o memorándum).
+6. **Primer acceso del docente:** El docente accede a `http://localhost:5173/login`, digita su usuario y su contraseña provisional (NO su DNI). El sistema valida el acceso y lo deriva de inmediato a la pantalla para definir su contraseña definitiva (CUS21).
 
 ### Flujo CEUNP (Gestión académica y depuración electoral):
 1. Iniciar sesión como `ceunp` e ingresar al menú **«Gestión de docentes»**:
