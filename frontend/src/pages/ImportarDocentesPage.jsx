@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import MenuIcon from '../components/MenuIcon';
 import { apiUrl } from '../api/apiClient';
 

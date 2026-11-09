@@ -36,3 +36,4 @@ EXPOSE 8080
 
 # Comando de inicio con soporte de puerto dinámico
 ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT} -Djava.security.egd=file:/dev/./urandom -jar app.jar"]
+
