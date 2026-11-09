@@ -364,7 +364,31 @@ export default function ConvocatoriaPage({ onChange, onSessionExpired }) {
               <>
                 <VistaPublicada proceso={proceso} cargos={cargos} />
                 {proceso.estado === 'INSCRIPCION' && (
-                  <AbrirVotacion proceso={proceso} saving={saving} onAbrir={abrirVotacion} />
+                  <AbrirVotacion proceso={proceso} saving={saving} onAbrir={abrirVotacion} feedback={feedback} />
+                )}
+                {proceso.estado === 'VOTACION' && (
+                  <div className="panel cv-form" style={{ marginTop: '1rem', borderLeft: '4px solid #059669' }}>
+                    {feedback && (
+                      <div className={`alert ${feedback.type}`} style={{ marginBottom: '1rem', width: '100%' }} role="alert">
+                        {feedback.text}
+                      </div>
+                    )}
+                    <div className="cv-section-head">
+                      <div>
+                        <h3 style={{ color: '#059669', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <MenuIcon name="check" size={18} /> Jornada de votación abierta
+                        </h3>
+                        <p className="muted">
+                          El proceso electoral se encuentra formalmente en etapa de VOTACIÓN. Las mesas de votación ya están habilitadas para el registro de miembros, material y apertura del sufragio.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="cv-actions">
+                      <a href="#/instalacion" className="cv-btn cv-btn-primary" style={{ textDecoration: 'none' }}>
+                        <MenuIcon name="shield" size={15} /> Ir a Instalación de mesas
+                      </a>
+                    </div>
+                  </div>
                 )}
               </>
             ) : (
@@ -644,7 +668,7 @@ export default function ConvocatoriaPage({ onChange, onSessionExpired }) {
 }
 
 /** A5: paso de INSCRIPCION a VOTACION, con confirmación. */
-function AbrirVotacion({ proceso, saving, onAbrir }) {
+function AbrirVotacion({ proceso, saving, onAbrir, feedback }) {
   const [confirmar, setConfirmar] = useState(false);
   return (
     <div className="panel cv-form">
@@ -670,6 +694,12 @@ function AbrirVotacion({ proceso, saving, onAbrir }) {
           <button type="button" className="cv-btn cv-btn-success" disabled={saving} onClick={async () => { await onAbrir(); setConfirmar(false); }}>
             {saving ? 'Abriendo…' : 'Sí, abrir'}
           </button>
+        </div>
+      )}
+
+      {feedback && (
+        <div className={`alert ${feedback.type}`} style={{ marginTop: '1rem', width: '100%' }} role="alert">
+          {feedback.text}
         </div>
       )}
     </div>

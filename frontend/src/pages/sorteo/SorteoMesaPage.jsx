@@ -219,15 +219,31 @@ export default function SorteoMesaPage({ onSessionExpired }) {
                 <p className="tc-aviso so-aviso"><MenuIcon name="alert" size={14} /> RN04: el proceso no tiene padrón aprobado. Genérelo en «Padrón electoral» (CUS02).</p>
               ) : (
                 <>
+                  <div className="so-field-guide" role="note">
+                    <strong>¿Qué valor debo ingresar?</strong>
+                    <p>
+                      Es la cantidad <b>máxima de electores que tendrá cada mesa</b>, no la cantidad total
+                      del padrón. El sistema distribuirá automáticamente los {num(proceso.electoresPadron)} electores
+                      y creará las mesas necesarias. Ingrese un número entero entre <b>6 y 1000</b>.
+                    </p>
+                    <p className="muted">
+                      Ejemplo: con 85 electores, <b>200</b> forma 1 mesa; <b>50</b> forma 2 mesas
+                      (50 y 35 electores). Use un valor menor si necesita dividir el padrón en varias mesas.
+                    </p>
+                  </div>
                   <div className="cv-grid two">
                     <label className="cv-field">
                       <span className="cv-label">Electores por mesa (máximo)</span>
                       <input type="number" min={6} max={1000} value={mesasForm.electoresPorMesa}
-                        onChange={(e) => setMesasForm({ ...mesasForm, electoresPorMesa: e.target.value })} />
+                        onChange={(e) => setMesasForm({ ...mesasForm, electoresPorMesa: e.target.value })}
+                        aria-describedby="electores-por-mesa-ayuda" />
                       <small className="cv-hint">
                         {num(mesasForm.electoresPorMesa) >= 6
                           ? `Se formarán ${Math.ceil(num(proceso.electoresPadron) / num(mesasForm.electoresPorMesa))} mesa(s) para ${num(proceso.electoresPadron)} electores.`
                           : 'RN19: al menos 6 electores por mesa.'}
+                      </small>
+                      <small id="electores-por-mesa-ayuda" className="cv-hint">
+                        No es necesario colocar exactamente el total de electores. Es el límite máximo por mesa.
                       </small>
                     </label>
                     <label className="cv-field">

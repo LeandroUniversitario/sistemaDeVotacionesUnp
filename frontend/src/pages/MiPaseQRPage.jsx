@@ -20,6 +20,27 @@ export default function MiPaseQRPage({ onSessionExpired }) {
   const [generando, setGenerando] = useState(null); // idProceso generando
   const [feedback, setFeedback]   = useState(null);
   const [credencialesGeneradas, setCredencialesGeneradas] = useState({}); // idProceso -> data
+  const [solicitudes, setSolicitudes] = useState({}); // idProceso -> solicitud info
+  const [modalSolicitud, setModalSolicitud] = useState(null); // { idProceso, tipo }
+  const [motivoSolicitud, setMotivoSolicitud] = useState('Extravío de credencial QR / Requiere nueva emisión oficial');
+  const [enviandoSolicitud, setEnviandoSolicitud] = useState(false);
+
+  const cargarSolicitudes = useCallback(async (procesos) => {
+    if (!procesos || !procesos.length) return;
+    const solMap = {};
+    for (const proc of procesos) {
+      const idProc = proc.idProceso ?? proc.id_proceso;
+      try {
+        const resp = await apiRequest(`/api/credenciales/solicitud-vigente?idProceso=${idProc}&tipo=ELECTOR`);
+        if (resp && resp.tieneSolicitud) {
+          solMap[idProc] = resp.solicitud;
+        }
+      } catch {
+        // Ignorar si falla la verificación de solicitud
+      }
+    }
+    setSolicitudes(solMap);
+  }, []);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -27,15 +48,42 @@ export default function MiPaseQRPage({ onSessionExpired }) {
     try {
       const data = await apiRequest('/api/docente/mi-pase');
       setEstado(data);
+      if (data?.procesos) {
+        await cargarSolicitudes(data.procesos);
+      }
     } catch (err) {
       if (err.message === 'SESSION_EXPIRED') onSessionExpired();
       else setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [onSessionExpired]);
+  }, [onSessionExpired, cargarSolicitudes]);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  async function enviarSolicitudRegeneracion() {
+    if (!modalSolicitud) return;
+    setEnviandoSolicitud(true);
+    setFeedback(null);
+    try {
+      const resp = await apiRequest('/api/credenciales/solicitar-regeneracion', {
+        method: 'POST',
+        body: JSON.stringify({
+          idProceso: modalSolicitud.idProceso,
+          tipo: 'ELECTOR',
+          motivo: motivoSolicitud,
+        }),
+      });
+      setFeedback({ type: 'success', text: resp.mensaje || 'Solicitud enviada al CEUNP exitosamente.' });
+      setModalSolicitud(null);
+      await cargar();
+    } catch (err) {
+      if (err.message === 'SESSION_EXPIRED') onSessionExpired();
+      else setFeedback({ type: 'error', text: err.message });
+    } finally {
+      setEnviandoSolicitud(false);
+    }
+  }
 
   async function generarPase(idProceso) {
     setGenerando(idProceso);
@@ -257,103 +305,145 @@ export default function MiPaseQRPage({ onSessionExpired }) {
                 )}
 
                 {/* Credencial QR */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  flexWrap: 'wrap', gap: '0.75rem',
-                  padding: '1rem 1.25rem', borderRadius: 10,
-                  background: tieneCred
-                    ? 'linear-gradient(135deg, rgba(139,92,246,0.1), rgba(168,85,247,0.06))'
-                    : 'var(--bg-input)',
-                  border: `1.5px solid ${tieneCred ? 'rgba(139,92,246,0.3)' : 'var(--border)'}`,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{
-                      width: 40, height: 40, borderRadius: 8, flexShrink: 0,
-                      background: tieneCred
-                        ? 'rgba(139,92,246,0.2)' : 'rgba(107,114,128,0.1)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <MenuIcon name="qr" size={20}
-                        style={{ color: tieneCred ? '#8b5cf6' : 'var(--text-muted)' }} />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-main)' }}>
-                        Credencial QR de Elector
+                {(() => {
+                  const credencialActual = credencialesGeneradas[idProc] || proc.credencialVigente;
+                  const sol = solicitudes[idProc];
+                  const tieneSolPendiente = sol && sol.estado === 'PENDIENTE';
+
+                  return (
+                    <>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        flexWrap: 'wrap', gap: '0.75rem',
+                        padding: '1rem 1.25rem', borderRadius: 10,
+                        background: tieneCred
+                          ? 'linear-gradient(135deg, rgba(139,92,246,0.1), rgba(168,85,247,0.06))'
+                          : 'var(--bg-input)',
+                        border: `1.5px solid ${tieneCred ? 'rgba(139,92,246,0.3)' : 'var(--border)'}`,
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{
+                            width: 40, height: 40, borderRadius: 8, flexShrink: 0,
+                            background: tieneCred
+                              ? 'rgba(139,92,246,0.2)' : 'rgba(107,114,128,0.1)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            <MenuIcon name="qr" size={20}
+                              style={{ color: tieneCred ? '#8b5cf6' : 'var(--text-muted)' }} />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-main)' }}>
+                              Credencial QR de Elector
+                            </div>
+                            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+                              {tieneCred
+                                ? '✓ Credencial vigente emitida por el CEUNP'
+                                : habilitado
+                                  ? 'Aún no generada — pendiente de emisión por el CEUNP'
+                                  : 'No disponible (docente inhabilitado)'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {tieneSolPendiente ? (
+                          <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 6,
+                            padding: '6px 14px', borderRadius: 20,
+                            background: 'rgba(234,179,8,0.15)', color: '#ca8a04',
+                            fontSize: 13, fontWeight: 600,
+                          }}>
+                            <MenuIcon name="clock" size={14} /> Solicitud enviada al CEUNP (Pendiente)
+                          </div>
+                        ) : tieneCred ? (
+                          <button
+                            type="button"
+                            className="cv-btn cv-btn-ghost"
+                            onClick={() => {
+                              setMotivoSolicitud('Extravío de credencial QR / Requiere nueva emisión oficial');
+                              setModalSolicitud({ idProceso: idProc, tipo: 'ELECTOR' });
+                            }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}
+                          >
+                            <MenuIcon name="refresh" size={14} /> Solicitar nuevo QR al CEUNP
+                          </button>
+                        ) : habilitado && (
+                          <button
+                            type="button"
+                            className="cv-btn cv-btn-primary"
+                            onClick={() => generarPase(idProc)}
+                            disabled={generando === idProc}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                          >
+                            <MenuIcon name="qr" size={15} />
+                            {generando === idProc ? 'Generando…' : 'Obtener mi pase QR'}
+                          </button>
+                        )}
                       </div>
-                      <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-                        {tieneCred
-                          ? '✓ Credencial vigente generada'
-                          : habilitado
-                            ? 'Aún no generada — puedes solicitarla ahora'
-                            : 'No disponible (docente inhabilitado)'}
-                      </div>
-                    </div>
-                  </div>
 
-                  {habilitado && (
-                    <button
-                      className={tieneCred ? 'text-button' : 'btn-primary'}
-                      onClick={() => generarPase(idProc)}
-                      disabled={generando === idProc}
-                      style={{ whiteSpace: 'nowrap', minWidth: 160 }}
-                    >
-                      <MenuIcon name="qr" size={15} />
-                      {generando === idProc
-                        ? 'Generando...'
-                        : tieneCred
-                          ? 'Regenerar QR'
-                          : 'Obtener mi QR'}
-                    </button>
-                  )}
-                </div>
+                      {/* Notificación si hay solicitud pendiente */}
+                      {tieneSolPendiente && (
+                        <div style={{
+                          padding: '10px 14px', borderRadius: 8,
+                          background: '#fffbeb', border: '1px solid #fef3c7',
+                          color: '#92400e', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8,
+                        }}>
+                          <MenuIcon name="alert" size={16} />
+                          <span>
+                            Has enviado una solicitud de regeneración de QR el <strong>{new Date(sol.fechaSolicitud || sol.fecha_solicitud).toLocaleDateString('es-PE')}</strong>: <em>"{sol.motivo}"</em>. El CEUNP revisará tu solicitud y emitirá tu nuevo pase.
+                          </span>
+                        </div>
+                      )}
 
-                {/* Tarjeta del QR generado */}
-                {credencialesGeneradas[idProc] && (
-                  <div style={{
-                    marginTop: '1.25rem',
-                    padding: '1.5rem',
-                    borderRadius: 12,
-                    background: '#fff',
-                    border: '2px solid #8b5cf6',
-                    boxShadow: '0 10px 25px -5px rgba(139, 92, 246, 0.15)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '1rem',
-                  }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <h3 style={{ margin: 0, color: '#6d28d9', fontSize: '1.1rem', fontWeight: 700 }}>
-                        🎉 Tu Pase de Votación QR
-                      </h3>
-                      <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#6b7280' }}>
-                        Descárgalo o imprímelo ahora. Por seguridad criptográfica, el QR solo se genera en este momento.
-                      </p>
-                    </div>
+                      {/* Tarjeta del QR (se muestra de forma permanente mientras esté vigente) */}
+                      {credencialActual && (
+                        <div style={{
+                          marginTop: '0.75rem',
+                          padding: '1.5rem',
+                          borderRadius: 12,
+                          background: '#fff',
+                          border: '2px solid #8b5cf6',
+                          boxShadow: '0 10px 25px -5px rgba(139, 92, 246, 0.15)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '1rem',
+                        }}>
+                          <div style={{ textAlign: 'center' }}>
+                            <h3 style={{ margin: 0, color: '#6d28d9', fontSize: '1.1rem', fontWeight: 700 }}>
+                              🎫 Tu Pase de Votación QR Oficial
+                            </h3>
+                            <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#6b7280' }}>
+                              Presenta este código QR en tu mesa de sufragio el día de la jornada electoral.
+                            </p>
+                          </div>
 
-                    <TarjetaCredencial
-                      credencial={credencialesGeneradas[idProc]}
-                      proceso={{ nombre: proc.proceso }}
-                      size={190}
-                    />
+                          <TarjetaCredencial
+                            credencial={credencialActual}
+                            proceso={{ nombre: proc.proceso }}
+                            size={190}
+                          />
 
-                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                      <button
-                        type="button"
-                        className="cv-btn cv-btn-primary"
-                        onClick={() => descargarPNG(credencialesGeneradas[idProc])}
-                      >
-                        <MenuIcon name="download" size={16} /> Descargar imagen (PNG)
-                      </button>
-                      <button
-                        type="button"
-                        className="cv-btn cv-btn-ghost"
-                        onClick={() => imprimirCredenciales([credencialesGeneradas[idProc]], { nombre: proc.proceso })}
-                      >
-                        <MenuIcon name="file" size={16} /> Imprimir pase
-                      </button>
-                    </div>
-                  </div>
-                )}
+                          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                            <button
+                              type="button"
+                              className="cv-btn cv-btn-primary"
+                              onClick={() => descargarPNG(credencialActual)}
+                            >
+                              <MenuIcon name="download" size={16} /> Descargar imagen (PNG)
+                            </button>
+                            <button
+                              type="button"
+                              className="cv-btn cv-btn-ghost"
+                              onClick={() => imprimirCredenciales([credencialActual], { nombre: proc.proceso })}
+                            >
+                              <MenuIcon name="file" size={16} /> Imprimir pase
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </section>
           );
@@ -400,6 +490,66 @@ export default function MiPaseQRPage({ onSessionExpired }) {
           ))}
         </div>
       </section>
+
+      {/* Modal para solicitar regeneración de QR al CEUNP */}
+      {modalSolicitud && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, padding: '1rem',
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 14, maxWidth: 480, width: '100%',
+            padding: '1.5rem', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#ede9fe', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <MenuIcon name="refresh" size={20} />
+              </div>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                Solicitar nuevo QR al CEUNP
+              </h3>
+            </div>
+            <p style={{ fontSize: '.88rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 16 }}>
+              Si perdiste o extraviaste tu credencial QR, el Comité Electoral (CEUNP) evaluará tu solicitud y emitirá un nuevo código oficial. El código anterior quedará revocado.
+            </p>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: '.84rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>
+                Motivo de la solicitud:
+              </label>
+              <textarea
+                rows={3}
+                value={motivoSolicitud}
+                onChange={(e) => setMotivoSolicitud(e.target.value)}
+                placeholder="Indique el motivo por el cual requiere un nuevo QR..."
+                style={{
+                  width: '100%', padding: '8px 12px', borderRadius: 8,
+                  border: '1px solid var(--border)', fontSize: '.88rem',
+                  fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box',
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                className="cv-btn cv-btn-ghost"
+                onClick={() => setModalSolicitud(null)}
+                disabled={enviandoSolicitud}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="cv-btn cv-btn-primary"
+                onClick={enviarSolicitudRegeneracion}
+                disabled={enviandoSolicitud || !motivoSolicitud.trim()}
+              >
+                {enviandoSolicitud ? 'Enviando…' : 'Enviar solicitud al CEUNP'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

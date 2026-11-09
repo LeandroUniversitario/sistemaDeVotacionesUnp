@@ -9,6 +9,21 @@
 .so-aviso { display: flex; gap: 6px; align-items: center; margin: 0; padding: 8px 12px; border-radius: var(--r-md); font-size: .8rem; background: var(--gray-100); }
 .so-aviso.bad { color: #9f1239; background: var(--cv-red-soft); }
 
+.so-field-guide {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--r-md);
+  background: #eff6ff;
+  color: var(--text-body);
+  font-size: .8rem;
+  line-height: 1.45;
+}
+.so-field-guide p { margin: 0; }
+.so-field-guide strong { color: var(--cv-blue); }
+
 .so-mesas-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .so-chip { padding: 4px 10px; border-radius: 999px; font-size: .76rem; color: var(--text-body); background: var(--gray-100); border: 1px solid var(--border); }
 .so-chip.done { color: #065f46; background: var(--cv-green-soft); border-color: #a7f3d0; }

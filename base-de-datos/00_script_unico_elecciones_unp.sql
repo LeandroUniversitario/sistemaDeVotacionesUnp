@@ -633,7 +633,8 @@ CREATE TABLE credencial_qr (
   tipo              ENUM('ELECTOR','MIEMBRO_MESA','PERSONERO') NOT NULL,
   id_mesa           INT NULL,                  -- mesa del elector / del miembro / del personero de mesa
   id_personero      INT NULL,                  -- solo PERSONERO
-  token_qr_hash     CHAR(64) NOT NULL,         -- SHA-256 del token (nunca el token)
+  token_qr_hash     CHAR(64) NOT NULL,         -- SHA-256 del token
+  codigo_qr         VARCHAR(255) NULL,         -- Contenido del código QR emitido (SICEUNP|<tipo>|<token>)
   fecha_emision     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   fecha_expiracion  DATETIME NOT NULL,         -- fin del sufragio del proceso
   estado            ENUM('VIGENTE','REVOCADA') NOT NULL DEFAULT 'VIGENTE',
@@ -664,6 +665,24 @@ CREATE TABLE credencial_qr (
   CONSTRAINT fk_credencial_mesa      FOREIGN KEY (id_mesa)           REFERENCES mesa_electoral(id_mesa),
   CONSTRAINT fk_credencial_personero FOREIGN KEY (id_personero)      REFERENCES personero(id_personero),
   CONSTRAINT fk_credencial_emisor    FOREIGN KEY (id_usuario_emisor) REFERENCES usuario(id_usuario)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Solicitudes de regeneración de credenciales QR (CUS07 - Solicitadas por el docente/miembro/personero al CEUNP)
+CREATE TABLE IF NOT EXISTS solicitud_regeneracion_qr (
+  id_solicitud        INT AUTO_INCREMENT PRIMARY KEY,
+  id_proceso          INT NOT NULL,
+  id_docente          INT NOT NULL,
+  tipo                ENUM('ELECTOR','MIEMBRO_MESA','PERSONERO') NOT NULL,
+  id_titular          INT NULL,
+  motivo              VARCHAR(255) NOT NULL,
+  estado              ENUM('PENDIENTE','APROBADA','RECHAZADA') NOT NULL DEFAULT 'PENDIENTE',
+  fecha_solicitud     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fecha_atencion      DATETIME NULL,
+  id_usuario_atencion INT NULL,
+  observacion_atencion VARCHAR(255) NULL,
+  CONSTRAINT fk_sol_proc FOREIGN KEY (id_proceso) REFERENCES proceso_electoral(id_proceso),
+  CONSTRAINT fk_sol_doc  FOREIGN KEY (id_docente) REFERENCES docente(id_docente),
+  CONSTRAINT fk_sol_usu  FOREIGN KEY (id_usuario_atencion) REFERENCES usuario(id_usuario)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================================
@@ -2131,6 +2150,9 @@ BEGIN
     UPDATE candidato
        SET estado_validacion = 'EXCLUIDO', motivo_exclusion = 'Tacha declarada fundada'
      WHERE id_candidato = v_candidato;
+    UPDATE candidato
+       SET estado_validacion = 'EXCLUIDO', motivo_exclusion = 'Lista tachada por RN12 (inscripción en bloque)'
+     WHERE id_lista = v_lista AND id_candidato <> v_candidato;
     UPDATE lista_electoral
        SET estado = 'TACHADA', orden_cedula = NULL, motivo_exclusion = 'Tacha fundada contra un integrante (RN12)'
      WHERE id_lista = v_lista;

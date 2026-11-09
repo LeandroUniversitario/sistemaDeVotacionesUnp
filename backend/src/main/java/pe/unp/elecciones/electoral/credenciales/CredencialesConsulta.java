@@ -35,7 +35,7 @@ public class CredencialesConsulta {
             f.nombre AS facultad,
             """;
     private static final String DATOS_CREDENCIAL = """
-            cq.id_credencial, cq.fecha_emision, cq.fecha_expiracion, cq.usos, cq.ultimo_uso
+            cq.id_credencial, cq.codigo_qr, cq.fecha_emision, cq.fecha_expiracion, cq.usos, cq.ultimo_uso
             """;
 
     private final ProcedimientoDao dao;
@@ -273,10 +273,18 @@ public class CredencialesConsulta {
         fila.put("motivo", motivo);
 
         Object idCredencial = fila.remove("idCredencial");
+        Object codigoQr = fila.remove("codigoQr");
+        if (codigoQr == null) {
+            codigoQr = fila.remove("codigo_qr");
+        }
         Map<String, Object> credencial = null;
         if (idCredencial != null) {
             credencial = new LinkedHashMap<>();
             credencial.put("id", idCredencial);
+            credencial.put("qr", codigoQr);
+            credencial.put("codigoQr", codigoQr);
+            credencial.put("tipo", tipo.name());
+            credencial.put("titulo", tipo.titulo());
             credencial.put("fechaEmision", fila.get("fechaEmision"));
             credencial.put("fechaExpiracion", fila.get("fechaExpiracion"));
             credencial.put("usos", fila.get("usos"));

@@ -439,21 +439,29 @@ export default function InscripcionPage({ onSessionExpired }) {
                 <span className={`cv-estado ${ESTADO_LISTA[listaSel.estado]?.cls ?? ''}`}>{ESTADO_LISTA[listaSel.estado]?.label}</span>
               </div>
 
-              <div className={`in-formula-status ${listaSel.completa ? 'ok' : ''}`}>
-                <MenuIcon name={listaSel.completa ? 'check' : 'alert'} size={16} />
-                {listaSel.completa
-                  ? (listaSel.estado === 'ADMITIDA'
-                      ? 'Fórmula completa (RN10). Lista admitida oficialmente por el CEUNP.'
-                      : listaSel.estado === 'EXCLUIDA'
-                        ? 'Fórmula completa (RN10). Lista excluida por el CEUNP.'
-                        : 'Fórmula completa (RN10). Queda pendiente la calificación del CEUNP.')
-                  : `Fórmula incompleta (RN10): faltan ${listaSel.rolesFaltantes.length} candidato(s).`}
+              <div className={`in-formula-status ${
+                listaSel.estado === 'TACHADA' || listaSel.estado === 'EXCLUIDA'
+                  ? 'danger'
+                  : listaSel.completa
+                    ? 'ok'
+                    : ''
+              }`}>
+                <MenuIcon name={listaSel.estado === 'TACHADA' || listaSel.estado === 'EXCLUIDA' ? 'alert' : (listaSel.completa ? 'check' : 'alert')} size={16} />
+                {listaSel.estado === 'TACHADA'
+                  ? `Lista tachada por el CEUNP: ${listaSel.motivoExclusion ?? 'Tacha fundada contra un integrante (RN12)'}. Toda la fórmula queda inhabilitada.`
+                  : listaSel.estado === 'EXCLUIDA'
+                    ? `Lista excluida por el CEUNP: ${listaSel.motivoExclusion ?? 'Incumplimiento de requisitos'}.`
+                    : listaSel.completa
+                      ? (listaSel.estado === 'ADMITIDA'
+                          ? 'Fórmula completa (RN10). Lista admitida oficialmente por el CEUNP.'
+                          : 'Fórmula completa (RN10). Queda pendiente la calificación del CEUNP.')
+                      : `Fórmula incompleta (RN10): faltan ${listaSel.rolesFaltantes.length} candidato(s).`}
               </div>
 
               {/* Fórmula: un espacio por rol */}
               <ul className="in-formula">
                 {listaSel.cargo.roles.map((rol) => {
-                  const cand = listaSel.candidatos.find((c) => c.rolEnLista === rol.codigo && c.estadoValidacion !== 'EXCLUIDO');
+                  const cand = listaSel.candidatos.find((c) => c.rolEnLista === rol.codigo);
                   const buscando = slot?.codigo === rol.codigo;
                   return (
                     <li key={rol.codigo} className={`in-slot${cand ? ' filled' : ''}${buscando ? ' searching' : ''}`}>
@@ -464,10 +472,15 @@ export default function InscripcionPage({ onSessionExpired }) {
                           <div className="in-cand-body">
                             <strong>{cand.docente}</strong>
                             <span>DNI {cand.dni} · {cand.categoria}{cand.gradoAcademico ? ` · ${cand.gradoAcademico}` : ''}</span>
+                            {cand.motivoExclusion && (
+                              <span style={{ color: 'var(--cv-red)', fontSize: '0.72rem', fontWeight: 600 }}>
+                                {cand.motivoExclusion}
+                              </span>
+                            )}
                             {cand.urlHojaVida && <a className="in-link" href={cand.urlHojaVida} target="_blank" rel="noreferrer">Hoja de vida</a>}
                           </div>
                           <span className={`cv-estado ${ESTADO_CANDIDATO[cand.estadoValidacion] ?? ''}`}>{cand.estadoValidacion}</span>
-                          {editable && (
+                          {editable && cand.estadoValidacion !== 'EXCLUIDO' && (
                             <button type="button" className="cv-icon-btn" title="Quitar candidato" aria-label={`Quitar a ${cand.docente}`}
                               disabled={saving || num(cand.totalTachas) > 0} onClick={() => quitarCandidato(cand)}>
                               <MenuIcon name="trash" size={16} />
@@ -500,12 +513,6 @@ export default function InscripcionPage({ onSessionExpired }) {
                   );
                 })}
               </ul>
-
-              {listaSel.candidatos.filter((c) => c.estadoValidacion === 'EXCLUIDO').length > 0 && (
-                <p className="in-hint">
-                  Excluidos: {listaSel.candidatos.filter((c) => c.estadoValidacion === 'EXCLUIDO').map((c) => c.docente).join(', ')}
-                </p>
-              )}
 
               <div className="cv-actions">
                 {editable && (

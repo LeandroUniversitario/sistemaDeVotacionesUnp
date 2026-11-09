@@ -36,6 +36,7 @@ export default function CredencialesPage({ onSessionExpired }) {
   const [tab, setTab] = useState('ELECTOR');
   const [detalle, setDetalle] = useState(null);       // { proceso, tipo, resumen, titulares }
   const [historial, setHistorial] = useState([]);
+  const [solicitudes, setSolicitudes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -73,16 +74,56 @@ export default function CredencialesPage({ onSessionExpired }) {
   }, []);
 
   async function cargar(id, tipo) {
+    try {
+      const sols = await apiRequest(`/api/credenciales/procesos/${id}/solicitudes`);
+      setSolicitudes(sols);
+    } catch {
+      // Ignorar si falla la carga de solicitudes
+    }
+
     if (TABS.includes(tipo)) {
       setDetalle(await apiRequest(`/api/credenciales/procesos/${id}?tipo=${tipo}`));
       return;
     }
-    // Verificar / Historial: el resumen de arriba debe ser del proceso elegido
+    // Verificar / Historial / Solicitudes: el resumen de arriba debe ser del proceso elegido
     if (detalle?.proceso?.id !== id) {
       setDetalle(await apiRequest(`/api/credenciales/procesos/${id}?tipo=ELECTOR`));
     }
     if (tipo === 'HISTORIAL') {
       setHistorial(await apiRequest(`/api/credenciales/procesos/${id}/historial`));
+    }
+  }
+
+  async function aprobarSolicitud(idSol) {
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const resp = await apiRequest(`/api/credenciales/solicitudes/${idSol}/aprobar`, { method: 'POST' });
+      setFeedback({ type: 'success', text: resp.mensaje || 'Solicitud aprobada y nuevo QR emitido.' });
+      await cargar(idProceso, tab);
+    } catch (e) {
+      manejarError(e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function rechazarSolicitud(idSol) {
+    const obs = window.prompt('Ingrese el motivo del rechazo de la solicitud:', 'Solicitud denegada por el CEUNP.');
+    if (obs === null) return;
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const resp = await apiRequest(`/api/credenciales/solicitudes/${idSol}/rechazar`, {
+        method: 'POST',
+        body: JSON.stringify({ observacion: obs }),
+      });
+      setFeedback({ type: 'success', text: resp.mensaje || 'Solicitud rechazada.' });
+      await cargar(idProceso, tab);
+    } catch (e) {
+      manejarError(e);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -248,6 +289,17 @@ export default function CredencialesPage({ onSessionExpired }) {
         ))}
         <button type="button" role="tab" aria-selected={tab === 'VERIFICAR'} className={`pd-tab${tab === 'VERIFICAR' ? ' on' : ''}`} onClick={() => cambiarTab('VERIFICAR')}>Verificar QR</button>
         <button type="button" role="tab" aria-selected={tab === 'HISTORIAL'} className={`pd-tab${tab === 'HISTORIAL' ? ' on' : ''}`} onClick={() => cambiarTab('HISTORIAL')}>Historial</button>
+        <button type="button" role="tab" aria-selected={tab === 'SOLICITUDES'} className={`pd-tab${tab === 'SOLICITUDES' ? ' on' : ''}`} onClick={() => cambiarTab('SOLICITUDES')}>
+          Solicitudes de nuevo QR
+          {solicitudes.filter((s) => s.estado === 'PENDIENTE').length > 0 && (
+            <span style={{
+              marginLeft: 6, padding: '2px 7px', borderRadius: '999px',
+              background: '#ef4444', color: '#fff', fontSize: '11px', fontWeight: 700,
+            }}>
+              {solicitudes.filter((s) => s.estado === 'PENDIENTE').length}
+            </span>
+          )}
+        </button>
       </div>
 
       {feedback && (
@@ -255,6 +307,95 @@ export default function CredencialesPage({ onSessionExpired }) {
       )}
 
       {tab === 'VERIFICAR' && <VerificarCredencialPanel onSessionExpired={onSessionExpired} />}
+
+      {tab === 'SOLICITUDES' && (
+        <div className="panel cv-form">
+          <div className="cv-section-head">
+            <div>
+              <h3>Solicitudes de regeneración de QR</h3>
+              <p className="muted">
+                Peticiones enviadas por electores, miembros de mesa o personeros que extraviaron su QR. Al aprobar, el sistema revoca el código anterior y emite uno nuevo oficial.
+              </p>
+            </div>
+          </div>
+          {solicitudes.length === 0 ? (
+            <p className="empty-state">No hay solicitudes de regeneración registradas para este proceso.</p>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Titular</th>
+                    <th>Tipo</th>
+                    <th>Motivo de la solicitud</th>
+                    <th>Fecha de pedido</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {solicitudes.map((s) => (
+                    <tr key={s.idSolicitud || s.id_solicitud}>
+                      <td>
+                        <strong>{s.nombreDocente || s.nombre_docente}</strong>
+                        <small className="pd-sub">DNI {s.dni} · {s.facultad ?? '—'}</small>
+                      </td>
+                      <td>
+                        <span className="cq-tipo" style={{ '--cq-color': TIPOS_CREDENCIAL[s.tipo]?.color ?? '#7c3aed' }}>
+                          {TIPOS_CREDENCIAL[s.tipo]?.corto ?? s.tipo}
+                        </span>
+                      </td>
+                      <td>
+                        <span>{s.motivo}</span>
+                        {s.observacionAtencion || s.observacion_atencion ? (
+                          <small className="pd-sub">Nota: {s.observacionAtencion || s.observacion_atencion}</small>
+                        ) : null}
+                      </td>
+                      <td>
+                        {fecha(s.fechaSolicitud || s.fecha_solicitud)}
+                      </td>
+                      <td>
+                        <span className={`cv-estado ${
+                          s.estado === 'APROBADA' ? 'votacion' :
+                          s.estado === 'PENDIENTE' ? 'inscripcion' : 'anulado'
+                        }`}>
+                          {s.estado}
+                        </span>
+                      </td>
+                      <td>
+                        {s.estado === 'PENDIENTE' ? (
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="cv-btn cv-btn-success"
+                              style={{ fontSize: 12, padding: '4px 10px' }}
+                              disabled={saving}
+                              onClick={() => aprobarSolicitud(s.idSolicitud || s.id_solicitud)}
+                            >
+                              <MenuIcon name="check" size={13} /> Aprobar y regenerar
+                            </button>
+                            <button
+                              type="button"
+                              className="cv-btn cv-btn-danger"
+                              style={{ fontSize: 12, padding: '4px 10px' }}
+                              disabled={saving}
+                              onClick={() => rechazarSolicitud(s.idSolicitud || s.id_solicitud)}
+                            >
+                              <MenuIcon name="cross" size={13} /> Rechazar
+                            </button>
+                          </div>
+                        ) : (
+                          <small className="pd-sub">Atendido por {s.atendidoPor || s.atendido_por || 'CEUNP'}</small>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {tab === 'HISTORIAL' && (
         <div className="panel cv-form">

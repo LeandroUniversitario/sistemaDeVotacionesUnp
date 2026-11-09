@@ -56,7 +56,8 @@ public class EmitirConstancia {
 
         int reemplazadas = revocarVigente(generado.idProceso(), tipo, idDocente, idMesa, idPersonero,
                 "Reemplazada por una nueva emisión");
-        Map<String, Object> credencial = insertar(generado.tokenHash(), idDocente, generado.idProceso(), tipo,
+        String codigoQr = contenidoQR(tipo, generado.token());
+        Map<String, Object> credencial = insertar(generado.tokenHash(), codigoQr, idDocente, generado.idProceso(), tipo,
                 idMesa, idPersonero, idUsuario);
 
         Map<String, Object> detalle = new LinkedHashMap<>();
@@ -72,15 +73,15 @@ public class EmitirConstancia {
     }
 
     /** 5: insertar(token_qr_hash, id_docente) en CredencialQR. */
-    private Map<String, Object> insertar(String tokenQrHash, Integer idDocente, Integer idProceso,
+    private Map<String, Object> insertar(String tokenQrHash, String codigoQr, Integer idDocente, Integer idProceso,
             TipoCredencial tipo, Integer idMesa, Integer idPersonero, Integer idUsuario) {
         try {
             dao.ejecutar("""
                     INSERT INTO credencial_qr (id_proceso, id_docente, tipo, id_mesa, id_personero,
-                                               token_qr_hash, fecha_expiracion, id_usuario_emisor)
-                    SELECT ?, ?, ?, ?, ?, ?, p.fecha_fin, ?
+                                               token_qr_hash, codigo_qr, fecha_expiracion, id_usuario_emisor)
+                    SELECT ?, ?, ?, ?, ?, ?, ?, p.fecha_fin, ?
                       FROM proceso_electoral p WHERE p.id_proceso = ?
-                    """, idProceso, idDocente, tipo.name(), idMesa, idPersonero, tokenQrHash, idUsuario, idProceso);
+                    """, idProceso, idDocente, tipo.name(), idMesa, idPersonero, tokenQrHash, codigoQr, idUsuario, idProceso);
         } catch (DuplicateKeyException e) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Otra emisión para el mismo titular se registró al mismo tiempo; actualice la lista.");
@@ -94,7 +95,7 @@ public class EmitirConstancia {
                     tokenQrHash, idPersonero);
         }
         return dao.consultar("""
-                SELECT id_credencial, fecha_emision, fecha_expiracion
+                SELECT id_credencial, fecha_emision, fecha_expiracion, codigo_qr
                   FROM credencial_qr WHERE token_qr_hash = ?
                 """, tokenQrHash).get(0);
     }

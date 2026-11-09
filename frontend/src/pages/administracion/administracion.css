@@ -178,6 +178,11 @@
 @media (max-width: 900px) { .ad-shell .ad-ficha .mx-datos.cp-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 
+/* Superposición de modales secundarios y diálogo de contraseñas provisionales */
+.ad-modal-top {
+  z-index: 1200 !important;
+}
+
 /* ── Reset robusto para el buscador en administracion ── */
 .ad-shell .mu-buscar {
   display: flex !important;

@@ -444,45 +444,13 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
       </section>
       )}
 
-      {feedback && <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>}
+      {feedback && !seleccionado && !parametro && (
+        <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>
+      )}
 
       {/* ── 1-4 Cuentas y roles ── */}
       {paso === 'USUARIOS' && (
         <>
-          {entregada && (
-            <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setEntregada(null); }}>
-              <div className="modal-card" style={{ width: 'min(100%, 580px)' }}>
-                <div className="modal-header">
-                  <h2>Contraseña provisional asignada</h2>
-                  <button type="button" className="modal-close" onClick={() => setEntregada(null)}>✕</button>
-                </div>
-                <div style={{ padding: '20px 24px 24px' }}>
-                  <div style={{ marginBottom: 16 }}>
-                    <h3 style={{ margin: '0 0 6px', fontSize: '1.15rem' }}>{entregada.usuario.username}</h3>
-                    <p className="muted" style={{ margin: 0, fontSize: '.88rem' }}>Entréguela al titular de la cuenta. Se muestra solo una vez: el sistema pedirá cambiarla en el primer ingreso.</p>
-                  </div>
-                  <div className="ad-clave" style={{ margin: '16px 0' }}>
-                    <div><span>Usuario</span><strong>{entregada.usuario.username}</strong></div>
-                    <div><span>Rol</span><strong>{ROL[entregada.usuario.rol]}</strong></div>
-                    <div><span>Docente</span><strong>{entregada.usuario.docente ?? '—'}</strong></div>
-                    <div className="ad-clave-valor"><span>Contraseña provisional</span><code>{entregada.clave}</code></div>
-                  </div>
-                  <div className="modal-actions" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button type="button" className="cv-btn cv-btn-ghost" onClick={() => navigator.clipboard?.writeText(entregada.clave)}>
-                        <MenuIcon name="key" size={15} /> Copiar
-                      </button>
-                      <button type="button" className="cv-btn cv-btn-primary" onClick={() => imprimirFichaAcceso(entregada.usuario, entregada.clave, politica, session?.username)}>
-                        <MenuIcon name="file" size={15} /> Imprimir ficha de acceso
-                      </button>
-                    </div>
-                    <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setEntregada(null)}>Cerrar</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="panel cv-form" style={{ padding: '24px' }}>
             {/* Dashboard superior de métricas por rol */}
             <section className="ad-roles" style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', margin: '0 0 20px', gap: '12px' }}>
@@ -529,6 +497,13 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
                     <h2>Registrar nueva cuenta</h2>
                     <button type="button" className="modal-close" onClick={limpiarAccion}>✕</button>
                   </div>
+                  {feedback && (
+                    <div style={{ padding: '14px 24px 0' }}>
+                      <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)} style={{ margin: 0, cursor: 'pointer' }}>
+                        {feedback.text}
+                      </div>
+                    </div>
+                  )}
                   <div style={{ padding: '20px 24px 24px' }}>
                     <FormNuevaCuenta
                       nuevo={nuevo} setNuevo={setNuevo} docente={docente} setDocente={setDocente} verificacion={verificacion}
@@ -593,12 +568,19 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
                     <button type="button" className="modal-close" onClick={() => { setIdUsuario(null); limpiarAccion(); }} aria-label="Cerrar ventana">✕</button>
                   </div>
                 </div>
+                {feedback && (
+                  <div style={{ padding: '14px 24px 0' }}>
+                    <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)} style={{ margin: 0, cursor: 'pointer' }}>
+                      {feedback.text}
+                    </div>
+                  </div>
+                )}
                 <div style={{ padding: '24px' }}>
                   <FichaCuenta
                     u={seleccionado} propia={seleccionado.idUsuario === detalle.idAdmin} actividad={actividad} politica={politica}
                     accion={accion} setAccion={(a) => { setAccion(a); setConfirmando(false); }} confirmando={confirmando} setConfirmando={setConfirmando} saving={saving}
                     edicion={edicion} setEdicion={setEdicion} motivoEstado={motivoEstado} setMotivoEstado={setMotivoEstado}
-                    clave={clave} setClave={setClave} admin={session?.username}
+                    clave={clave} setClave={setClave} admin={session?.username} entregada={entregada}
                     onEditar={editarUsuario} onEstado={cambiarEstado} onClave={restablecerClave} onDesbloquear={desbloquear} onEliminar={eliminar}
                     onCancelar={limpiarAccion} onCerrar={() => { setIdUsuario(null); limpiarAccion(); }} onError={manejarError}
                   />
@@ -698,6 +680,24 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
                   <h2>Parámetro: {parametro.etiqueta}</h2>
                   <button type="button" className="modal-close" onClick={() => { setClaveParam(null); limpiarAccion(); }}>✕</button>
                 </div>
+                {feedback && (
+                  <div style={{ padding: '14px 24px 0' }}>
+                    <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)} style={{ margin: 0, cursor: 'pointer' }}>
+                      {feedback.text}
+                    </div>
+                  </div>
+                )}
+                {confirmacion && (
+                  <div style={{ padding: '14px 24px 0' }}>
+                    <div className="mx-mensaje info ad-confirmado" role="status" style={{ margin: 0 }}>
+                      <MenuIcon name="check" size={18} />
+                      <div>
+                        <h4>{confirmacion.etiqueta} — cambio guardado</h4>
+                        <p><s>{confirmacion.valorAnterior}</s> → <strong>{confirmacion.valorNuevo}</strong> · registrado en el historial (N.º {confirmacion.idHistorial}) y en la bitácora.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div style={{ padding: '20px 24px 24px' }}>
                   <FichaParametro
                     p={parametro} parametros={detalle.parametros} historial={historialParam} cambio={cambio} setCambio={setCambio}
@@ -839,6 +839,47 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
             </div>
           </div>
         </>
+      )}
+
+      {/* Diálogo emergente en primer plano: Contraseña provisional asignada (Auditoría A3 / CUS18) */}
+      {entregada && (
+        <div
+          className="modal-overlay ad-modal-top"
+          style={{ zIndex: 1200 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setEntregada(null); }}
+        >
+          <div className="modal-card" style={{ width: 'min(100%, 580px)', zIndex: 1201, boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)' }}>
+            <div className="modal-header">
+              <h2>Contraseña provisional asignada</h2>
+              <button type="button" className="modal-close" onClick={() => setEntregada(null)}>✕</button>
+            </div>
+            <div style={{ padding: '20px 24px 24px' }}>
+              <div style={{ marginBottom: 16 }}>
+                <h3 style={{ margin: '0 0 6px', fontSize: '1.15rem' }}>{entregada.usuario.username}</h3>
+                <p className="muted" style={{ margin: 0, fontSize: '.88rem' }}>
+                  Entréguela al titular de la cuenta. Se muestra solo una vez: el sistema pedirá cambiarla en el primer ingreso.
+                </p>
+              </div>
+              <div className="ad-clave" style={{ margin: '16px 0' }}>
+                <div><span>Usuario</span><strong>{entregada.usuario.username}</strong></div>
+                <div><span>Rol</span><strong>{ROL[entregada.usuario.rol]}</strong></div>
+                <div><span>Docente</span><strong>{entregada.usuario.docente ?? '—'}</strong></div>
+                <div className="ad-clave-valor"><span>Contraseña provisional</span><code>{entregada.clave}</code></div>
+              </div>
+              <div className="modal-actions" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" className="cv-btn cv-btn-ghost" onClick={() => navigator.clipboard?.writeText(entregada.clave)}>
+                    <MenuIcon name="key" size={15} /> Copiar
+                  </button>
+                  <button type="button" className="cv-btn cv-btn-primary" onClick={() => imprimirFichaAcceso(entregada.usuario, entregada.clave, politica, session?.username)}>
+                    <MenuIcon name="file" size={15} /> Imprimir ficha de acceso
+                  </button>
+                </div>
+                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setEntregada(null)}>Cerrar</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1182,7 +1223,7 @@ function SelectorDocente({ titulo, docente, onElegir, verificacion, requerido, d
 
 function FichaCuenta({
   u, propia, actividad, politica, accion, setAccion, confirmando, setConfirmando, saving, edicion, setEdicion, motivoEstado, setMotivoEstado,
-  clave, setClave, admin, onEditar, onEstado, onClave, onDesbloquear, onEliminar, onCancelar, onError,
+  clave, setClave, admin, onEditar, onEstado, onClave, onDesbloquear, onEliminar, onCancelar, onError, entregada,
 }) {
   const s = situacion(u);
   const activo = si(u.activo);
@@ -1200,6 +1241,31 @@ function FichaCuenta({
 
   return (
     <div className="cv-form ad-ficha" style={{ border: 'none', padding: 0 }}>
+      {/* Aviso destacado si la contraseña se acaba de restablecer para este usuario */}
+      {entregada && (entregada.usuario?.idUsuario === u.idUsuario || entregada.usuario?.username === u.username) && (
+        <div style={{ background: '#ecfdf5', border: '1.5px solid #10b981', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <span style={{ fontSize: '.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: '#047857', display: 'block', marginBottom: '3px' }}>
+              ✓ Contraseña provisional activa para esta cuenta
+            </span>
+            <code style={{ fontSize: '1.25rem', fontWeight: 700, color: '#065f46', letterSpacing: '.06em', fontFamily: 'monospace' }}>
+              {entregada.clave}
+            </code>
+            <small style={{ display: 'block', color: '#047857', fontSize: '.76rem', marginTop: '2px' }}>
+              El usuario deberá cambiarla obligatoriamente en su primer ingreso.
+            </small>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button type="button" className="cv-btn cv-btn-ghost" onClick={() => navigator.clipboard?.writeText(entregada.clave)} style={{ fontSize: '.82rem', padding: '6px 12px' }}>
+              <MenuIcon name="key" size={14} /> Copiar
+            </button>
+            <button type="button" className="cv-btn cv-btn-primary" onClick={() => imprimirFichaAcceso(entregada.usuario, entregada.clave, politica, admin)} style={{ fontSize: '.82rem', padding: '6px 12px' }}>
+              <MenuIcon name="file" size={14} /> Imprimir ficha
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── 1. Cuadrícula de datos del usuario ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '22px' }}>
         <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>

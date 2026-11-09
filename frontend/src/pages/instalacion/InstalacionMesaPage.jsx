@@ -377,6 +377,16 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
         </section>
       )}
 
+      {mesa && mesa.estadoProceso !== 'VOTACION' && (
+        <div className="alert error" style={{ width: '100%', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }} role="alert">
+          <MenuIcon name="alert" size={20} />
+          <div>
+            <strong>El proceso electoral se encuentra en etapa «{mesa.estadoProceso}».</strong>
+            <div>La instalación de mesas solo se habilita el día de la jornada cuando el proceso pasa a etapa de VOTACIÓN (RN07).</div>
+          </div>
+        </div>
+      )}
+
       {proceso && (
         <section className="cq-resumen">
           <div className="cq-kpi" style={{ '--cq-color': '#2563eb' }}>

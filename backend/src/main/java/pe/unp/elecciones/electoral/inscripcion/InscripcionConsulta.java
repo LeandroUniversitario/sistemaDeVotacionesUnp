@@ -87,7 +87,7 @@ public class InscripcionConsulta {
         List<Map<String, Object>> candidatos = dao.consultar("""
                 SELECT ca.id_candidato AS id, ca.id_lista, ca.id_docente, d.dni,
                        CONCAT(d.apellidos, ', ', d.nombres) AS docente, d.categoria, d.grado_academico,
-                       ca.rol_en_lista, ca.estado_validacion, ca.url_hoja_vida, ca.fecha_inscripcion,
+                       ca.rol_en_lista, ca.estado_validacion, ca.motivo_exclusion, ca.url_hoja_vida, ca.fecha_inscripcion,
                        (SELECT COUNT(*) FROM tacha t WHERE t.id_candidato = ca.id_candidato) AS total_tachas
                   FROM candidato ca
                   JOIN docente d ON d.id_docente = ca.id_docente

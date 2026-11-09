@@ -49,6 +49,7 @@
 
 .in-formula-status { display: flex; gap: 8px; align-items: center; padding: 9px 12px; border-radius: var(--r-md); font-size: .82rem; font-weight: 600; color: var(--cv-amber); background: var(--cv-amber-soft); }
 .in-formula-status.ok { color: var(--cv-green); background: var(--cv-green-soft); }
+.in-formula-status.danger { color: var(--cv-red); background: var(--cv-red-soft); }
 
 .in-formula { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .in-slot { display: grid; gap: 8px; padding: 12px 14px; border: 1px dashed var(--border-strong); border-radius: var(--r-lg); background: var(--gray-50); }

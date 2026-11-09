@@ -50,4 +50,22 @@ public final class CredencialesDto {
             @Size(max = 300, message = "El código leído es demasiado largo.")
             String codigo) {
     }
+
+    /** Solicitud de regeneración de QR enviada por el docente/miembro/personero al CEUNP. */
+    public record SolicitudRegeneracion(
+            @NotNull(message = "Indique el proceso electoral.")
+            Integer idProceso,
+            @NotBlank(message = "Indique el tipo de credencial.")
+            String tipo,
+            Integer idTitular,
+            @NotBlank(message = "Indique el motivo por el cual solicita un nuevo QR.")
+            @Size(min = 5, max = 255, message = "El motivo debe tener entre 5 y 255 caracteres.")
+            String motivo) {
+    }
+
+    /** Decisión del CEUNP al rechazar una solicitud de regeneración de QR. */
+    public record AtencionSolicitud(
+            @Size(max = 255, message = "La observación debe tener como máximo 255 caracteres.")
+            String observacion) {
+    }
 }

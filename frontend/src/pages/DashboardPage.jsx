@@ -5,7 +5,6 @@ import ProcessTable from '../components/ProcessTable';
 import ErrorBoundary from '../components/ErrorBoundary';
 const DocentesPage = lazy(() => import('./DocentesPage'));
 const CuentaPage = lazy(() => import('./CuentaPage'));
-const MiembroMesaPage = lazy(() => import('./MiembroMesaPage'));
 const PantallaVerificacion = lazy(() => import('./votacion/PantallaVerificacion'));
 const TerminalVotacion = lazy(() => import('./votacion/TerminalVotacion'));
 const CargosExcluidosPage = lazy(() => import('./CargosExcluidosPage'));
@@ -87,7 +86,6 @@ const MENU_POR_ROL = {
     { key: 'fotocheck', label: 'Mi fotocheck de miembro (RF56)', icon: 'qr', color: '#f59e0b' },
     { key: 'tachas', label: 'Presentar tacha', icon: 'scale', color: '#f97316' },
     { group: 'Jornada electoral' },
-    { key: 'mesa', label: 'Mi Mesa de Sufragio', icon: 'table', color: '#14b8a6' },
     { key: 'instalacion', label: 'Instalar mesa', icon: 'shield', color: '#0ea5e9' },
     { key: 'verificar-elector', label: 'Verificar elector', icon: 'scan', color: '#0ea5e9' },
     { key: 'terminal', label: 'Terminal de votación', icon: 'vote', color: '#6366f1' },
@@ -210,7 +208,7 @@ const ROL_LEGIBLE = {
 // Pantalla con la que abre cada rol al iniciar sesión
 const SECCION_INICIAL_ROL = {
   CEUNP: 'candidaturas',
-  MIEMBRO_MESA: 'mesa',
+  MIEMBRO_MESA: 'resumen',
   DOCENTE: 'pase',
 };
 const seccionPorDefecto = (rol) => SECCION_INICIAL_ROL[rol] ?? 'resumen';
@@ -248,6 +246,10 @@ export default function DashboardPage({ session, onLogout }) {
   // UX: cada sección tiene su URL (#/seccion), así el botón Atrás y los enlaces funcionan sin salir de la app
   const seccionInicial = () => {
     const desdeUrl = window.location.hash.replace(/^#\/?/, '');
+    if (desdeUrl === 'mesa' && session.rol === 'MIEMBRO_MESA') {
+      window.history.replaceState(null, '', '#/resumen');
+      return 'resumen';
+    }
     if (seccionPermitida(session.rol, desdeUrl)) return desdeUrl;
     const inicial = seccionPorDefecto(session.rol);
     // La URL traía una sección que este rol no tiene (p. ej. la de otra cuenta): se corrige sin dejar historial
@@ -280,6 +282,10 @@ export default function DashboardPage({ session, onLogout }) {
   // Estado de métricas reales para el resumen del Admin
   const [adminStats, setAdminStats] = useState({ usuarios: null, parametros: null, bitacora: null });
   const [adminStatsLoading, setAdminStatsLoading] = useState(false);
+
+  // Estado para el resumen personalizado del Docente elector
+  const [docenteData, setDocenteData] = useState(null);
+  const [docenteLoading, setDocenteLoading] = useState(false);
 
   useEffect(() => {
     if (session.rol !== 'CEUNP') return undefined;
@@ -324,12 +330,26 @@ export default function DashboardPage({ session, onLogout }) {
     });
   }
 
-  // CEUNP gestiona el proceso electoral; ADMIN gestiona el sistema
+  // Roles del sistema
   const canManage = session.rol === 'CEUNP';
+  const isCeunp = session.rol === 'CEUNP';
   const isAdmin = session.rol === 'ADMIN';
+  const isDocente = session.rol === 'DOCENTE';
+  const isMiembro = session.rol === 'MIEMBRO_MESA';
+  const isPersonero = session.rol === 'PERSONERO';
+
+  // Datos de Miembro de Mesa
+  const [miembroData, setMiembroData] = useState(null);
+  const [miembroLoading, setMiembroLoading] = useState(false);
+
+  // Datos de Personero
+  const [personeroData, setPersoneroData] = useState(null);
+  const [personeroLoading, setPersoneroLoading] = useState(false);
+
+  // Estadísticas del CEUNP
+  const [ceunpStats, setCeunpStats] = useState({ listas: 0, mesas: 0, solicitudesPendientes: 0 });
 
   async function loadData() {
-    // Solo CEUNP necesita la lista de procesos y docentes
     if (!canManage) { setLoading(false); return; }
     setLoading(true);
     try {
@@ -339,6 +359,25 @@ export default function DashboardPage({ session, onLogout }) {
       ]);
       setProcesses(processData);
       setTeachers(teacherData);
+
+      // Cargar estadísticas del proceso activo para el CEUNP
+      const procActivo = processData[0];
+      if (procActivo) {
+        try {
+          const [listas, mesas, solicitudes] = await Promise.all([
+            apiRequest(`/api/inscripcion/procesos/${procActivo.id}/listas`).catch(() => []),
+            apiRequest(`/api/instalacion/mesas?procesoId=${procActivo.id}`).catch(() => []),
+            apiRequest(`/api/credenciales/procesos/${procActivo.id}/solicitudes`).catch(() => []),
+          ]);
+          setCeunpStats({
+            listas: Array.isArray(listas) ? listas.length : (listas?.length ?? 0),
+            mesas: Array.isArray(mesas) ? mesas.length : (mesas?.length ?? 0),
+            solicitudesPendientes: (solicitudes || []).filter((s) => s.estado === 'PENDIENTE').length,
+          });
+        } catch {
+          // Si fallan las métricas auxiliares se mantiene lo principal
+        }
+      }
     } catch (error) {
       if (error.message === 'SESSION_EXPIRED') onLogout();
       else setFeedback({ type: 'error', text: error.message });
@@ -348,6 +387,70 @@ export default function DashboardPage({ session, onLogout }) {
   }
 
   useEffect(() => { loadData(); }, []);
+
+  /** Carga los datos de la mesa asignada al Miembro de Mesa */
+  async function loadMiembroData() {
+    if (!isMiembro) return;
+    setMiembroLoading(true);
+    try {
+      const [mesas, creds, pase] = await Promise.all([
+        apiRequest('/api/instalacion/mesas').catch(() => []),
+        apiRequest('/api/credenciales/mias').catch(() => []),
+        apiRequest('/api/docente/mi-pase').catch(() => null),
+      ]);
+      setMiembroData({
+        mesas: Array.isArray(mesas) ? mesas : [],
+        credenciales: Array.isArray(creds) ? creds : [],
+        pase,
+      });
+    } catch (e) {
+      if (e.message === 'SESSION_EXPIRED') onLogout();
+    } finally {
+      setMiembroLoading(false);
+    }
+  }
+
+  useEffect(() => { loadMiembroData(); }, []);
+
+  /** Carga los datos de acreditación de la lista para el Personero */
+  async function loadPersoneroData() {
+    if (!isPersonero) return;
+    setPersoneroLoading(true);
+    try {
+      const [creds, listas, pase] = await Promise.all([
+        apiRequest('/api/credenciales/mias').catch(() => []),
+        apiRequest('/api/docente/listas-postulantes').catch(() => []),
+        apiRequest('/api/docente/mi-pase').catch(() => null),
+      ]);
+      setPersoneroData({
+        credenciales: Array.isArray(creds) ? creds : [],
+        listas: Array.isArray(listas) ? listas : [],
+        pase,
+      });
+    } catch (e) {
+      if (e.message === 'SESSION_EXPIRED') onLogout();
+    } finally {
+      setPersoneroLoading(false);
+    }
+  }
+
+  useEffect(() => { loadPersoneroData(); }, []);
+
+  /** Carga los datos del pase electoral del docente autenticado */
+  async function loadDocenteData() {
+    if (!isDocente) return;
+    setDocenteLoading(true);
+    try {
+      const data = await apiRequest('/api/docente/mi-pase');
+      setDocenteData(data);
+    } catch (e) {
+      if (e.message === 'SESSION_EXPIRED') onLogout();
+    } finally {
+      setDocenteLoading(false);
+    }
+  }
+
+  useEffect(() => { loadDocenteData(); }, []);
 
   /** Carga métricas completas del panel de administración */
   async function loadAdminStats() {
@@ -956,59 +1059,782 @@ export default function DashboardPage({ session, onLogout }) {
           );
         })()}
 
-        {/* Resumen — CEUNP, Docente, Personero y Miembro de Mesa */}
-        {section === 'resumen' && !isAdmin && (
-          <>
-            <section className="stats-grid">
-              <article className="stat-card">
-                <div className="stat-card-icon blue">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
+        {/* Resumen — Docente elector (panel personalizado con su estado electoral) */}
+        {section === 'resumen' && isDocente && (() => {
+          // Helpers de estado del proceso
+          const ESTADO_PROCESO_LABEL = {
+            CONVOCATORIA: 'Convocatoria',
+            INSCRIPCION: 'Inscripción',
+            TACHAS: 'Tachas',
+            CAMPANA: 'Campaña',
+            VOTACION: 'Votación',
+            ESCRUTINIO: 'Escrutinio',
+            COMPUTO: 'Cómputo',
+            CERRADO: 'Cerrado',
+          };
+          const ESTADO_PROCESO_COLOR = {
+            VOTACION: '#059669',
+            CERRADO: '#6b7280',
+            ESCRUTINIO: '#2563eb',
+            COMPUTO: '#2563eb',
+          };
+          const colorEstado = (e) => ESTADO_PROCESO_COLOR[e] ?? '#d97706';
+
+          if (docenteLoading) {
+            return (
+              <section className="panel" style={{ textAlign: 'center', padding: '3rem' }}>
+                <span className="muted">Cargando tu información electoral…</span>
+              </section>
+            );
+          }
+
+          if (!docenteData) {
+            return (
+              <section className="panel" style={{ textAlign: 'center', padding: '3rem' }}>
+                <p style={{ marginBottom: '1rem', color: '#6b7280' }}>No se pudo cargar tu información. Intenta de nuevo.</p>
+                <button className="primary-button" onClick={loadDocenteData}>Reintentar</button>
+              </section>
+            );
+          }
+
+          const procesos = docenteData.procesos ?? [];
+          const habilitado = docenteData.habilitadoParaVotar === 1 || docenteData.habilitadoParaVotar === true;
+          const procesosActivos = procesos.filter((p) => p.estadoProceso === 'VOTACION').length;
+          const conCredencial = procesos.filter((p) => p.tieneCredencialVigente).length;
+
+          return (
+            <>
+              {/* KPIs */}
+              <section className="stats-grid">
+                {/* Habilitación para votar */}
+                <article className="stat-card">
+                  <div className="stat-card-icon" style={{ background: habilitado ? '#d1fae5' : '#fee2e2', color: habilitado ? '#059669' : '#e11d48' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      {habilitado
+                        ? <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></>
+                        : <><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></>}
+                    </svg>
+                  </div>
+                  <div className="stat-card-body">
+                    <span className="stat-card-label">Habilitación para votar</span>
+                    <strong className="stat-card-value" style={{ color: habilitado ? '#059669' : '#e11d48', fontSize: '1.1rem' }}>
+                      {habilitado ? 'Habilitado' : 'No habilitado'}
+                    </strong>
+                    <span className="stat-card-sub" style={{ color: habilitado ? '#6b7280' : '#e11d48' }}>
+                      {habilitado ? 'Puedes participar en las elecciones' : (docenteData.motivoInhabilitacion ?? 'Consulta con el CEUNP')}
+                    </span>
+                  </div>
+                </article>
+
+                {/* Procesos en que figura */}
+                <article className="stat-card">
+                  <div className="stat-card-icon blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  </div>
+                  <div className="stat-card-body">
+                    <span className="stat-card-label">Procesos electorales</span>
+                    <strong className="stat-card-value">{procesos.length}</strong>
+                    <span className="stat-card-sub">en que figuras como elector</span>
+                  </div>
+                </article>
+
+                {/* Proceso en votación ahora */}
+                <article className="stat-card">
+                  <div className="stat-card-icon amber">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                  </div>
+                  <div className="stat-card-body">
+                    <span className="stat-card-label">En votación activa</span>
+                    <strong className="stat-card-value">{procesosActivos}</strong>
+                    <span className="stat-card-sub">proceso{procesosActivos !== 1 ? 's' : ''} en curso ahora</span>
+                  </div>
+                </article>
+
+                {/* Credencial QR vigente */}
+                <article className="stat-card">
+                  <div className="stat-card-icon green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+                      <line x1="14" y1="14" x2="14" y2="14" /><line x1="17" y1="14" x2="20" y2="14" /><line x1="14" y1="17" x2="14" y2="20" /><line x1="17" y1="20" x2="20" y2="20" />
+                    </svg>
+                  </div>
+                  <div className="stat-card-body">
+                    <span className="stat-card-label">Credencial QR vigente</span>
+                    <strong className="stat-card-value">{conCredencial}</strong>
+                    <span className="stat-card-sub">pase{conCredencial !== 1 ? 's' : ''} activo{conCredencial !== 1 ? 's' : ''}</span>
+                  </div>
+                </article>
+              </section>
+
+              {/* Datos personales del docente */}
+              <section className="panel" style={{ marginBottom: '1rem' }}>
+                <div className="panel-heading">
+                  <div>
+                    <h2>Mis datos en el padrón</h2>
+                    <p className="muted">Información registrada en el sistema electoral.</p>
+                  </div>
                 </div>
-                <div className="stat-card-body">
-                  <span className="stat-card-label">Procesos electorales</span>
-                  <strong className="stat-card-value">{processes.length}</strong>
-                  <span className="stat-card-sub">registrados en el sistema</span>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.75rem', padding: '0.25rem 0' }}>
+                  {[
+                    { label: 'Nombre completo', value: `${docenteData.nombres ?? ''} ${docenteData.apellidos ?? ''}`.trim() || '—' },
+                    { label: 'DNI', value: docenteData.dni ?? '—' },
+                    { label: 'Facultad', value: docenteData.facultad ?? '—' },
+                    { label: 'Departamento', value: docenteData.departamento ?? '—' },
+                    { label: 'Categoría', value: docenteData.categoria ?? '—' },
+                    { label: 'Dedicación', value: docenteData.dedicacion ?? '—' },
+                  ].map(({ label, value }) => (
+                    <div key={label} style={{ background: '#f9fafb', borderRadius: '8px', padding: '0.75rem 1rem', border: '1px solid #e5e7eb' }}>
+                      <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280', marginBottom: '0.25rem' }}>{label}</span>
+                      <span style={{ fontWeight: 500, color: '#111827' }}>{value}</span>
+                    </div>
+                  ))}
                 </div>
-              </article>
-              <article className="stat-card">
-                <div className="stat-card-icon green">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
+              </section>
+
+              {/* Lista de procesos en que figura */}
+              <section className="panel">
+                <div className="panel-heading">
+                  <div>
+                    <h2>Mis procesos electorales</h2>
+                    <p className="muted">Procesos en los que figuras como elector habilitado.</p>
+                  </div>
+                  <button className="text-button" onClick={() => setSection('pase')}>Ver mi pase QR</button>
                 </div>
-                <div className="stat-card-body">
-                  <span className="stat-card-label">Docentes en padrón</span>
-                  <strong className="stat-card-value">{teachers.filter(t => t.habilitadoParaVotar).length}</strong>
-                  <span className="stat-card-sub">habilitados para votar</span>
+
+                {procesos.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#6b7280' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 40, height: 40, margin: '0 auto 0.75rem', display: 'block', opacity: 0.4 }}>
+                      <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    <p style={{ marginBottom: '0.5rem', fontWeight: 500 }}>Todavía no figuras en ningún padrón electoral.</p>
+                    <p style={{ fontSize: '0.875rem' }}>Cuando el CEUNP publique un proceso y te incluya, aparecerá aquí.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {procesos.map((p) => (
+                      <div key={p.idProceso} style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', background: '#f9fafb', borderRadius: '10px', padding: '1rem 1.25rem', border: '1px solid #e5e7eb' }}>
+                        {/* Info del proceso */}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.4rem' }}>
+                            <span style={{ fontWeight: 600, color: '#111827' }}>{p.proceso ?? `Proceso #${p.idProceso}`}</span>
+                            <span style={{
+                              fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.6rem', borderRadius: '999px',
+                              background: `${colorEstado(p.estadoProceso)}18`, color: colorEstado(p.estadoProceso), letterSpacing: '0.03em',
+                            }}>
+                              {ESTADO_PROCESO_LABEL[p.estadoProceso] ?? p.estadoProceso}
+                            </span>
+                            {p.esMiembroMesa && (
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.6rem', borderRadius: '999px', background: '#ede9fe', color: '#7c3aed' }}>
+                                Miembro de mesa
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.85rem', color: '#6b7280', display: 'flex', flexWrap: 'wrap', gap: '1.2rem' }}>
+                            {p.numeroMesa && (
+                              <span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 13, height: 13, marginRight: 4, verticalAlign: 'middle' }}><rect x="3" y="3" width="18" height="18" rx="2" /></svg>
+                                Mesa {p.numeroMesa}
+                                {p.localVotacion ? ` · ${p.localVotacion}` : ''}
+                              </span>
+                            )}
+                            {p.fechaInicio && (
+                              <span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 13, height: 13, marginRight: 4, verticalAlign: 'middle' }}><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+                                {new Date(p.fechaInicio).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {/* Credencial */}
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          {p.tieneCredencialVigente ? (
+                            <button className="text-button" style={{ fontSize: '0.82rem' }} onClick={() => setSection('pase')}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14, marginRight: 4, verticalAlign: 'middle' }}>
+                                <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+                              </svg>
+                              Ver QR
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>Sin credencial</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </>
+          );
+        })()}
+
+        {/* Resumen — CEUNP (Panel de Control Electoral Ejecutivo) */}
+        {section === 'resumen' && isCeunp && (() => {
+          const procActivo = processes[0];
+          const habilitados = teachers.filter((t) => t.habilitadoParaVotar).length;
+          const totalDocentes = teachers.length;
+          const enVotacion = processes.filter((p) => p.estado === 'VOTACION').length;
+
+          return (
+            <div style={{ display: 'grid', gap: '20px' }}>
+              {/* KPIs superiores */}
+              <section className="cq-resumen" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px' }}>
+                <div className="cq-kpi" style={{ '--cq-color': '#2563eb', cursor: 'pointer' }} onClick={() => setSection('padron')} title="Ir a Padrón Electoral">
+                  <span>Padrón definitivo</span>
+                  <strong>{loading ? '…' : habilitados}<small> / {totalDocentes} docentes</small></strong>
+                  <small>{totalDocentes - habilitados} inhabilitados o en depuración</small>
                 </div>
-              </article>
-              <article className="stat-card">
-                <div className="stat-card-icon amber">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                  </svg>
+                <div className="cq-kpi" style={{ '--cq-color': '#10b981', cursor: 'pointer' }} onClick={() => setSection('convocatoria')} title="Ir a Convocatoria">
+                  <span>Proceso electoral</span>
+                  <strong style={{ fontSize: '1.05rem', textTransform: 'capitalize' }}>
+                    {loading ? '…' : (procActivo?.estado ?? 'Sin proceso')}
+                  </strong>
+                  <small>{procActivo ? procActivo.nombre : 'Configure la convocatoria'}</small>
                 </div>
-                <div className="stat-card-body">
-                  <span className="stat-card-label">En votación activa</span>
-                  <strong className="stat-card-value">{processes.filter(p => p.estado === 'VOTACION').length}</strong>
-                  <span className="stat-card-sub">proceso{processes.filter(p => p.estado === 'VOTACION').length !== 1 ? 's' : ''} en curso</span>
+                <div className="cq-kpi" style={{ '--cq-color': '#06b6d4', cursor: 'pointer' }} onClick={() => setSection('candidaturas')} title="Ir a Inscripción de Listas">
+                  <span>Listas y fórmulas</span>
+                  <strong>{ceunpStats.listas}</strong>
+                  <small>Fórmulas inscritas en carrera</small>
                 </div>
-              </article>
-            </section>
-            <section className="panel">
-              <div className="panel-heading">
-                <div>
-                  <h2>Actividad electoral</h2>
-                  <p className="muted">Estado actual de los procesos registrados.</p>
+                <div className="cq-kpi" style={{ '--cq-color': '#7c3aed', cursor: 'pointer' }} onClick={() => setSection('instalacion')} title="Ir a Instalación de Mesas">
+                  <span>Mesas de sufragio</span>
+                  <strong>{ceunpStats.mesas}</strong>
+                  <small>Mesas conformadas (6 miembros c/u)</small>
                 </div>
-                {canManage && <button className="text-button" onClick={() => setSection('convocatoria')}>Ver convocatorias</button>}
-              </div>
-              <ProcessTable processes={processes.slice(0, 5)} loading={loading} />
-            </section>
-          </>
-        )}
+                <div className="cq-kpi" style={{ '--cq-color': ceunpStats.solicitudesPendientes > 0 ? '#ef4444' : '#059669', cursor: 'pointer' }} onClick={() => setSection('credenciales')} title="Ir a Credenciales">
+                  <span>Solicitudes de nuevo QR</span>
+                  <strong>{ceunpStats.solicitudesPendientes}</strong>
+                  <small>{ceunpStats.solicitudesPendientes > 0 ? 'Requieren atención del CEUNP' : 'Todas las solicitudes atendidas'}</small>
+                </div>
+              </section>
+
+              {/* Panel de administración rápida con módulos operativos */}
+              <section className="panel" style={{ padding: '24px' }}>
+                <div className="panel-heading" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '16px', marginBottom: '22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <MenuIcon name="dashboard" size={20} /> Panel de Control Electoral del CEUNP
+                    </h2>
+                    <p className="muted" style={{ margin: '4px 0 0', fontSize: '.88rem' }}>
+                      Supervisión integral de las etapas electorales, padrón, candidaturas, mesas y escrutinio oficial.
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="cv-btn cv-btn-primary" onClick={() => setSection('convocatoria')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <MenuIcon name="calendar" size={15} /> Convocatoria
+                    </button>
+                    <button className="cv-btn cv-btn-ghost" onClick={() => setSection('instalacion')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <MenuIcon name="shield" size={15} /> Supervisar mesas
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4 Módulos ejecutivos por etapas */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                  {/* Módulo 1: Padrón y Sorteos */}
+                  <div
+                    onClick={() => setSection('sorteos')}
+                    style={{
+                      border: '1px solid var(--border)', borderTop: '4px solid #10b981',
+                      borderRadius: '12px', padding: '18px', background: 'var(--surface, #fff)',
+                      cursor: 'pointer', transition: 'all .2s ease', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                      boxShadow: 'var(--shadow-xs)',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#d1fae5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <MenuIcon name="sorteo" size={20} />
+                        </div>
+                        <span style={{ fontSize: '.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: '999px', background: '#ecfdf5', color: '#059669' }}>
+                          Sorteos RN19/RN18
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 6px', color: 'var(--text-main)' }}>Sorteos y Cédula</h3>
+                      <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.45 }}>
+                        Sorteo de miembros de mesa (titulares y suplentes) y sorteo de ubicación en la cédula de votación.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid var(--border)', fontSize: '.82rem', fontWeight: 600, color: '#10b981' }}>
+                      <span>Ir a Sorteos →</span>
+                    </div>
+                  </div>
+
+                  {/* Módulo 2: Inscripción de Listas y Tachas */}
+                  <div
+                    onClick={() => setSection('candidaturas')}
+                    style={{
+                      border: '1px solid var(--border)', borderTop: '4px solid #06b6d4',
+                      borderRadius: '12px', padding: '18px', background: 'var(--surface, #fff)',
+                      cursor: 'pointer', transition: 'all .2s ease', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                      boxShadow: 'var(--shadow-xs)',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#cffafe', color: '#0891b2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <MenuIcon name="ballot" size={20} />
+                        </div>
+                        <span style={{ fontSize: '.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: '999px', background: '#ecfeff', color: '#0891b2' }}>
+                          {ceunpStats.listas} listas
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 6px', color: 'var(--text-main)' }}>Candidaturas y Tachas</h3>
+                      <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.45 }}>
+                        Revisión de fórmulas de Rector y Vicerrectores, resolución de tachas y acreditación de personeros.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid var(--border)', fontSize: '.82rem', fontWeight: 600, color: '#0891b2' }}>
+                      <span>Gestionar listas →</span>
+                    </div>
+                  </div>
+
+                  {/* Módulo 3: Jornada e Instalación */}
+                  <div
+                    onClick={() => setSection('instalacion')}
+                    style={{
+                      border: '1px solid var(--border)', borderTop: '4px solid #0ea5e9',
+                      borderRadius: '12px', padding: '18px', background: 'var(--surface, #fff)',
+                      cursor: 'pointer', transition: 'all .2s ease', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                      boxShadow: 'var(--shadow-xs)',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#e0f2fe', color: '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <MenuIcon name="shield" size={20} />
+                        </div>
+                        <span style={{ fontSize: '.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: '999px', background: '#f0f9ff', color: '#0284c7' }}>
+                          {ceunpStats.mesas} mesas
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 6px', color: 'var(--text-main)' }}>Jornada Electoral</h3>
+                      <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.45 }}>
+                        Supervisión de apertura de mesas, verificación de miembros, cierre a las 15:00 h y contingencias.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid var(--border)', fontSize: '.82rem', fontWeight: 600, color: '#0ea5e9' }}>
+                      <span>Supervisar jornada →</span>
+                    </div>
+                  </div>
+
+                  {/* Módulo 4: Cómputo y Resultados */}
+                  <div
+                    onClick={() => setSection('computo')}
+                    style={{
+                      border: '1px solid var(--border)', borderTop: '4px solid #6366f1',
+                      borderRadius: '12px', padding: '18px', background: 'var(--surface, #fff)',
+                      cursor: 'pointer', transition: 'all .2s ease', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                      boxShadow: 'var(--shadow-xs)',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#e0e7ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <MenuIcon name="trophy" size={20} />
+                        </div>
+                        <span style={{ fontSize: '.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: '999px', background: '#eef2ff', color: '#4f46e5' }}>
+                          Cómputo oficial
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 6px', color: 'var(--text-main)' }}>Cómputo y Proclamación</h3>
+                      <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.45 }}>
+                        Consolidación de actas escrutadas, quórum legal (60%), resolución de impugnaciones y proclamación de ganadores.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid var(--border)', fontSize: '.82rem', fontWeight: 600, color: '#6366f1' }}>
+                      <span>Ir a Cómputo →</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tabla de procesos electorales */}
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 12px', color: 'var(--text-main)' }}>Procesos Electorales Registrados</h3>
+                  <ProcessTable processes={processes.slice(0, 5)} loading={loading} />
+                </div>
+              </section>
+            </div>
+          );
+        })()}
+
+        {/* Resumen — MIEMBRO DE MESA (Dashboard personalizado de Mesa) */}
+        {section === 'resumen' && isMiembro && (() => {
+          if (miembroLoading) {
+            return (
+              <section className="panel" style={{ textAlign: 'center', padding: '3rem' }}>
+                <span className="muted">Cargando la información de su mesa de sufragio…</span>
+              </section>
+            );
+          }
+
+          const mesas = miembroData?.mesas ?? [];
+          const mesa = mesas[0];
+          const pase = miembroData?.pase;
+          const creds = miembroData?.credenciales ?? [];
+          const miFotocheck = creds.flatMap((p) => p.credenciales || []).find((c) => c.tipo === 'MIEMBRO_MESA');
+
+          return (
+            <div style={{ display: 'grid', gap: '20px' }}>
+              {/* Tarjeta de Identidad y Rol del Miembro de Mesa */}
+              <section className="panel" style={{ padding: '24px', background: 'linear-gradient(135deg, rgba(124,58,237,0.06), rgba(99,102,241,0.03))', border: '1.5px solid rgba(124,58,237,0.25)', borderRadius: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: 'linear-gradient(135deg, #7c3aed, #6366f1)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <MenuIcon name="shield" size={28} />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h2 style={{ fontSize: '1.3rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>
+                          {session.username} · {pase?.nombreCompleto || 'Miembro de Mesa'}
+                        </h2>
+                        <span style={{ fontSize: '.75rem', fontWeight: 700, padding: '3px 10px', borderRadius: '999px', background: '#ede9fe', color: '#7c3aed', textTransform: 'uppercase' }}>
+                          {mesa?.rol || 'Miembro Titular'}
+                        </span>
+                      </div>
+                      <p style={{ margin: '4px 0 0', fontSize: '.88rem', color: 'var(--text-muted)' }}>
+                        DNI: <strong>{pase?.dni ?? '—'}</strong> · {pase?.facultad ?? 'Universidad Nacional de Piura'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      className="cv-btn cv-btn-primary"
+                      onClick={() => setSection('fotocheck')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <MenuIcon name="qr" size={15} /> Mi Fotocheck QR
+                    </button>
+                    <button
+                      className="cv-btn cv-btn-ghost"
+                      onClick={() => setSection('pase')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <MenuIcon name="vote" size={15} /> Mi Pase de Votación
+                    </button>
+                  </div>
+                </div>
+
+                {/* Datos de la mesa asignada */}
+                {mesa ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', padding: '14px', borderRadius: '10px', background: '#fff', border: '1px solid var(--border)' }}>
+                    <div>
+                      <span style={{ fontSize: '.76rem', color: 'var(--text-muted)', fontWeight: 600 }}>MESA ASIGNADA</span>
+                      <p style={{ fontSize: '1.1rem', fontWeight: 700, margin: '2px 0 0', color: '#7c3aed' }}>Mesa Nº {mesa.numero || '001'}</p>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '.76rem', color: 'var(--text-muted)', fontWeight: 600 }}>UBICACIÓN / LOCAL</span>
+                      <p style={{ fontSize: '.95rem', fontWeight: 600, margin: '2px 0 0', color: 'var(--text-main)' }}>📍 {mesa.ubicacion || 'Biblioteca Central'}</p>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '.76rem', color: 'var(--text-muted)', fontWeight: 600 }}>TOTAL ELECTORES</span>
+                      <p style={{ fontSize: '1.1rem', fontWeight: 700, margin: '2px 0 0', color: '#2563eb' }}>{mesa.total_electores || mesa.totalElectores || '85'} docentes</p>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '.76rem', color: 'var(--text-muted)', fontWeight: 600 }}>ESTADO DE LA MESA</span>
+                      <p style={{ margin: '4px 0 0' }}>
+                        <span className={`cv-estado ${mesa.estado === 'INSTALADA' ? 'votacion' : mesa.estado === 'CERRADA' ? 'inscripcion' : 'creado'}`}>
+                          {mesa.estado || 'PENDIENTE'}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ padding: '12px', background: '#fef3c7', borderRadius: '8px', color: '#92400e', fontSize: '.88rem' }}>
+                    No se encontró mesa asignada directamente a esta cuenta. Consulte al CEUNP.
+                  </div>
+                )}
+              </section>
+
+              {/* Guía Operativa de la Jornada Electoral con accesos directos */}
+              <section className="panel" style={{ padding: '24px' }}>
+                <div className="panel-heading" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '14px', marginBottom: '18px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+                      Flujo Operativo de la Jornada de Sufragio
+                    </h3>
+                    <p className="muted" style={{ margin: '3px 0 0', fontSize: '.84rem' }}>
+                      Acciones requeridas para los miembros de mesa durante la jornada electoral oficial (08:00 a 15:00 horas).
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+                  {/* Paso 1: Instalación de mesa */}
+                  <div
+                    onClick={() => setSection('instalacion')}
+                    style={{
+                      border: '1.5px solid var(--border)', borderTop: '4px solid #0ea5e9',
+                      borderRadius: '12px', padding: '16px', background: 'var(--surface, #fff)',
+                      cursor: 'pointer', transition: 'all .2s ease', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#e0f2fe', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.82rem', fontWeight: 700 }}>1</span>
+                        <h4 style={{ margin: 0, fontSize: '.95rem', fontWeight: 700, color: 'var(--text-main)' }}>Instalar Mesa (CUS08)</h4>
+                      </div>
+                      <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.4 }}>
+                        Llegada de miembros (min. 3 presentes), acreditación de personeros, verificación de material y firma del acta.
+                      </p>
+                    </div>
+                    <span style={{ fontSize: '.82rem', fontWeight: 600, color: '#0ea5e9' }}>Ir a Instalación →</span>
+                  </div>
+
+                  {/* Paso 2: Verificar Elector */}
+                  <div
+                    onClick={() => setSection('verificar-elector')}
+                    style={{
+                      border: '1.5px solid var(--border)', borderTop: '4px solid #10b981',
+                      borderRadius: '12px', padding: '16px', background: 'var(--surface, #fff)',
+                      cursor: 'pointer', transition: 'all .2s ease', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#d1fae5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.82rem', fontWeight: 700 }}>2</span>
+                        <h4 style={{ margin: 0, fontSize: '.95rem', fontWeight: 700, color: 'var(--text-main)' }}>Verificar Elector (CUS09)</h4>
+                      </div>
+                      <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.4 }}>
+                        Escanear el código QR del docente o buscar por DNI para comprobar habilitación en el padrón y dar paso al sufragio.
+                      </p>
+                    </div>
+                    <span style={{ fontSize: '.82rem', fontWeight: 600, color: '#10b981' }}>Verificar electores →</span>
+                  </div>
+
+                  {/* Paso 3: Cerrar Sufragio */}
+                  <div
+                    onClick={() => setSection('cierre')}
+                    style={{
+                      border: '1.5px solid var(--border)', borderTop: '4px solid #f43f5e',
+                      borderRadius: '12px', padding: '16px', background: 'var(--surface, #fff)',
+                      cursor: 'pointer', transition: 'all .2s ease', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#ffe4e6', color: '#e11d48', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.82rem', fontWeight: 700 }}>3</span>
+                        <h4 style={{ margin: 0, fontSize: '.95rem', fontWeight: 700, color: 'var(--text-main)' }}>Cerrar Sufragio (CUS11)</h4>
+                      </div>
+                      <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.4 }}>
+                        A las 15:00 horas, cerrar la recepción de votantes, marcar docentes ausentes y generar acta de sufragio oficial.
+                      </p>
+                    </div>
+                    <span style={{ fontSize: '.82rem', fontWeight: 600, color: '#f43f5e' }}>Cerrar sufragio →</span>
+                  </div>
+
+                  {/* Paso 4: Escrutinio y Conciliación */}
+                  <div
+                    onClick={() => setSection('escrutinio')}
+                    style={{
+                      border: '1.5px solid var(--border)', borderTop: '4px solid #2563eb',
+                      borderRadius: '12px', padding: '16px', background: 'var(--surface, #fff)',
+                      cursor: 'pointer', transition: 'all .2s ease', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#dbeafe', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.82rem', fontWeight: 700 }}>4</span>
+                        <h4 style={{ margin: 0, fontSize: '.95rem', fontWeight: 700, color: 'var(--text-main)' }}>Escrutinio (CUS12)</h4>
+                      </div>
+                      <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.4 }}>
+                        Conteo de votos, conciliación de cédulas, resolución de impugnaciones de mesa y generación del acta escrutada.
+                      </p>
+                    </div>
+                    <span style={{ fontSize: '.82rem', fontWeight: 600, color: '#2563eb' }}>Realizar escrutinio →</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+          );
+        })()}
+
+        {/* Resumen — PERSONERO (Dashboard de Fiscalización) */}
+        {section === 'resumen' && isPersonero && (() => {
+          if (personeroLoading) {
+            return (
+              <section className="panel" style={{ textAlign: 'center', padding: '3rem' }}>
+                <span className="muted">Cargando datos de acreditación de personero…</span>
+              </section>
+            );
+          }
+
+          const creds = personeroData?.credenciales ?? [];
+          const listas = personeroData?.listas ?? [];
+          const pase = personeroData?.pase;
+          const miCredencial = creds.flatMap((p) => p.credenciales || []).find((c) => c.tipo === 'PERSONERO');
+
+          return (
+            <div style={{ display: 'grid', gap: '20px' }}>
+              {/* Tarjeta de Acreditación de Personero */}
+              <section className="panel" style={{ padding: '24px', background: 'linear-gradient(135deg, rgba(217,119,6,0.06), rgba(245,158,11,0.03))', border: '1.5px solid rgba(217,119,6,0.25)', borderRadius: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: 'linear-gradient(135deg, #d97706, #f59e0b)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <MenuIcon name="scale" size={28} />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h2 style={{ fontSize: '1.3rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>
+                          {session.username} · {pase?.nombreCompleto || 'Personero Acreditado'}
+                        </h2>
+                        <span style={{ fontSize: '.75rem', fontWeight: 700, padding: '3px 10px', borderRadius: '999px', background: '#fef3c7', color: '#b45309', textTransform: 'uppercase' }}>
+                          {miCredencial ? miCredencial.funcion : 'Personero Oficial'}
+                        </span>
+                      </div>
+                      <p style={{ margin: '4px 0 0', fontSize: '.88rem', color: 'var(--text-muted)' }}>
+                        DNI: <strong>{pase?.dni ?? '—'}</strong> · {pase?.facultad ?? 'Universidad Nacional de Piura'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      className="cv-btn cv-btn-primary"
+                      onClick={() => setSection('credencial')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <MenuIcon name="qr" size={15} /> Mi Credencial QR
+                    </button>
+                    <button
+                      className="cv-btn cv-btn-ghost"
+                      onClick={() => setSection('pase')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <MenuIcon name="vote" size={15} /> Mi Pase de Votación
+                    </button>
+                  </div>
+                </div>
+
+                {/* Datos de la Lista que representa */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', padding: '14px', borderRadius: '10px', background: '#fff', border: '1px solid var(--border)' }}>
+                  <div>
+                    <span style={{ fontSize: '.76rem', color: 'var(--text-muted)', fontWeight: 600 }}>LISTA QUE REPRESENTA</span>
+                    <p style={{ fontSize: '1rem', fontWeight: 700, margin: '2px 0 0', color: '#d97706' }}>
+                      {miCredencial?.lista || 'Lista Electoral Acreditada'}
+                    </p>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '.76rem', color: 'var(--text-muted)', fontWeight: 600 }}>ÁMBITO DE FISCALIZACIÓN</span>
+                    <p style={{ fontSize: '.95rem', fontWeight: 600, margin: '2px 0 0', color: 'var(--text-main)' }}>
+                      📍 {miCredencial?.ubicacion || (miCredencial?.numeroMesa ? `Mesa Nº ${miCredencial.numeroMesa}` : 'Todas las mesas')}
+                    </p>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '.76rem', color: 'var(--text-muted)', fontWeight: 600 }}>CREDENCIAL OFICIAL</span>
+                    <p style={{ margin: '4px 0 0' }}>
+                      <span className={`cv-estado ${miCredencial?.credencial ? 'votacion' : 'creado'}`}>
+                        {miCredencial?.credencial ? 'ACREDITADO' : 'PENDIENTE'}
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '.76rem', color: 'var(--text-muted)', fontWeight: 600 }}>DERECHO AL VOTO</span>
+                    <p style={{ fontSize: '.95rem', fontWeight: 600, margin: '2px 0 0', color: '#059669' }}>
+                      ✓ Docente Habilitado
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Acciones de fiscalización */}
+              <section className="panel" style={{ padding: '24px' }}>
+                <div className="panel-heading" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '14px', marginBottom: '18px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+                      Herramientas de Fiscalización Electoral
+                    </h3>
+                    <p className="muted" style={{ margin: '3px 0 0', fontSize: '.84rem' }}>
+                      Acceso rápido a las opciones de supervisión, impugnación y consulta de resultados.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+                  <div
+                    onClick={() => setSection('listas')}
+                    style={{
+                      border: '1.5px solid var(--border)', borderTop: '4px solid #06b6d4',
+                      borderRadius: '12px', padding: '16px', background: 'var(--surface, #fff)',
+                      cursor: 'pointer', transition: 'all .2s ease', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <h4 style={{ margin: '0 0 6px', fontSize: '.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        Listas y Fórmulas
+                      </h4>
+                      <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                        Consultar las candidaturas admitidas, candidatos de las fórmulas y planes de gobierno.
+                      </p>
+                    </div>
+                    <span style={{ fontSize: '.82rem', fontWeight: 600, color: '#0891b2', marginTop: 12 }}>Ver listas →</span>
+                  </div>
+
+                  <div
+                    onClick={() => setSection('tachas')}
+                    style={{
+                      border: '1.5px solid var(--border)', borderTop: '4px solid #f97316',
+                      borderRadius: '12px', padding: '16px', background: 'var(--surface, #fff)',
+                      cursor: 'pointer', transition: 'all .2s ease', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <h4 style={{ margin: '0 0 6px', fontSize: '.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        Presentar Tachas
+                      </h4>
+                      <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                        Formular tachas fundamentadas contra candidatos que incumplan los requisitos de ley.
+                      </p>
+                    </div>
+                    <span style={{ fontSize: '.82rem', fontWeight: 600, color: '#ea580c', marginTop: 12 }}>Presentar tacha →</span>
+                  </div>
+
+                  <div
+                    onClick={() => setSection('impugnaciones')}
+                    style={{
+                      border: '1.5px solid var(--border)', borderTop: '4px solid #ef4444',
+                      borderRadius: '12px', padding: '16px', background: 'var(--surface, #fff)',
+                      cursor: 'pointer', transition: 'all .2s ease', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <h4 style={{ margin: '0 0 6px', fontSize: '.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        Impugnar Votos / Apelar
+                      </h4>
+                      <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                        Impugnar votos durante el escrutinio de mesa y formular apelaciones ante el CEUNP.
+                      </p>
+                    </div>
+                    <span style={{ fontSize: '.82rem', fontWeight: 600, color: '#dc2626', marginTop: 12 }}>Ver impugnaciones →</span>
+                  </div>
+
+                  <div
+                    onClick={() => setSection('resultados')}
+                    style={{
+                      border: '1.5px solid var(--border)', borderTop: '4px solid #059669',
+                      borderRadius: '12px', padding: '16px', background: 'var(--surface, #fff)',
+                      cursor: 'pointer', transition: 'all .2s ease', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <h4 style={{ margin: '0 0 6px', fontSize: '.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        Resultados y Actas
+                      </h4>
+                      <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                        Auditar las actas de escrutinio firmadas y verificar los cómputos preliminares y oficiales.
+                      </p>
+                    </div>
+                    <span style={{ fontSize: '.82rem', fontWeight: 600, color: '#059669', marginTop: 12 }}>Ver resultados →</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+          );
+        })()}
 
         {/* CUS01 · Gestionar convocatoria y cronograma (CEUNP) */}
         {section === 'convocatoria' && canManage && (
@@ -1090,11 +1916,6 @@ export default function DashboardPage({ session, onLogout }) {
         {/* CUS19 · Consultar bitácora (Admin) */}
         {section === 'bitacora' && isAdmin && (
           <PantallaBitacora session={session} onSessionExpired={onLogout} />
-        )}
-
-        {/* Mesa */}
-        {section === 'mesa' && (
-          <MiembroMesaPage onIrInstalacion={() => setSection('instalacion')} onIrCierre={() => setSection('cierre')} onIrEscrutinio={() => setSection('escrutinio')} />
         )}
 
         {/* CUS08 · Instalar mesa (miembros de mesa y CEUNP; ADMIN solo consulta) */}
