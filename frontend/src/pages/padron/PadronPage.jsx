@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { apiRequest } from '../../api/apiClient';
+import { apiRequest, apiUrl } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
 import '../convocatoria/convocatoria.css';
 import './padron.css';
@@ -42,7 +42,7 @@ async function subirArchivo(path, archivo) {
   const token = sessionStorage.getItem('accessToken');
   const form = new FormData();
   form.append('archivo', archivo);
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,

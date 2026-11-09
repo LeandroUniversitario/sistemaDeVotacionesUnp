@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import MenuIcon from '../../components/MenuIcon';
 import { TIPOS_CREDENCIAL, fecha, numeroCredencial } from './LectorQR';
+import { apiUrl } from '../../api/apiClient';
 import '../resultados/resultados.css';
 import './credencial-publica.css';
 
@@ -52,7 +53,7 @@ export default function CredencialPublica() {
 
   useEffect(() => {
     let activo = true;
-    fetch(`/api/publico/credenciales/${encodeURIComponent(codigo)}`)
+    fetch(apiUrl(`/api/publico/credenciales/${encodeURIComponent(codigo)}`))
       .then(async (r) => {
         const data = await r.json().catch(() => null);
         if (!r.ok) throw new Error(data?.detail || data?.message || 'No se pudo consultar la credencial.');

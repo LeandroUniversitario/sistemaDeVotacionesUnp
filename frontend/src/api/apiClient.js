@@ -1,3 +1,10 @@
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
+export function apiUrl(path) {
+  if (!path || path.startsWith('http://') || path.startsWith('https://')) return path;
+  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 /**
  * Cliente HTTP centralizado.
  * Agrega automáticamente el token JWT de sesión a cada petición
@@ -14,7 +21,7 @@ export async function apiRequest(path, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
-  const response = await fetch(path, { ...options, headers });
+  const response = await fetch(apiUrl(path), { ...options, headers });
   if (response.status === 401) {
     sessionStorage.removeItem('accessToken');
     throw new Error('SESSION_EXPIRED');
@@ -33,7 +40,7 @@ export async function cabinaRequest(path, secreto, options = {}) {
     'X-Terminal-Secreto': secreto,
     ...options.headers,
   };
-  const response = await fetch(path, { ...options, headers });
+  const response = await fetch(apiUrl(path), { ...options, headers });
   if (response.status === 401) throw new Error('TERMINAL_DESCONECTADO');
   return leerRespuesta(response);
 }

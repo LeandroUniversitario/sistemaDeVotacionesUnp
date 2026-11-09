@@ -1,5 +1,6 @@
 ﻿import { useState } from 'react';
 import MenuIcon from '../components/MenuIcon';
+import { apiUrl } from '../api/apiClient';
 
 /**
  * Pantalla de cambio de contraseña OBLIGATORIO para docentes importados masivamente y para las
@@ -42,7 +43,7 @@ export default function CambiarPasswordObligatorioPage({ token, username, onCamb
 
     setSaving(true);
     try {
-      const resp = await fetch('/api/auth/password', {
+      const resp = await fetch(apiUrl('/api/auth/password'), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

@@ -1,5 +1,6 @@
 ﻿import { useState, useRef } from 'react';
 import MenuIcon from '../components/MenuIcon';
+import { apiUrl } from '../api/apiClient';
 
 /**
  * Página de importación masiva de docentes.
@@ -34,7 +35,7 @@ export default function ImportarDocentesPage({ onImportSuccess }) {
 
     try {
       const token = sessionStorage.getItem('accessToken');
-      const resp = await fetch('/api/docentes/importar', {
+      const resp = await fetch(apiUrl('/api/docentes/importar'), {
         method: 'POST',
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {})

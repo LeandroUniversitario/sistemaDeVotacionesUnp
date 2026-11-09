@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { apiRequest } from '../../api/apiClient';
+import { apiRequest, apiUrl } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
 import { fecha } from '../credenciales/LectorQR';
 import {
@@ -328,7 +328,7 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
     setFeedback(null);
     try {
       const token = sessionStorage.getItem('accessToken');
-      const resp = await fetch(`/api/administracion/respaldos/${r.idRespaldo}/archivo`, {
+      const resp = await fetch(apiUrl(`/api/administracion/respaldos/${r.idRespaldo}/archivo`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (resp.status === 401) throw new Error('SESSION_EXPIRED');

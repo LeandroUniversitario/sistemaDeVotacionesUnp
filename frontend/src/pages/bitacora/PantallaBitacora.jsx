@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { apiRequest } from '../../api/apiClient';
+import { apiRequest, apiUrl } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
 import { fecha } from '../credenciales/LectorQR';
 import { ROL_CORTO } from '../administracion/ReporteAdministracion';
@@ -206,7 +206,7 @@ export default function PantallaBitacora({ session, onSessionExpired }) {
     setFeedback(null);
     try {
       const token = sessionStorage.getItem('accessToken');
-      const resp = await fetch(`/api/bitacora/exportacion?${consultaUrl(aplicados, { orden })}`, {
+      const resp = await fetch(apiUrl(`/api/bitacora/exportacion?${consultaUrl(aplicados, { orden })}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (resp.status === 401) throw new Error('SESSION_EXPIRED');
