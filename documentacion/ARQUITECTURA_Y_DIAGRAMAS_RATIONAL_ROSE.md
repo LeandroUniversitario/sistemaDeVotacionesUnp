@@ -164,96 +164,262 @@ Físicamente no son computadoras normales; están montadas en un **Gabinete o Ra
 ## 3. Diagrama de Componentes (Component View)
 
 ### 3.1 Estilo Visual Rational Rose Oficial
-Basado exactamente en la notación y paleta de la herramienta Rational Rose:
-- **Icono clásico UML 1.4:** Componente rectangular con 2 pestañas laterales (`skinparam componentStyle uml1`).
-- **Color de fondo característico:** Amarillo pastel / crema (`#FFFFCC`).
-- **Bordes y flechas de dependencia:** Color vino / burgundy (`#8B1C3F`).
-- **Base de Datos:** Representada con cilindro (`database "BD"`).
-- **Nota de título:** Caja de nota doblada en la esquina superior izquierda.
+Basado exactamente en la notación y figuras de la herramienta Rational Rose (capturas oficiales):
+- **Icono clásico UML 1.x:** Componente rectangular con 2 pestañas laterales que sobresalen a la izquierda (`skinparam componentStyle uml1`) y paquetes estilo carpeta (`skinparam packageStyle folder`).
+- **Líneas ortogonales y dependencias:** Conexiones rectas (`skinparam linetype ortho`) y dependencias punteadas con estereotipos (`..>`).
+- **Color de fondo característico:** Amarillo crema / beige (`#FFFFCC`).
+- **Bordes y flechas:** Color vino tinto / burgundy (`#8B1C3F`).
+- **Interfaces:** Círculos «lollipop» conectores en color vino (`interface`).
 
-### 3.2 Código PlantUML - Arquitectura Completa del Sistema
+### 3.2 Código PlantUML - Diagrama Completo del Sistema Real (Formato Rose)
 Ubicación del archivo: `diagramas/diagrama_componentes.puml`
 
 ```plantuml
-@startuml Diagrama_Componentes_RationalRose
+@startuml Diagrama_Componentes_Rational
+' ==============================================================================
+' DIAGRAMA DE COMPONENTES - SISTEMA DE VOTACIONES DOCENTES UNP
+' Estilo: Rational Rose (UML 1.x) con líneas rectas (ortho) y dependencias (..>)
+' ==============================================================================
+
+' --- Configuración visual estilo Rational Rose ---
 skinparam backgroundColor #FFFFFF
 skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam defaultFontSize 11
-skinparam defaultFontColor #000000
 
+' Figuras UML 1.x (componente con las dos pestañas a la izquierda y paquete tipo carpeta)
 skinparam componentStyle uml1
-left to right direction
+skinparam packageStyle folder
 
+' Líneas rectas (ortogonales)
+skinparam linetype ortho
+top to bottom direction
+skinparam nodesep 35
+skinparam ranksep 50
+
+' Paleta clásica de Rational Rose (amarillo crema + borde guinda)
 skinparam component {
-  BorderColor #8B1C3F
   BackgroundColor #FFFFCC
-  FontColor #000000
-  FontSize 11
-}
-
-skinparam database {
   BorderColor #8B1C3F
-  BackgroundColor #FFFFCC
   FontColor #000000
-  FontSize 11
 }
-
+skinparam package {
+  BackgroundColor #FFFFFF
+  BorderColor #8B1C3F
+  FontColor #8B1C3F
+  FontStyle bold
+}
+skinparam interface {
+  BackgroundColor #FFFFCC
+  BorderColor #8B1C3F
+}
 skinparam note {
-  BorderColor #8B1C3F
   BackgroundColor #FFFFCC
-  FontColor #000000
-  FontSize 11
+  BorderColor #8B1C3F
 }
-
 skinparam arrow {
   Color #8B1C3F
-  FontColor #8B1C3F
   FontSize 10
 }
 
-note as N1
-DIAGRAMA DE
-COMPONENTES
+title **Diagrama de Componentes - Sistema de Votaciones Docentes UNP**
+
+' ==============================================================================
+' 1. FRONTEND SPA
+' ==============================================================================
+package "<<subsystem>> Frontend SPA · React 19 + Vite (elecciones-frontend)" as FE {
+
+  package "Puntos de entrada (main.jsx)" {
+    component "App · DashboardPage\n(con sesión JWT, menú por rol)" as APP
+    component "Cabina en modo kiosko\n/cabina · TerminalVotacion" as CAB
+    component "Portal público sin sesión\nPortalResultados (/resultados, /verificar)\nCredencialPublica (/credencial)" as PUB
+  }
+
+  package "Módulos de pantalla (pages/)" as PANT {
+    component "UI Acceso y Cuenta\nLoginPage · CuentaPage\nCambiarPasswordObligatorio" as UI_AUTH
+    component "UI Preparación electoral\nConvocatoria · Padrón · Docentes\nInscripción · Tachas · Personeros\nSorteo · CargosExcluidos" as UI_PREP
+    component "UI Jornada en mesa\nInstalacionMesa · PantallaVerificacion\nPantallaCierreSufragio" as UI_MESA
+    component "UI Escrutinio y Cómputo\nEscrutinio · Impugnaciones\nNulidades · Cómputo · Resultados" as UI_ESC
+    component "UI Multas y Credenciales\nPantallaMultas · MisMultas\nCredenciales · MiPaseQR" as UI_POST
+    component "UI Administración y Bitácora\nPantallaAdministrador\nPantallaBitacora" as UI_ADM
+  }
+
+  package "Componentes de apoyo" {
+    component "apiClient.js\nfetch + Bearer JWT\n/ X-Terminal-Secreto" as API
+    component "LectorQR.jsx\nEscanerQR (jsQR + cámara) · svgQR" as QR
+    component "lib/qrcode.js\n(codificador QR)" as QRLIB <<library>>
+    component "Generadores de documentos\nActa*.js · Reporte*.js\nConstanciaImpugnacion · ImpresoraCedula" as DOCS
+  }
+}
+
+' Dependencias internas del Frontend (líneas punteadas)
+APP ..> PANT : <<use>>
+PANT ..> API : <<use>>
+CAB ..> API : <<use>>
+PUB ..> API : <<use>>
+UI_MESA ..> QR : escanea credencial
+UI_ESC ..> QR : verifica actas
+UI_POST ..> QR : verifica credencial
+PANT ..> DOCS : imprime actas y reportes
+CAB ..> DOCS : imprime cédula
+DOCS ..> QR : svgQR
+QR ..> QRLIB : <<use>>
+
+' ==============================================================================
+' 2. INTERFACES REST OFRECIDAS POR EL BACKEND
+' ==============================================================================
+interface "IAcceso" as I_AUTH
+interface "IPreparacion" as I_PREP
+interface "IJornada" as I_MESA
+interface "ICabina" as I_CAB
+interface "IEscrutinio" as I_ESC
+interface "IPostElectoral" as I_POST
+interface "IPublico" as I_PUB
+interface "IAdministracion" as I_ADM
+
+API ..> I_AUTH
+API ..> I_PREP
+API ..> I_MESA
+API ..> I_ESC
+API ..> I_POST
+API ..> I_ADM
+API ..> I_CAB : X-Terminal-Secreto
+API ..> I_PUB : sin sesión
+
+note right of API
+  HTTP/JSON sobre HTTPS.
+  Personas: Authorization: Bearer <JWT>.
+  Cabina: X-Terminal-Secreto.
+  Portal público: sin sesión.
 end note
 
-' COMPONENTES DE ENTRADA / CLIENTES (IZQUIERDA)
-component "comite_electoral" as comite
-component "mesa_sufragio" as mesa
-component "cabina_votacion" as cabina
+' ==============================================================================
+' 3. BACKEND SPRING BOOT
+' ==============================================================================
+package "<<subsystem>> Backend API REST · Spring Boot 3.5.6 / Java 21 (elecciones-backend.jar)" as BE {
 
-' COMPONENTES DEL SISTEMA / LÓGICA DE NEGOCIO (CENTRO)
-component "mantenimiento" as mant
-component "gestion_procesos" as proc
-component "jornada_votacion" as voto
-component "escrutinio_computo" as esc
-component "reporte" as rep
+  package "Cadena de filtros de seguridad" as SEG {
+    component "LimitePeticionesFilter\n(límite de peticiones por IP)" as F_LIM <<seguridad>>
+    component "JwtAuthenticationFilter\n+ JwtService" as F_JWT <<seguridad>>
+    component "SecurityConfig\n(stateless, roles RBAC;\n/api/publico y /api/cabina sin JWT)" as SEC <<seguridad>>
+    component "UsuarioDetailsService" as UDS <<seguridad>>
+  }
 
-' BASE DE DATOS (DERECHA)
-database "BD" as bd
+  package "Controladores REST <<boundary>>" as CTRL {
+    component "AuthController\nDocentePortalController" as C_AUTH
+    component "ConvocatoriaController · ProcesoController\nElectoralController · CargoExcluidoController\nPadronController · ImportacionDocenteController\nInscripcionController · TachasController\nPersonerosController · SorteoMesaController" as C_PREP
+    component "InstalacionController · MesaController\nVerificarElectorController\nTerminalVotacionController · CierreController" as C_MESA
+    component "CabinaController\n(valida X-Terminal-Secreto)" as C_CAB
+    component "EscrutinioController · ImpugnacionesController\nNulidadesController · ComputoController\nResultadosController" as C_ESC
+    component "MultasController · CredencialesController\nVotoController" as C_POST
+    component "PublicoController" as C_PUB
+    component "AdministracionController · ParametrosController\nBitacoraController · AuditoriaController" as C_ADM
+  }
 
-' Dependencias de clientes hacia módulos del sistema
-comite ..> mant
-comite ..> proc
-comite ..> rep
+  package "Lógica de negocio <<control>>" as CONTROL {
+    component "UsuarioService\nPoliticaPassword" as L_AUTH
+    component "RegistrarProceso · AgregarCargo · PublicarConvocatoria\nImportarDocentes · FiltrarHabilitados · AprobarPadron\nRegistrarDatosLista · AgregarCandidato · ValidarCandidato\nRegistrarTacha · ResolverTacha\nAcreditarPersonero · ValidarPersonero\nPreparacionSorteo · EjecutarSorteo · GrabarMiembrosMesa\nProcesoService · ElectoralService · ImportacionDocenteService" as L_PREP
+    component "InstalarMesa · VerificarMaterial · RegistrarLlegadaMiembro\nVerificarElector · RegistrarAsistencia · MesaService\nCerrarVotacion · MarcarAusentes · GenerarActaSufragio" as L_MESA
+    component "RegistrarVoto\n(voto anónimo + cédula)" as L_VOTO
+    component "ConciliarVotos · ValidarTotales · GenerarActaEscrutinio\nRegistrarImpugnacion · ResolverImpugnacion · TramitarApelacion\nDeclararNulidadParcial · DeclararNulidadTotal · ConfigurarSegundaVuelta\nSesionComputo · ComputarProclamar · VerificarActas · VerificarActa" as L_ESC
+    component "GenerarMultas · RegistrarJustificacion\nGenerarTokenQR · EmitirConstancia · VerificarCredencial\nVotoService" as L_POST
+    component "GestionarUsuarios · ActualizarParametros\nRespaldarBD · CifradoRespaldo (AES-256-GCM)\nConsultarBitacora · VerificarBitacora · ExportarBitacora\nAuditoriaService" as L_ADM
+    component "Bitacora\n(registra acciones en log_auditoria)" as BIT
+  }
 
-mesa ..> voto
-mesa ..> esc
-mesa ..> rep
+  package "Acceso a datos" as DATOS {
+    component "ProcedimientoDao\n(JdbcTemplate -> stored procedures)" as DAO <<datos>>
+    component "Repositorios Spring Data JPA\n(14: UsuarioRepository, DocenteRepository,\nLogAuditoriaRepository, ...)" as JPA <<datos>>
+    component "HikariCP\n(pool de conexiones)" as POOL <<datos>>
+  }
+}
 
-cabina ..> voto
+' Realización de interfaces (línea sólida hacia la interfaz)
+I_AUTH - C_AUTH
+I_PREP - C_PREP
+I_MESA - C_MESA
+I_CAB - C_CAB
+I_ESC - C_ESC
+I_POST - C_POST
+I_PUB - C_PUB
+I_ADM - C_ADM
 
-' Dependencias de módulos hacia la Base de Datos
-mant ..> bd
-proc ..> bd
-voto ..> bd
-esc ..> bd
-rep ..> bd
+' Dependencias internas del Backend (líneas punteadas)
+F_LIM ..> F_JWT : siguiente filtro
+F_JWT ..> UDS : <<use>>
+SEC ..> F_LIM : configura
+SEC ..> F_JWT : configura
+F_JWT ..> CTRL : petición autorizada
+
+C_AUTH ..> L_AUTH
+C_PREP ..> L_PREP
+C_MESA ..> L_MESA
+C_CAB ..> L_VOTO
+C_ESC ..> L_ESC
+C_PUB ..> L_ESC
+C_POST ..> L_POST
+C_ADM ..> L_ADM
+
+L_PREP ..> BIT : registra
+L_MESA ..> BIT : registra
+L_VOTO ..> BIT : registra
+L_ESC ..> BIT : registra
+L_POST ..> BIT : registra
+L_ADM ..> BIT : registra
+
+CONTROL ..> DAO : CALL sp_...
+L_AUTH ..> JPA : CRUD simple
+L_PREP ..> JPA : CRUD simple
+L_ADM ..> JPA : CRUD simple
+DAO ..> POOL
+JPA ..> POOL
+
+interface "JDBC\nTCP 3306" as I_JDBC
+POOL ..> I_JDBC : MariaDB Connector/J
+
+component "Carpeta respaldos/\n*.sql.enc" as RESP <<file>>
+L_ADM ..> RESP : escribe / lee
+
+' ==============================================================================
+' 4. BASE DE DATOS
+' ==============================================================================
+package "<<subsystem>> Base de datos · MariaDB 10.4+ / MySQL 8 (esquema elecciones_unp)" as BD {
+  component "80 procedimientos\nalmacenados" as SP <<bd>>
+  component "35 vistas\nde consulta" as VW <<bd>>
+  component "82 triggers\n(reglas de negocio)" as TRG <<bd>>
+  component "11 funciones\n(fn_bytes_aleatorios, ...)" as FN <<bd>>
+  component "59 tablas\npadrón · procesos · listas · mesas\nvotos anónimos · actas · multas" as TBL <<database>>
+  component "log_auditoria\ncadena de sellos SHA-256" as LOG <<database>>
+}
+
+I_JDBC - SP
+I_JDBC - VW
+I_JDBC - TBL
+
+SP ..> TBL : modifica
+VW ..> TBL : lee
+TRG ..> TBL : valida DML
+TRG ..> LOG : registra
+SP ..> FN : <<use>>
+TRG ..> FN : <<use>>
+
+legend right
+  |= Interfaz |= Rutas REST reales |
+  | IAcceso | /api/auth · /api/docente |
+  | IPreparacion | /api/convocatorias · /api/procesos · /api/padron · /api/docentes\n/api/inscripcion · /api/listas · /api/gestion-tachas\n/api/personeros · /api/sorteo-mesas · /api/cargos-excluidos |
+  | IJornada | /api/instalacion · /api/mesas · /api/sufragio/** · /api/cierre |
+  | ICabina | /api/cabina/terminales |
+  | IEscrutinio | /api/escrutinio · /api/impugnaciones · /api/nulidades\n/api/computo · /api/resultados |
+  | IPostElectoral | /api/multas · /api/credenciales · /api/votos |
+  | IPublico | /api/publico |
+  | IAdministracion | /api/administracion · /api/parametros · /api/bitacora · /api/auditoria |
+endlegend
+
 @enduml
 ```
 
-### 3.3 Código PlantUML - Estructura Mínima 1:1 (Plantilla de Clase)
-Si el profesor solicita replicar exactamente la plantilla simple de 5 cajas vista en clase:
+### 3.3 Versión Compacta Conceptual (Plantilla de Clase de 5 Cajas)
+Si en alguna evaluación rápida o diapositiva se requiere la vista abstracta simple de clase:
 
 ```plantuml
 @startuml Diagrama_Componentes_RationalRose_Simple
@@ -270,21 +436,18 @@ skinparam component {
   BorderColor #8B1C3F
   BackgroundColor #FFFFCC
   FontColor #000000
-  FontSize 11
 }
 
 skinparam database {
   BorderColor #8B1C3F
   BackgroundColor #FFFFCC
   FontColor #000000
-  FontSize 11
 }
 
 skinparam note {
   BorderColor #8B1C3F
   BackgroundColor #FFFFCC
   FontColor #000000
-  FontSize 11
 }
 
 skinparam arrow {
