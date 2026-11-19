@@ -163,7 +163,15 @@ Físicamente no son computadoras normales; están montadas en un **Gabinete o Ra
 
 ## 3. Diagrama de Componentes (Component View)
 
-### 3.1 Código PlantUML (Estilo Rational Rose Oficial)
+### 3.1 Estilo Visual Rational Rose Oficial
+Basado exactamente en la notación y paleta de la herramienta Rational Rose:
+- **Icono clásico UML 1.4:** Componente rectangular con 2 pestañas laterales (`skinparam componentStyle uml1`).
+- **Color de fondo característico:** Amarillo pastel / crema (`#FFFFCC`).
+- **Bordes y flechas de dependencia:** Color vino / burgundy (`#8B1C3F`).
+- **Base de Datos:** Representada con cilindro (`database "BD"`).
+- **Nota de título:** Caja de nota doblada en la esquina superior izquierda.
+
+### 3.2 Código PlantUML - Arquitectura Completa del Sistema
 Ubicación del archivo: `diagramas/diagrama_componentes.puml`
 
 ```plantuml
@@ -175,124 +183,146 @@ skinparam defaultFontSize 11
 skinparam defaultFontColor #000000
 
 skinparam componentStyle uml1
+left to right direction
 
 skinparam component {
-    BorderColor #8B1C3F
-    BackgroundColor #FFFFFF
-    FontColor #000000
-    FontSize 10
+  BorderColor #8B1C3F
+  BackgroundColor #FFFFCC
+  FontColor #000000
+  FontSize 11
 }
 
-skinparam package {
-    BorderColor #8B1C3F
-    BackgroundColor #FFFFFF
-    FontColor #8B1C3F
-    FontSize 11
-    FontStyle bold
+skinparam database {
+  BorderColor #8B1C3F
+  BackgroundColor #FFFFCC
+  FontColor #000000
+  FontSize 11
+}
+
+skinparam note {
+  BorderColor #8B1C3F
+  BackgroundColor #FFFFCC
+  FontColor #000000
+  FontSize 11
 }
 
 skinparam arrow {
-    Color #8B1C3F
-    FontColor #8B1C3F
-    FontSize 10
+  Color #8B1C3F
+  FontColor #8B1C3F
+  FontSize 10
 }
 
-title **Diagrama de Componentes - Sistema de Votaciones UNP**\n(Arquitectura Modular Completa en Estilo Rational Rose)
+note as N1
+DIAGRAMA DE
+COMPONENTES
+end note
 
-package "Capa de Presentación (Frontend SPA - React 19)" as SubsysFrontend {
-    component [UI_Autenticacion\n(Login, Perfil, Credenciales)] as CompLoginUI
-    component [UI_Convocatoria_Procesos\n(Gestión de Elecciones y Fases)] as CompEleccionesUI
-    component [UI_Padron_Electoral\n(Carga y Consulta de Docentes)] as CompPadronUI
-    component [UI_Listas_Candidatos\n(Listas, Candidatos y Sorteo)] as CompListasUI
-    component [UI_Mesa_Sufragio\n(Apertura, Miembros, Instalación)] as CompMesaUI
-    component [UI_Cabina_Votacion\n(Terminal de Voto Secreto)] as CompCabinaUI
-    component [UI_Escrutinio_Computo\n(Conteo de Votos y Cierre)] as CompEscrutinioUI
-    component [UI_Portal_Resultados\n(Estadísticas y Actas Públicas)] as CompResultadosUI
-    component [Modulo_Lector_QR\n(jsQR / Escaneo por Cámara)] as CompLectorQR
-    component [Modulo_Generador_Credenciales\n(Pases QR / SVG / Reportes PDF)] as CompReportesPDF
+' COMPONENTES DE ENTRADA / CLIENTES (IZQUIERDA)
+component "comite_electoral" as comite
+component "mesa_sufragio" as mesa
+component "cabina_votacion" as cabina
 
-    CompCabinaUI ..> CompLectorQR : <<uses>>
-    CompPadronUI ..> CompReportesPDF : <<uses>>
-    CompEscrutinioUI ..> CompReportesPDF : <<uses>>
-}
+' COMPONENTES DEL SISTEMA / LÓGICA DE NEGOCIO (CENTRO)
+component "mantenimiento" as mant
+component "gestion_procesos" as proc
+component "jornada_votacion" as voto
+component "escrutinio_computo" as esc
+component "reporte" as rep
 
-package "Capa de Controladores API REST y Seguridad" as SubsysControllers {
-    component [AuthController\n(/api/auth/**)] as CtrlAuth
-    component [ProcesoElectoralController\n(/api/procesos/**, /api/listas/**)] as CtrlProcesos
-    component [PadronDocenteController\n(/api/padron/**, /api/docentes/**)] as CtrlPadron
-    component [MesaElectoralController\n(/api/mesas/**)] as CtrlMesas
-    component [VotoCabinaController\n(/api/voto/**, /api/cabina/**)] as CtrlVotos
-    component [ComputoResultadosController\n(/api/computo/**, /api/resultados/**)] as CtrlComputo
+' BASE DE DATOS (DERECHA)
+database "BD" as bd
 
-    component [Filtro_Seguridad_JWT\n(Validación Token y Roles RBAC)] as CompFiltroJWT
-    component [Validador_Token_Cabina\n(Verificación Secreto SHA-256)] as CompValidadorCabina
+' Dependencias de clientes hacia módulos del sistema
+comite ..> mant
+comite ..> proc
+comite ..> rep
 
-    CtrlAuth ..> CompFiltroJWT : <<uses>>
-    CtrlProcesos ..> CompFiltroJWT : <<uses>>
-    CtrlPadron ..> CompFiltroJWT : <<uses>>
-    CtrlMesas ..> CompFiltroJWT : <<uses>>
-    CtrlVotos ..> CompValidadorCabina : <<uses>>
-    CtrlComputo ..> CompFiltroJWT : <<uses>>
-}
+mesa ..> voto
+mesa ..> esc
+mesa ..> rep
 
-package "Capa de Servicios de Negocio" as SubsysServices {
-    component [AuthService\n(Gestión de Cuentas y Tokens)] as SrvAuth
-    component [EleccionService\n(Reglas Electorales y Convocatoria)] as SrvEleccion
-    component [PadronService\n(Habilitación de Docentes Electores)] as SrvPadron
-    component [MesaService\n(Apertura, Miembros y Cierre)] as SrvMesa
-    component [VotacionService\n(Registro y Anonimización de Votos)] as SrvVotacion
-    component [ComputoActasService\n(Escrutinio, Blancos/Nulos y Actas)] as SrvComputo
-    component [AuditoriaService\n(Bitácora y Trazabilidad de Eventos)] as SrvAuditoria
-}
+cabina ..> voto
 
-package "Capa de Acceso a Datos y Persistencia" as SubsysDAO {
-    component [ProcedimientoDao\n(Ejecución JDBC de Stored Procedures)] as CompDao
-    component [ConnectionPool_HikariCP\n(Gestión de Pool de Conexiones)] as CompPool
-    CompDao ..> CompPool : <<uses>>
-}
-
-package "Capa de Base de Datos" as SubsysBD {
-    component [BaseDatos_MariaDB\n(Esquema elecciones_unp / 56 Tablas, SPs)] as CompBD
-}
-
-CompLoginUI ..> CtrlAuth : <<call / HTTP>>
-CompEleccionesUI ..> CtrlProcesos : <<call / HTTP>>
-CompListasUI ..> CtrlProcesos : <<call / HTTP>>
-CompPadronUI ..> CtrlPadron : <<call / HTTP>>
-CompMesaUI ..> CtrlMesas : <<call / HTTP>>
-CompCabinaUI ..> CtrlVotos : <<call / HTTP>>
-CompEscrutinioUI ..> CtrlComputo : <<call / HTTP>>
-CompResultadosUI ..> CtrlComputo : <<call / HTTP>>
-
-CtrlAuth ..> SrvAuth : <<uses>>
-CtrlProcesos ..> SrvEleccion : <<uses>>
-CtrlPadron ..> SrvPadron : <<uses>>
-CtrlMesas ..> SrvMesa : <<uses>>
-CtrlVotos ..> SrvVotacion : <<uses>>
-CtrlComputo ..> SrvComputo : <<uses>>
-
-SrvVotacion ..> SrvAuditoria : <<uses>>
-SrvMesa ..> SrvAuditoria : <<uses>>
-SrvComputo ..> SrvAuditoria : <<uses>>
-
-SrvAuth ..> CompDao : <<uses>>
-SrvEleccion ..> CompDao : <<uses>>
-SrvPadron ..> CompDao : <<uses>>
-SrvMesa ..> CompDao : <<uses>>
-SrvVotacion ..> CompDao : <<uses>>
-SrvComputo ..> CompDao : <<uses>>
-SrvAuditoria ..> CompDao : <<uses>>
-
-CompPool ..> CompBD : <<JDBC / TCP 3306>>
+' Dependencias de módulos hacia la Base de Datos
+mant ..> bd
+proc ..> bd
+voto ..> bd
+esc ..> bd
+rep ..> bd
 @enduml
 ```
 
-### 3.2 Las 5 Capas Arquitectónicas
-1. **Capa de Presentación (React 19 / Vite):** 8 interfaces de usuario y 2 utilitarios de escaneo QR y renderizado PDF.
-2. **Capa de Controladores API REST (Spring Boot):** Expone los endpoints bajo la raíz `/api/**`, filtra cabeceras `Authorization: Bearer <JWT>` y cabeceras de cabina `X-Terminal-Secreto`.
-3. **Capa de Servicios de Negocio:** Encapsula las reglas electorales universitarias (anonimización, cómputo y validaciones).
-4. **Capa de Persistencia (DAO / JDBC):** `ProcedimientoDao` invoca directamente los Stored Procedures con pool de conexiones HikariCP ultrarrápido sin sobrecarga de Hibernate.
-5. **Capa de Base de Datos:** MariaDB con 56 tablas, vistas, triggers y Stored Procedures transaccionales (`sp_*`).
+### 3.3 Código PlantUML - Estructura Mínima 1:1 (Plantilla de Clase)
+Si el profesor solicita replicar exactamente la plantilla simple de 5 cajas vista en clase:
+
+```plantuml
+@startuml Diagrama_Componentes_RationalRose_Simple
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam defaultFontColor #000000
+
+skinparam componentStyle uml1
+left to right direction
+
+skinparam component {
+  BorderColor #8B1C3F
+  BackgroundColor #FFFFCC
+  FontColor #000000
+  FontSize 11
+}
+
+skinparam database {
+  BorderColor #8B1C3F
+  BackgroundColor #FFFFCC
+  FontColor #000000
+  FontSize 11
+}
+
+skinparam note {
+  BorderColor #8B1C3F
+  BackgroundColor #FFFFCC
+  FontColor #000000
+  FontSize 11
+}
+
+skinparam arrow {
+  Color #8B1C3F
+  FontColor #8B1C3F
+}
+
+note as N1
+DIAGRAMA DE
+COMPONENTES
+end note
+
+component "comite_electoral" as comite
+component "mantenimiento" as mant
+component "gestion_procesos" as proc
+component "reporte" as rep
+database "BD" as bd
+
+comite ..> mant
+comite ..> proc
+comite ..> rep
+
+mant ..> bd
+proc ..> bd
+rep ..> bd
+@enduml
+```
+
+### 3.4 Correspondencia de Componentes con el Código Real
+- **`comite_electoral`:** Frontend del Administrador y Miembros del CEUNP (React SPA).
+- **`mesa_sufragio`:** Frontend de la PC de Mesa Electoral (Instalación, Asistencia y Cierre).
+- **`cabina_votacion`:** Terminal táctil secreta (`/cabina` con `X-Terminal-Secreto`).
+- **`mantenimiento`:** Módulo backend de cuentas, roles RBAC, parámetros y seguridad JWT.
+- **`gestion_procesos`:** Convocatoria, padrón electoral docente, listas de candidatos y sorteo de miembros.
+- **`jornada_votacion`:** Validación de habilitaciones de un solo uso y registro anónimo del voto (`sp_votar_habilitado`).
+- **`escrutinio_computo`:** Conteo de votos, resolución de impugnaciones y emisión de actas oficiales.
+- **`reporte`:** Generación de actas con código QR (`svgQR`), reportes estadísticos y bitácora de auditoría.
+- **`BD`:** Motor MariaDB con el esquema `elecciones_unp` (56 tablas, Stored Procedures y Triggers).
 
 ---
 
