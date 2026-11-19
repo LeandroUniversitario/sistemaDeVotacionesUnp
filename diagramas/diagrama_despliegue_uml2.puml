@@ -1,0 +1,129 @@
+@startuml Diagrama_Despliegue
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam roundcorner 8
+skinparam shadowing true
+skinparam nodeBackgroundColor #F8F9FA
+skinparam nodeBorderColor #2C3E50
+skinparam artifactBackgroundColor #EAECEE
+skinparam artifactBorderColor #34495E
+skinparam databaseBackgroundColor #E8F8F5
+skinparam databaseBorderColor #16A085
+skinparam componentBackgroundColor #EBF5FB
+skinparam componentBorderColor #2980B9
+
+title **DIAGRAMA DE DESPLIEGUE - SISTEMA DE ELECCIONES DOCENTES UNP**\n(Arquitectura en N-Capas con Cabina de Votación y Persistencia Transaccional)
+
+' ============================================================================
+' CAPA CLIENTE / DISPOSITIVOS DE USUARIO
+' ============================================================================
+node "Estación de Trabajo / Laptop\n<<device: PC / Laptop>>\n(Docente / CEUNP / Admin / Personero)" as EstacionCliente {
+    node "Navegador Web Estándar\n(Google Chrome / Edge / Firefox)" as NavCliente {
+        artifact "SPA React Client Bundle\n(HTML5, CSS3, JS ES2022)\n[elecciones-frontend]" as ArtefactoSPA
+        component "Lector Óptico / Webcam\n(Scanner QR jsQR)" as ComponenteLectorQR
+    }
+}
+
+node "Terminal de Votación (Cabina)\n<<device: PC Cabina Aislada>>\n(Ubicada en Mesa Electoral UNP)" as TerminalCabina {
+    node "Navegador Web en Modo Kiosko\n(Ruta: /cabina)" as NavCabina {
+        artifact "Interfaz de Cabina de Sufragio\n(Emisión de Voto Seguro)" as ArtefactoCabina
+        component "Credencial de Dispositivo\n(Secreto SHA-256 en Storage)" as SecretoDispositivo
+    }
+}
+
+node "Dispositivo Móvil\n<<device: Smartphone / Tablet>>\n(Docente Elector / Personero)" as DispositivoMovil {
+    node "Navegador Web Móvil" as NavMovil {
+        artifact "Portal Móvil Docente / Público\n(Pase QR, Resultados, Actas)" as ArtefactoMovil
+    }
+}
+
+' ============================================================================
+' CAPA SERVIDOR WEB / PROXY Y DISTRIBUCIÓN
+' ============================================================================
+node "Servidor Web / Host de Distribución\n<<node: Nginx / Cloud Host>>" as ServidorWeb {
+    node "Servidor HTTP / Reverse Proxy" as ProxyWeb {
+        artifact "Build Estático Compilado\n(Vite Dist: dist/*)" as BuildEstatico
+    }
+}
+
+' ============================================================================
+' CAPA SERVIDOR DE APLICACIONES (BACKEND SPRING BOOT)
+' ============================================================================
+node "Servidor de Aplicaciones UNP\n<<node: Linux Server / Docker Host>>\n[Puerto: 8080]" as ServidorApp {
+    node "Java Virtual Machine (JVM 21 LTS)\n<<executionEnvironment: Eclipse Temurin>>" as JVM {
+        node "Servidor Web Embebido\n<<container: Apache Tomcat 10.1>>" as Tomcat {
+            artifact "elecciones-backend-0.0.1-SNAPSHOT.jar\n<<executable: Spring Boot 3.5.6>>" as JarBackend {
+                component "Filtros de Seguridad & Rate Limiting\n(Spring Security + JJWT + TokenBucket)" as ModuloSeguridad
+                component "Controladores REST API (Boundary)\n(Casos de Uso CUS00 - CUS21)" as ModuloControladores
+                component "Servicios de Negocio (Control)\n(Lógica Electoral & Criptografía)" as ModuloServicios
+                component "Capa de Datos & JDBC Gateway\n(Spring Data JPA + ProcedimientoDao)" as ModuloAccesoDatos
+                component "Pool de Conexiones HikariCP\n(Conexiones TCP Reutilizables)" as ModuloHikari
+            }
+        }
+    }
+    folder "Sistema de Archivos del Servidor\n<<storage: Directorio Local /respaldos/>>" as StorageRespaldos {
+        artifact "Archivos de Respaldo Cifrados\n(*.sql.enc - Cifrado AES-256-GCM\ncon Huella SHA-256)" as ArchivosBackup
+    }
+}
+
+' ============================================================================
+' CAPA SERVIDOR DE BASE DE DATOS
+' ============================================================================
+node "Servidor de Base de Datos UNP\n<<node: Database Server Dedicado>>\n[Puerto: 3306]" as ServidorBD {
+    node "Motor RDBMS MariaDB 10.4+ / MySQL 8.0+\n<<executionEnvironment: InnoDB Storage Engine>>" as MotorDB {
+        database "Base de Datos Transaccional\n<<database: elecciones_unp>>" as BD {
+            artifact "56 Tablas Relacionales\n(Padrón, Mesas, Votos, Actas, Multas)" as TablasBD
+            artifact "Voto Secreto Anonimizado\n(id_voto BINARY(16) descorrelacionado)" as TablaVoto
+            artifact "80 Procedimientos Almacenados (SPs)\n(Transacciones ACID y Conciliación)" as SPsBD
+            artifact "79 Triggers de Reglas de Negocio\n(Control de Quórum, RN01-RN36)" as TriggersBD
+            artifact "35 Vistas Seguras de Consulta" as VistasBD
+            artifact "Bitácora con Sello Criptográfico\n(Cadena Hash SHA-256 Blockchain-like)" as BitacoraHash
+        }
+    }
+}
+
+' ============================================================================
+' INTERACCIONES Y PROTOCOLOS DE COMUNICACIÓN
+' ============================================================================
+EstacionCliente -- ServidorWeb : "HTTPS / TLS 1.3\n(Puerto 443 / 80)"
+TerminalCabina -- ServidorWeb : "HTTPS / TLS 1.3\n(Puerto 443 / 80)"
+DispositivoMovil -- ServidorWeb : "HTTPS / TLS 1.3\n(Puerto 443 / 80)"
+
+BuildEstatico ..> ArtefactoSPA : "<<deploy / serve>>"
+BuildEstatico ..> ArtefactoCabina : "<<deploy / serve>>"
+BuildEstatico ..> ArtefactoMovil : "<<deploy / serve>>"
+
+ServidorWeb -- ServidorApp : "Reverse Proxy REST / JSON\n(HTTP/HTTPS Puerto 8080)"
+EstacionCliente ..> ModuloControladores : "API REST / JSON + JWT Bearer\n(HTTPS :8080)"
+TerminalCabina ..> ModuloControladores : "API REST Cabina (Secreto Dispositivo)\n(HTTPS :8080)"
+DispositivoMovil ..> ModuloControladores : "API REST Consulta Pública / QR\n(HTTPS :8080)"
+
+ModuloAccesoDatos -- StorageRespaldos : "I/O Sistema de Archivos\n(Lectura / Escritura Backups)"
+ModuloHikari -- MotorDB : "JDBC Driver over TCP/IP\n(SSL/TLS Puerto 3306)"
+
+' ============================================================================
+' NOTAS ARQUITECTURALES
+' ============================================================================
+note bottom of TerminalCabina
+  **Aislamiento de Cabina (C2/M1):**
+  El equipo de votación se identifica mediante
+  un secreto de dispositivo (SHA-256). No conserva
+  sesión de usuario y solo se habilita por la mesa.
+end note
+
+note bottom of StorageRespaldos
+  **Cifrado de Backups (CUS18):**
+  Los respaldos se cifran con AES-256-GCM
+  usando RESPALDO_CLAVE y se auditan
+  con huella digital SHA-256 en la BD.
+end note
+
+note bottom of ServidorBD
+  **Secreto del Voto y Auditoría (RNF02/RNF05):**
+  - La tabla `voto` usa claves binarias aleatorias
+    de 16 bytes (`fn_bytes_aleatorios`).
+  - La bitácora (`log_auditoria`) utiliza encadenamiento
+    de hashes para prevenir alteraciones.
+end note
+
+@enduml

@@ -1372,7 +1372,7 @@ DELIMITER ;
 -- =====================================================================
 
 -- Docente con su facultad y departamento
-CREATE VIEW v_docente_detalle AS
+CREATE OR REPLACE VIEW v_docente_detalle AS
 SELECT d.id_docente, d.dni, d.apellidos, d.nombres,
        CONCAT(d.apellidos, ', ', d.nombres) AS nombre_completo,
        d.categoria, d.dedicacion, d.grado_academico, d.estado, d.habilitado_para_votar,
@@ -1384,7 +1384,7 @@ SELECT d.id_docente, d.dni, d.apellidos, d.nombres,
   JOIN facultad f      ON f.id_facultad = dp.id_facultad;
 
 -- Padrón electoral legible (quién vota qué y en qué mesa). No expone el voto.
-CREATE VIEW v_padron_detalle AS
+CREATE OR REPLACE VIEW v_padron_detalle AS
 SELECT pe.id_proceso, pe.id_cargo, c.nombre AS cargo,
        pe.id_docente, d.dni, CONCAT(d.apellidos, ', ', d.nombres) AS docente,
        d.categoria, f.nombre AS facultad,
@@ -1397,7 +1397,7 @@ SELECT pe.id_proceso, pe.id_cargo, c.nombre AS cargo,
   LEFT JOIN mesa_electoral m ON m.id_mesa = pe.id_mesa;
 
 -- RN31: participación y quórum por cargo, en tiempo real
-CREATE VIEW v_participacion_cargo AS
+CREATE OR REPLACE VIEW v_participacion_cargo AS
 SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
        COUNT(pe.id_docente)            AS electores_habiles,
        COALESCE(SUM(pe.ya_voto), 0)    AS votaron,
@@ -1414,7 +1414,7 @@ SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
  GROUP BY c.id_proceso, c.id_cargo, c.nombre, p.quorum_minimo;
 
 -- RN31: participación global del proceso (electores distintos)
-CREATE VIEW v_quorum_proceso AS
+CREATE OR REPLACE VIEW v_quorum_proceso AS
 SELECT p.id_proceso, p.nombre, p.estado, p.tipo, p.quorum_minimo,
        COUNT(x.id_docente)          AS electores_habiles,
        COALESCE(SUM(x.voto), 0)     AS votaron,
@@ -1431,12 +1431,12 @@ SELECT p.id_proceso, p.nombre, p.estado, p.tipo, p.quorum_minimo,
  GROUP BY p.id_proceso, p.nombre, p.estado, p.tipo, p.quorum_minimo;
 
 -- Alias con el nombre que usa tu documentación (diccionario_y_cambios_arquitectura.md)
-CREATE VIEW vista_quorum AS
+CREATE OR REPLACE VIEW vista_quorum AS
 SELECT * FROM v_quorum_proceso;
 
 -- Conteo por lista. Solo muestra procesos CERRADOS o FINALIZADOS:
 -- durante la votación no devuelve filas, así nadie ve resultados parciales.
-CREATE VIEW v_resultados_cargo AS
+CREATE OR REPLACE VIEW v_resultados_cargo AS
 SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
        l.id_lista, l.nombre AS lista, l.orden_cedula,
        COUNT(v.id_voto) AS votos,
@@ -1450,7 +1450,7 @@ SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
           c.estado_resultado, c.id_lista_ganadora;
 
 -- RN18: cédula de votación (listas admitidas en el orden sorteado, con su fórmula)
-CREATE VIEW v_cedula_votacion AS
+CREATE OR REPLACE VIEW v_cedula_votacion AS
 SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
        l.id_lista, l.orden_cedula, l.nombre AS lista, l.simbolo,
        ca.rol_en_lista, CONCAT(d.apellidos, ', ', d.nombres) AS candidato
@@ -1460,7 +1460,7 @@ SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
   JOIN docente d         ON d.id_docente = ca.id_docente;
 
 -- RN15: portal de transparencia (solo candidatos aprobados de listas admitidas)
-CREATE VIEW v_candidatos_publicos AS
+CREATE OR REPLACE VIEW v_candidatos_publicos AS
 SELECT c.id_proceso, c.nombre AS cargo, l.nombre AS lista, l.url_plan_gobierno,
        ca.rol_en_lista, CONCAT(d.nombres, ' ', d.apellidos) AS candidato,
        d.categoria, d.grado_academico, f.nombre AS facultad, ca.url_hoja_vida
@@ -1472,7 +1472,7 @@ SELECT c.id_proceso, c.nombre AS cargo, l.nombre AS lista, l.url_plan_gobierno,
  WHERE ca.estado_validacion = 'APROBADO';
 
 -- RN27: cuadre de votos emitidos contra electores que sufragaron (debe dar diferencia 0)
-CREATE VIEW v_cuadre_votos AS
+CREATE OR REPLACE VIEW v_cuadre_votos AS
 SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
        (SELECT COUNT(*) FROM padron_electoral pe WHERE pe.id_cargo = c.id_cargo AND pe.ya_voto = 1) AS electores_que_votaron,
        (SELECT COUNT(*) FROM voto v WHERE v.id_cargo = c.id_cargo) AS votos_en_urna,
@@ -1481,7 +1481,7 @@ SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo,
   FROM cargo_electoral c;
 
 -- Estado de las mesas
-CREATE VIEW v_mesa_detalle AS
+CREATE OR REPLACE VIEW v_mesa_detalle AS
 SELECT m.id_proceso, m.id_mesa, m.numero_mesa, m.ubicacion, m.estado,
        m.total_electores, m.hora_instalacion, m.hora_cierre, m.fecha_sorteo, m.semilla_sorteo,
        (SELECT COUNT(*) FROM miembro_mesa mm WHERE mm.id_mesa = m.id_mesa) AS miembros,
@@ -1490,7 +1490,7 @@ SELECT m.id_proceso, m.id_mesa, m.numero_mesa, m.ubicacion, m.estado,
        (SELECT COUNT(*) FROM acta_electoral a WHERE a.id_mesa = m.id_mesa AND a.estado = 'VIGENTE') AS actas_emitidas
   FROM mesa_electoral m;
 
-CREATE VIEW v_miembros_mesa AS
+CREATE OR REPLACE VIEW v_miembros_mesa AS
 SELECT m.id_proceso, m.id_mesa, m.numero_mesa, mm.orden_sorteo, mm.rol, mm.titular, mm.asistio,
        d.id_docente, d.dni, CONCAT(d.apellidos, ', ', d.nombres) AS docente, f.nombre AS facultad
   FROM miembro_mesa mm
@@ -1499,7 +1499,7 @@ SELECT m.id_proceso, m.id_mesa, m.numero_mesa, mm.orden_sorteo, mm.rol, mm.titul
   JOIN facultad f       ON f.id_facultad = d.id_facultad;
 
 -- RN20: docentes que SÍ pueden entrar al sorteo de mesas de cada proceso
-CREATE VIEW v_elegibles_sorteo AS
+CREATE OR REPLACE VIEW v_elegibles_sorteo AS
 SELECT DISTINCT pe.id_proceso, pe.id_mesa, d.id_docente, d.dni,
        CONCAT(d.apellidos, ', ', d.nombres) AS docente
   FROM padron_electoral pe
@@ -1522,7 +1522,7 @@ SELECT DISTINCT pe.id_proceso, pe.id_mesa, d.id_docente, d.dni,
                     WHERE mm.id_docente = d.id_docente AND m.id_proceso = pe.id_proceso);
 
 -- Tachas con denunciante, candidato y lista
-CREATE VIEW v_tachas_detalle AS
+CREATE OR REPLACE VIEW v_tachas_detalle AS
 SELECT t.id_tacha, c.id_proceso, c.nombre AS cargo, l.id_lista, l.nombre AS lista,
        ca.id_candidato, ca.rol_en_lista,
        CONCAT(dc.apellidos, ', ', dc.nombres) AS candidato,
@@ -4168,7 +4168,7 @@ BEGIN
     clave INT NOT NULL, UNIQUE KEY (id_cargo, opcion, clave)) ENGINE=MEMORY;
   CREATE TEMPORARY TABLE IF NOT EXISTS tmp_cargos_cus12 (
     id_cargo INT PRIMARY KEY, votantes INT NOT NULL, impugnaciones INT NOT NULL,
-    manual INT NOT NULL DEFAULT 0, faltan_digital INT NOT NULL DEFAULT 0, sobran_manual INT NOT NULL DEFAULT 0,
+    votos_manuales INT NOT NULL DEFAULT 0, faltan_digital INT NOT NULL DEFAULT 0, sobran_manual INT NOT NULL DEFAULT 0,
     impugnados INT NOT NULL DEFAULT 0) ENGINE=MEMORY;
   DELETE FROM tmp_conteo_cus12;
   DELETE FROM tmp_cargos_cus12;
@@ -4263,7 +4263,7 @@ BEGIN
 
   -- Totales por cargo
   UPDATE tmp_cargos_cus12 c
-     SET c.manual = (SELECT COALESCE(SUM(k.votos_manual), 0) FROM escrutinio_conteo k
+     SET c.votos_manuales = (SELECT COALESCE(SUM(k.votos_manual), 0) FROM escrutinio_conteo k
                       WHERE k.id_mesa = p_id_mesa AND k.id_cargo = c.id_cargo),
          c.impugnados = (SELECT COALESCE(SUM(k.votos_manual), 0) FROM escrutinio_conteo k
                           WHERE k.id_mesa = p_id_mesa AND k.id_cargo = c.id_cargo AND k.opcion = 'IMPUGNADO'),
@@ -4273,7 +4273,7 @@ BEGIN
                              WHERE k.id_mesa = p_id_mesa AND k.id_cargo = c.id_cargo AND k.opcion <> 'IMPUGNADO');
 
   -- No puede haber más votos que cédulas escrutadas
-  SELECT COUNT(*) INTO v_mal FROM tmp_cargos_cus12 WHERE manual > v_escrutadas;
+  SELECT COUNT(*) INTO v_mal FROM tmp_cargos_cus12 WHERE votos_manuales > v_escrutadas;
   IF v_mal > 0 THEN
     SET v_msg = CONCAT('RF79: un cargo suma más votos que las ', v_escrutadas, ' cédulas escrutadas. Revise el conteo.');
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
@@ -4288,7 +4288,7 @@ BEGIN
   -- Con cédulas faltantes (A2), los votos digitales sin cédula no pasan de las que faltan.
   SELECT IF(COUNT(*) = 0, 1, 0) INTO v_cuadra FROM tmp_cargos_cus12
    WHERE sobran_manual > 0 OR faltan_digital - impugnados < 0 OR faltan_digital - impugnados > v_faltantes;
-  SELECT IF(COUNT(*) = 0, 1, 0) INTO v_total_ok FROM tmp_cargos_cus12 WHERE manual <> votantes;
+  SELECT IF(COUNT(*) = 0, 1, 0) INTO v_total_ok FROM tmp_cargos_cus12 WHERE votos_manuales <> votantes;
 
   UPDATE escrutinio_mesa
      SET estado = 'CONTEO_REGISTRADO', veces_conteo = v_veces + 1, conteo_cuadra = v_cuadra,
@@ -5067,7 +5067,7 @@ DELIMITER ;
 --                   vale la decisión de la mesa
 --   EN_APELACION    la resuelve el CEUNP: la cédula sigue como IMPUGNADO
 --   FIRME           decisión de la mesa consentida o fallo del CEUNP (RN36)
-CREATE VIEW v_impugnacion_efecto AS
+CREATE OR REPLACE VIEW v_impugnacion_efecto AS
 SELECT i.id_impugnacion, i.id_proceso, i.id_mesa, i.id_cargo,
        CASE
          WHEN i.decision_ceunp <> 'PENDIENTE' THEN 'FIRME'
@@ -5094,7 +5094,7 @@ SELECT i.id_impugnacion, i.id_proceso, i.id_mesa, i.id_cargo,
   FROM impugnacion_electoral i;
 
 -- Cédulas impugnadas por mesa, cargo y opción vigente (insumo del cómputo, CUS14)
-CREATE VIEW v_impugnaciones_mesa_cargo AS
+CREATE OR REPLACE VIEW v_impugnaciones_mesa_cargo AS
 SELECT e.id_proceso, e.id_mesa, e.id_cargo, e.opcion_vigente, e.id_lista_vigente,
        COUNT(*) AS cedulas, SUM(e.situacion = 'FIRME') AS firmes
   FROM v_impugnacion_efecto e
@@ -5338,7 +5338,7 @@ DELIMITER ;
 -- ---------------------------------------------------------------------
 
 -- 4-5 validarIntegridad(actas): cada acta con su huella recalculada y su verificación (RF90)
-CREATE VIEW v_computo_actas AS
+CREATE OR REPLACE VIEW v_computo_actas AS
 SELECT m.id_proceso, a.id_mesa, m.numero_mesa, a.id_acta, a.tipo, a.estado, a.fecha_emision,
        a.hash_integridad,
        IF(SHA2(a.contenido_json, 256) = a.hash_integridad, 1, 0) AS integra,
@@ -5352,7 +5352,7 @@ SELECT m.id_proceso, a.id_mesa, m.numero_mesa, a.id_acta, a.tipo, a.estado, a.fe
 -- 2-3 verificarActasEntregadas(idProceso) / actasEntregadas(totalMesas) (RF89, RN32).
 -- situacion: por qué una mesa entra o no al cómputo. Solo HABILITADA se computa; NO_INSTALADA y
 -- ANULADA no tienen votos que computar. Las demás impiden el cómputo hasta resolverse.
-CREATE VIEW v_computo_mesas AS
+CREATE OR REPLACE VIEW v_computo_mesas AS
 SELECT x.*,
        CASE
          WHEN x.estado = 'ANULADA' THEN 'ANULADA'
@@ -5395,7 +5395,7 @@ SELECT x.*,
 -- 6-7 consolidarVotos(idCargo) por mesa. Votos de la cédula física (acta de escrutinio, RF84)
 -- más las cédulas impugnadas que la mesa o el CEUNP asignaron a la opción (CUS13). La fila
 -- IMPUGNADO trae las cédulas cuya impugnación aún no tiene opción.
-CREATE VIEW v_computo_conteo_mesa AS
+CREATE OR REPLACE VIEW v_computo_conteo_mesa AS
 SELECT m.id_proceso, k.id_mesa, m.numero_mesa, k.id_cargo, k.opcion, k.id_lista,
        k.votos_manual AS votos_acta,
        (SELECT COUNT(*) FROM v_impugnacion_efecto i
@@ -5422,7 +5422,7 @@ SELECT m.id_proceso, k.id_mesa, m.numero_mesa, k.id_cargo, k.opcion, NULL,
  WHERE k.opcion = 'IMPUGNADO';
 
 -- 7 totalesPorLista(votos): consolidado por cargo y opción de las actas de las mesas no anuladas
-CREATE VIEW v_computo_resultados AS
+CREATE OR REPLACE VIEW v_computo_resultados AS
 SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo, x.opcion, x.id_lista,
        COALESCE(l.nombre, CASE x.opcion WHEN 'BLANCO' THEN 'Votos en blanco' WHEN 'NULO' THEN 'Votos nulos'
                                         ELSE 'Impugnados sin resolver' END) AS lista,
@@ -5439,7 +5439,7 @@ SELECT c.id_proceso, c.id_cargo, c.nombre AS cargo, x.opcion, x.id_lista,
  GROUP BY c.id_proceso, c.id_cargo, c.nombre, x.opcion, x.id_lista, l.nombre, l.orden_cedula;
 
 -- RF99: resultados publicados en el portal (solo después de la publicación)
-CREATE VIEW v_portal_resultados AS
+CREATE OR REPLACE VIEW v_portal_resultados AS
 SELECT p.id_proceso, p.nombre AS proceso, p.tipo, p.estado AS estado_proceso,
        cp.resultado, cp.participacion_pct, cp.electores_habiles, cp.votaron,
        cp.numero_resolucion, cp.fecha_computo, cp.fecha_proclamacion, cp.fecha_publicacion
@@ -6572,7 +6572,7 @@ DELIMITER ;
 
 -- 4 mostrarMesaExcluida() / 9 mostrarResolucionNulidad(): recursos con su mesa, personero,
 -- resolución y comunicaciones registradas (RF102).
-CREATE VIEW v_nulidades AS
+CREATE OR REPLACE VIEW v_nulidades AS
 SELECT n.id_nulidad, n.id_proceso, p.nombre AS proceso, p.estado AS estado_proceso, p.tipo AS tipo_proceso,
        n.alcance, n.id_mesa, m.numero_mesa, m.ubicacion, m.estado AS estado_mesa, n.causal, n.origen,
        n.id_personero, CONCAT(d.apellidos, ', ', d.nombres) AS personero, l.nombre AS lista_personero,
@@ -6596,7 +6596,7 @@ SELECT n.id_nulidad, n.id_proceso, p.nombre AS proceso, p.estado AS estado_proce
   LEFT JOIN usuario us        ON us.id_usuario = n.id_usuario_resolucion;
 
 -- RF102 / RF99: resoluciones de nulidad publicadas en el portal electoral
-CREATE VIEW v_portal_nulidades AS
+CREATE OR REPLACE VIEW v_portal_nulidades AS
 SELECT n.id_nulidad, n.id_proceso, p.nombre AS proceso, p.tipo, p.estado AS estado_proceso, n.alcance,
        m.numero_mesa, n.causal, n.numero_resolucion, n.fundamento_resolucion, n.fecha_resolucion,
        c.fecha_envio AS fecha_publicacion, n.hash_integridad,
@@ -6609,7 +6609,7 @@ SELECT n.id_nulidad, n.id_proceso, p.nombre AS proceso, p.tipo, p.estado AS esta
  WHERE n.estado = 'FUNDADA';
 
 -- 15 mostrarSegundaVuelta(): segunda vuelta de cada proceso con su plazo (RN33) y su avance
-CREATE VIEW v_segunda_vuelta_procesos AS
+CREATE OR REPLACE VIEW v_segunda_vuelta_procesos AS
 SELECT h.id_proceso, h.nombre, h.estado, h.fecha_inicio, h.fecha_fin, h.fecha_creacion, h.motivo_anulacion,
        h.id_proceso_padre, p.nombre AS proceso_padre, cp.fecha_computo AS fecha_computo_padre,
        (SELECT COUNT(*) FROM cargo_electoral c WHERE c.id_proceso = h.id_proceso) AS cargos,
@@ -7619,7 +7619,7 @@ DELIMITER ;
 --   4 consultarNoVotaron(): elector hábil que no votó por ningún cargo, con mesa que se
 --     instaló (la mesa NO INSTALADA no permitió votar: RF58). Marca a quien asistió sin votar.
 --   5 consultarInasistentes(): miembro TITULAR sorteado que no se presentó (CUS08).
-CREATE VIEW v_omisos_proceso AS
+CREATE OR REPLACE VIEW v_omisos_proceso AS
 SELECT x.id_proceso, x.id_docente, _utf8mb4'OMISO_VOTACION' COLLATE utf8mb4_unicode_ci AS motivo, x.id_mesa,
        CAST(NULL AS CHAR(12) CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS rol_mesa,
        IF(EXISTS (SELECT 1 FROM asistencia_elector a WHERE a.id_proceso = x.id_proceso AND a.id_docente = x.id_docente), 1, 0) AS asistio_sin_votar
@@ -7638,7 +7638,7 @@ SELECT m.id_proceso, mm.id_docente, _utf8mb4'OMISO_MESA' COLLATE utf8mb4_unicode
 
 -- RN35: multas con datos del docente. Conserva las columnas anteriores (ProcesoService) y agrega
 -- la mesa, la notificación, el pago, el último descargo y el plazo para justificar (CUS16).
-CREATE VIEW v_multas_detalle AS
+CREATE OR REPLACE VIEW v_multas_detalle AS
 SELECT mu.id_multa, mu.id_proceso, p.nombre AS proceso,
        d.id_docente, d.dni, CONCAT(d.apellidos, ', ', d.nombres) AS docente, f.nombre AS facultad,
        mu.motivo, mu.uit_referencia, mu.porcentaje_uit, mu.monto,
@@ -7667,7 +7667,7 @@ SELECT mu.id_multa, mu.id_proceso, p.nombre AS proceso,
 
 -- RF107: reporte de gestión por mesa (participación, instalación, miembros, incidencias,
 -- tiempo de atención del elector y actas recibidas por el CEUNP).
-CREATE VIEW v_reporte_gestion_mesas AS
+CREATE OR REPLACE VIEW v_reporte_gestion_mesas AS
 SELECT m.id_proceso, m.id_mesa, m.numero_mesa, m.ubicacion, m.estado, m.hora_instalacion, m.hora_cierre,
        (SELECT COUNT(DISTINCT pe.id_docente) FROM padron_electoral pe
          WHERE pe.id_mesa = m.id_mesa AND pe.habilitado_para_votar = 1) AS electores,
@@ -8402,7 +8402,7 @@ DELIMITER ;
 -- ---------------------------------------------------------------------
 
 -- 1 seleccionarProceso() · 4 consultarResultados(): procesos con resultados que se pueden consultar.
-CREATE VIEW v_resultados_procesos AS
+CREATE OR REPLACE VIEW v_resultados_procesos AS
 SELECT p.id_proceso, p.nombre AS proceso, p.tipo, p.estado AS estado_proceso, p.id_proceso_padre,
        pp.nombre AS proceso_padre,
        IF(cp.id_proceso IS NULL, 'HEREDADO', 'CUS14') AS origen,
@@ -8425,7 +8425,7 @@ SELECT p.id_proceso, p.nombre AS proceso, p.tipo, p.estado AS estado_proceso, p.
 
 -- 5 devolverResultados(): resultados por mesa. Con CUS12 son las cifras del acta de escrutinio con
 -- las impugnaciones asignadas (v_computo_conteo_mesa); con el cierre heredado, el conteo de la urna.
-CREATE VIEW v_resultados_mesa AS
+CREATE OR REPLACE VIEW v_resultados_mesa AS
 SELECT x.id_proceso, x.id_mesa, x.numero_mesa, CONCAT(m.estado, '') AS estado_mesa, x.id_cargo, c.nombre AS cargo,
        CONCAT(x.opcion, '') AS opcion, x.id_lista,
        COALESCE(l.nombre, CASE x.opcion WHEN 'BLANCO' THEN 'Votos en blanco' ELSE 'Votos nulos' END) AS lista,
@@ -8451,7 +8451,7 @@ SELECT m.id_proceso, m.id_mesa, m.numero_mesa, CONCAT(m.estado, ''), v.id_cargo,
 
 -- RF52 · RF55: documentos con QR y huella SHA-256 del proceso, con su integridad recalculada,
 -- firmas, verificaciones y cotejos. La huella se imprime en el documento: no es secreta.
-CREATE VIEW v_documentos_verificables AS
+CREATE OR REPLACE VIEW v_documentos_verificables AS
 SELECT d.*,
        (SELECT COUNT(*) FROM verificacion_documento v
          WHERE v.tipo_documento = d.tipo_documento AND v.id_documento = d.id_documento) AS verificaciones,
@@ -8485,7 +8485,7 @@ SELECT d.*,
   ) d;
 
 -- Cotejos con quién los registró y su atención
-CREATE VIEW v_cotejos_acta AS
+CREATE OR REPLACE VIEW v_cotejos_acta AS
 SELECT k.id_cotejo, k.id_proceso, p.nombre AS proceso, k.tipo_documento, k.id_documento, k.id_mesa, m.numero_mesa,
        k.hash_integridad, k.contenido_integro, k.lineas, k.diferencias, k.observacion, k.estado, k.fecha,
        k.id_usuario, u.username, k.rol, CONCAT(d.apellidos, ', ', d.nombres) AS registrado_por,
@@ -9168,7 +9168,7 @@ DELIMITER ;
 -- ---------------------------------------------------------------------
 
 -- 4 mostrarUsuario(): cuentas con su docente, estado, bloqueo y actividad en la bitácora
-CREATE VIEW v_usuarios_admin AS
+CREATE OR REPLACE VIEW v_usuarios_admin AS
 SELECT u.id_usuario, u.username, CONCAT(u.rol, '') AS rol, u.activo, u.debe_cambiar_password,
        u.intentos_fallidos, u.bloqueado_hasta,
        (u.bloqueado_hasta IS NOT NULL AND u.bloqueado_hasta > NOW()) AS bloqueada,
@@ -9185,7 +9185,7 @@ SELECT u.id_usuario, u.username, CONCAT(u.rol, '') AS rol, u.activo, u.debe_camb
   LEFT JOIN departamento dp ON dp.id_departamento = d.id_departamento;
 
 -- 5 modificarParametro(): parámetros con su definición y su último cambio
-CREATE VIEW v_parametros_admin AS
+CREATE OR REPLACE VIEW v_parametros_admin AS
 SELECT p.clave, p.valor, p.descripcion,
        COALESCE(CONCAT(d.grupo, ''), 'OTROS') AS grupo, COALESCE(d.etiqueta, p.clave) AS etiqueta,
        COALESCE(CONCAT(d.tipo, ''), 'TEXTO') AS tipo, d.minimo, d.maximo, d.unidad, d.referencia,
@@ -9199,7 +9199,7 @@ SELECT p.clave, p.valor, p.descripcion,
   LEFT JOIN parametro_definicion d ON d.clave = p.clave;
 
 -- 8 registrarAuditoria(): historial de parámetros con el usuario
-CREATE VIEW v_parametro_historial AS
+CREATE OR REPLACE VIEW v_parametro_historial AS
 SELECT h.id_historial, h.clave, COALESCE(d.etiqueta, h.clave) AS etiqueta, d.unidad,
        h.valor_anterior, h.valor_nuevo, h.motivo, CONCAT(h.origen, '') AS origen,
        h.id_usuario, u.username, h.ip, h.fecha
@@ -9208,7 +9208,7 @@ SELECT h.id_historial, h.clave, COALESCE(d.etiqueta, h.clave) AS etiqueta, d.uni
   LEFT JOIN usuario u              ON u.id_usuario = h.id_usuario;
 
 -- 13 mostrarRespaldo(): respaldos generados
-CREATE VIEW v_respaldos AS
+CREATE OR REPLACE VIEW v_respaldos AS
 SELECT r.id_respaldo, r.nombre_archivo, r.motivo, r.tablas, r.vistas,
        r.rutinas, r.disparadores, r.filas, r.tamano_bytes, r.hash_sha256, r.id_usuario, u.username,
        r.ip, r.fecha_inicio, r.fecha_fin, TIMESTAMPDIFF(SECOND, r.fecha_inicio, r.fecha_fin) AS duracion_seg
@@ -9862,7 +9862,7 @@ VALUES (1, NULL, REPEAT('0', 64), 0);
 -- 4 consultar(filtros) · 5 mostrarRegistros(lista): cada registro con su autor (cuenta, rol y
 -- docente de la cuenta), el docente al que se refiere (elector, miembro, candidato), el proceso
 -- y la acción catalogada. EMITIR_VOTO solo dice que el docente votó, nunca por quién (RNF05).
-CREATE VIEW v_bitacora AS
+CREATE OR REPLACE VIEW v_bitacora AS
 SELECT l.id_log,
        l.fecha_hora,
        l.accion,

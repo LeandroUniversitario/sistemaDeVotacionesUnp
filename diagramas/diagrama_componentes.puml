@@ -1,0 +1,152 @@
+@startuml Diagrama_Componentes_RationalRose
+' ==============================================================================
+' DIAGRAMA DE COMPONENTES - SISTEMA DE ELECCIONES DOCENTES UNP
+' Estilo: Rational Rose (UML 1.4 - Component View)
+' Paleta: Bordes color vino / burgundy (#8B1C3F), icono clásico con pestañas (uml1)
+' ==============================================================================
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam defaultFontColor #000000
+
+' Icono clásico UML 1.4 de Rational Rose (rectángulo con dos pestañas a la izquierda)
+skinparam componentStyle uml1
+
+skinparam component {
+    BorderColor #8B1C3F
+    BackgroundColor #FFFFFF
+    FontColor #000000
+    FontSize 10
+}
+
+skinparam package {
+    BorderColor #8B1C3F
+    BackgroundColor #FFFFFF
+    FontColor #8B1C3F
+    FontSize 11
+    FontStyle bold
+}
+
+skinparam arrow {
+    Color #8B1C3F
+    FontColor #8B1C3F
+    FontSize 10
+}
+
+title **Diagrama de Componentes - Sistema de Votaciones UNP**\n(Arquitectura Modular Completa en Estilo Rational Rose)
+
+' ==============================================================================
+' 1. CAPA DE PRESENTACIÓN (CLIENTE FRONTEND SPA - REACT 19 / VITE)
+' ==============================================================================
+package "Capa de Presentación (Frontend SPA)" as SubsysFrontend {
+    component [UI_Autenticacion\n(Login, Perfil, Credenciales)] as CompLoginUI
+    component [UI_Convocatoria_Procesos\n(Gestión de Elecciones y Fases)] as CompEleccionesUI
+    component [UI_Padron_Electoral\n(Carga y Consulta de Docentes)] as CompPadronUI
+    component [UI_Listas_Candidatos\n(Listas, Candidatos y Sorteo)] as CompListasUI
+    component [UI_Mesa_Sufragio\n(Apertura, Miembros, Instalación)] as CompMesaUI
+    component [UI_Cabina_Votacion\n(Terminal de Voto Secreto)] as CompCabinaUI
+    component [UI_Escrutinio_Computo\n(Conteo de Votos y Cierre)] as CompEscrutinioUI
+    component [UI_Portal_Resultados\n(Estadísticas y Actas Públicas)] as CompResultadosUI
+    
+    component [Modulo_Lector_QR\n(jsQR / Escaneo por Cámara)] as CompLectorQR
+    component [Modulo_Generador_Credenciales\n(Pases QR / SVG / Reportes PDF)] as CompReportesPDF
+
+    CompCabinaUI ..> CompLectorQR : <<uses>>
+    CompPadronUI ..> CompReportesPDF : <<uses>>
+    CompEscrutinioUI ..> CompReportesPDF : <<uses>>
+}
+
+' ==============================================================================
+' 2. CAPA DE CONTROLADORES Y SEGURIDAD (API REST SPRING BOOT 3)
+' ==============================================================================
+package "Capa de Controladores API REST y Seguridad" as SubsysControllers {
+    component [AuthController\n(/api/auth/**)] as CtrlAuth
+    component [ProcesoElectoralController\n(/api/procesos/**, /api/listas/**)] as CtrlProcesos
+    component [PadronDocenteController\n(/api/padron/**, /api/docentes/**)] as CtrlPadron
+    component [MesaElectoralController\n(/api/mesas/**)] as CtrlMesas
+    component [VotoCabinaController\n(/api/voto/**, /api/cabina/**)] as CtrlVotos
+    component [ComputoResultadosController\n(/api/computo/**, /api/resultados/**)] as CtrlComputo
+
+    component [Filtro_Seguridad_JWT\n(Validación Token y Roles RBAC)] as CompFiltroJWT
+    component [Validador_Token_Cabina\n(Verificación Secreto SHA-256)] as CompValidadorCabina
+
+    CtrlAuth ..> CompFiltroJWT : <<uses>>
+    CtrlProcesos ..> CompFiltroJWT : <<uses>>
+    CtrlPadron ..> CompFiltroJWT : <<uses>>
+    CtrlMesas ..> CompFiltroJWT : <<uses>>
+    CtrlVotos ..> CompValidadorCabina : <<uses>>
+    CtrlComputo ..> CompFiltroJWT : <<uses>>
+}
+
+' ==============================================================================
+' 3. CAPA DE LÓGICA DE NEGOCIO (SERVICIOS TRANSACCIONALES SPRING BOOT)
+' ==============================================================================
+package "Capa de Servicios de Negocio" as SubsysServices {
+    component [AuthService\n(Gestión de Cuentas y Tokens)] as SrvAuth
+    component [EleccionService\n(Reglas Electorales y Convocatoria)] as SrvEleccion
+    component [PadronService\n(Habilitación de Docentes Electores)] as SrvPadron
+    component [MesaService\n(Apertura, Miembros y Cierre)] as SrvMesa
+    component [VotacionService\n(Registro y Anonimización de Votos)] as SrvVotacion
+    component [ComputoActasService\n(Escrutinio, Blancos/Nulos y Actas)] as SrvComputo
+    component [AuditoriaService\n(Bitácora y Trazabilidad de Eventos)] as SrvAuditoria
+}
+
+' ==============================================================================
+' 4. CAPA DE PERSISTENCIA Y ACCESO A DATOS (DAO / JDBC)
+' ==============================================================================
+package "Capa de Acceso a Datos y Persistencia" as SubsysDAO {
+    component [ProcedimientoDao\n(Ejecución JDBC de Stored Procedures)] as CompDao
+    component [ConnectionPool_HikariCP\n(Gestión de Pool de Conexiones)] as CompPool
+    
+    CompDao ..> CompPool : <<uses>>
+}
+
+' ==============================================================================
+' 5. CAPA DE BASE DE DATOS RELACIONAL
+' ==============================================================================
+package "Capa de Base de Datos" as SubsysBD {
+    component [BaseDatos_MariaDB\n(Esquema elecciones_unp / 56 Tablas, SPs)] as CompBD
+}
+
+' ==============================================================================
+' DEPENDENCIAS ENTRE CAPAS (DEPENDENCY ..> EN RATIONAL ROSE)
+' ==============================================================================
+
+' Frontend -> Controladores REST
+CompLoginUI ..> CtrlAuth : <<call / HTTP>>
+CompEleccionesUI ..> CtrlProcesos : <<call / HTTP>>
+CompListasUI ..> CtrlProcesos : <<call / HTTP>>
+CompPadronUI ..> CtrlPadron : <<call / HTTP>>
+CompMesaUI ..> CtrlMesas : <<call / HTTP>>
+CompCabinaUI ..> CtrlVotos : <<call / HTTP>>
+CompEscrutinioUI ..> CtrlComputo : <<call / HTTP>>
+CompResultadosUI ..> CtrlComputo : <<call / HTTP>>
+
+' Controladores -> Servicios de Negocio
+CtrlAuth ..> SrvAuth : <<uses>>
+CtrlProcesos ..> SrvEleccion : <<uses>>
+CtrlPadron ..> SrvPadron : <<uses>>
+CtrlMesas ..> SrvMesa : <<uses>>
+CtrlVotos ..> SrvVotacion : <<uses>>
+CtrlComputo ..> SrvComputo : <<uses>>
+
+' Servicios de Negocio -> Auditoría
+SrvVotacion ..> SrvAuditoria : <<uses>>
+SrvMesa ..> SrvAuditoria : <<uses>>
+SrvComputo ..> SrvAuditoria : <<uses>>
+
+' Servicios de Negocio -> Acceso a Datos (DAO)
+SrvAuth ..> CompDao : <<uses>>
+SrvEleccion ..> CompDao : <<uses>>
+SrvPadron ..> CompDao : <<uses>>
+SrvMesa ..> CompDao : <<uses>>
+SrvVotacion ..> CompDao : <<uses>>
+SrvComputo ..> CompDao : <<uses>>
+SrvAuditoria ..> CompDao : <<uses>>
+
+' Acceso a Datos -> Motor de Base de Datos
+CompPool ..> CompBD : <<JDBC / TCP 3306>>
+
+@enduml

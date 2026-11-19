@@ -1,38 +1,131 @@
-@startuml Diagrama_Despliegue
-node "Dispositivo del Usuario (PC/Móvil)" as Cliente {
-    node "Navegador Web" {
-        component "Frontend (HTML/CSS/JS o SPA)" as SPA
-    }
+@startuml Diagrama_Despliegue_RationalRose
+' ==============================================================================
+' DIAGRAMA DE DESPLIEGUE - SISTEMA DE ELECCIONES DOCENTES UNP
+' Estilo: Rational Rose (UML 1.4 - Deployment View)
+' Paleta: Bordes color vino / burgundy (#8B1C3F), texto Arial
+' Distinción Rose:
+'   - PROCESSORS: Cajas con sombreado gris (#D5D8DC) -> Procesamiento / CPU
+'   - DEVICES:    Cajas normales blancas (#FFFFFF)   -> Hardware / Comunicación
+' ==============================================================================
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam defaultFontColor #000000
+
+' Configuración base de nodos (cubos 3D de Rational Rose)
+skinparam node {
+    BorderColor #8B1C3F
+    BackgroundColor #FFFFFF
+    FontColor #000000
+    FontSize 11
 }
 
-node "Servidor de Aplicaciones" as AppServer {
-    node "Contenedor Web (e.g., Tomcat / Node / Gunicorn)" {
-        component "Aplicación Backend (MVC)" as Backend {
-            component "Controladores"
-            component "Lógica de Negocio"
-            component "Acceso a Datos (ORM/DAO)"
-        }
-    }
+' Procesadores: Sombreados en gris (CPU / Ejecución de software)
+skinparam node<<Processor>> {
+    BackgroundColor #D5D8DC
+    BorderColor #8B1C3F
 }
 
-node "Servidor de Base de Datos" as DBServer {
-    database "RDBMS (PostgreSQL / MySQL)" as BD {
-        artifact "Esquema Elecciones"
-        artifact "Esquema Padrón"
-    }
+' Dispositivos: Normales en blanco (Dispositivos físicos / red / periféricos)
+skinparam node<<Device>> {
+    BackgroundColor #FFFFFF
+    BorderColor #8B1C3F
 }
 
-SPA -- Backend : HTTPS / API REST
-Backend -- BD : TCP/IP (JDBC/ODBC/ORM Driver)
+skinparam arrow {
+    Color #8B1C3F
+    FontColor #000000
+    FontSize 10
+}
 
-note right of Cliente
-  Accesible desde navegadores
-  web estándar (RNF03)
-end note
+title **Diagrama de Despliegue - Sistema de Votaciones UNP**\n(Arquitectura Física Completa en Estilo Rational Rose)
 
-note right of AppServer
-  Escalable para soportar
-  votación concurrente (RNF04)
-end note
+' ==============================================================================
+' 1. CENTRO DE CÓMPUTO / DATA CENTER UNP (SERVIDORES Y EQUIPOS CORE)
+' ==============================================================================
+node "ServidorWeb\n<<Processor>>\n[Proxy Nginx / React SPA]" as ServidorWeb <<Processor>> #D5D8DC
+node "ServidorAplicaciones\n<<Processor>>\n[Spring Boot 3 API REST]" as ServidorApp <<Processor>> #D5D8DC
+node "ServidorBaseDatos\n<<Processor>>\n[MariaDB 11 / 56 Tablas, SPs]" as ServidorBD <<Processor>> #D5D8DC
+node "ServidorAuditoriaBackups\n<<Processor>>\n[Logs y Respaldos en Frío]" as ServidorAuditoria <<Processor>> #D5D8DC
+
+node "Switch_Core_Datacenter\n<<Device>>\n[Switch Gigabit Core]" as SwitchCore <<Device>> #FFFFFF
+node "Firewall_Perimetral\n<<Device>>\n[Seguridad Perimetral UNP]" as Firewall <<Device>> #FFFFFF
+node "Sistema_UPS_Datacenter\n<<Device>>\n[Energía Ininterrumpida]" as UPSDatacenter <<Device>> #FFFFFF
+
+' ==============================================================================
+' 2. RED TRONCAL Y DISTRIBUCIÓN DEL CAMPUS UNP
+' ==============================================================================
+node "Router_Principal_UNP\n<<Device>>\n[Router Troncal Campus]" as RouterPrincipal <<Device>> #FFFFFF
+node "Switch_Distribucion_Campus\n<<Device>>\n[Distribución a Pabellones]" as SwitchCampus <<Device>> #FFFFFF
+
+' ==============================================================================
+' 3. SEDE CENTRAL CEUNP (COMITÉ ELECTORAL UNIVERSITARIO)
+' ==============================================================================
+node "Switch_CEUNP\n<<Device>>\n[Switch LAN CEUNP]" as SwitchCEUNP <<Device>> #FFFFFF
+node "PC_Administrador_CEUNP\n<<Processor>>\n[Gestión y Parametrización]" as PCAdmin <<Processor>> #D5D8DC
+node "PC_Fiscalizador_Personeros\n<<Processor>>\n[Supervisión Electoral]" as PCFiscalizador <<Processor>> #D5D8DC
+
+' ==============================================================================
+' 4. AULA DE VOTACIÓN Y MESAS DE SUFRAGIO (JORNADA ELECTORAL)
+' ==============================================================================
+node "Switch_Mesa_Electoral\n<<Device>>\n[Switch LAN Aula Votación]" as SwitchMesa <<Device>> #FFFFFF
+node "PC_Mesa_Sufragio\n<<Processor>>\n[Presidente de Mesa / Padrón]" as PCMesa <<Processor>> #D5D8DC
+node "Terminal_Cabina_Votacion\n<<Processor>>\n[PC Cabina / Voto Secreto]" as PCCabina <<Processor>> #D5D8DC
+
+node "Lector_Optico_QR\n<<Device>>\n[Escáner QR en Mesa]" as LectorQR <<Device>> #FFFFFF
+node "Impresora_Termica_Actas\n<<Device>>\n[Impresión de Actas/Tickets]" as ImpresoraMesa <<Device>> #FFFFFF
+
+' ==============================================================================
+' 5. ACCESO INALÁMBRICO Y DISPOSITIVOS DE DOCENTES ELECTORES
+' ==============================================================================
+node "AccessPoint_WiFi_Campus\n<<Device>>\n[Wi-Fi Docente Seguro]" as AccessPoint <<Device>> #FFFFFF
+node "Laptop_Docente_Elector\n<<Processor>>\n[Consulta Padrón / Actas]" as LaptopDocente <<Processor>> #D5D8DC
+node "Smartphone_Docente_Elector\n<<Processor>>\n[Pase QR / Resultados]" as MovilDocente <<Processor>> #D5D8DC
+
+' ==============================================================================
+' CONEXIONES FÍSICAS (CONNECTION EN RATIONAL ROSE)
+' ==============================================================================
+
+' Conexiones internas del Data Center
+ServidorWeb -right- SwitchCore : Conexión FastEthernet (HTTP/HTTPS)
+ServidorApp -right- SwitchCore : Conexión Gigabit (API REST)
+ServidorBD -right- SwitchCore : Conexión Gigabit (JDBC 3306)
+ServidorAuditoria -right- SwitchCore : Conexión Gigabit (Logs/Respaldos)
+UPSDatacenter -right- SwitchCore : Monitoreo SNMP
+
+' Data Center hacia Perímetro y Router Central
+SwitchCore -down- Firewall : Enlace de Fibra Óptica
+Firewall -down- RouterPrincipal : Enlace Perimetral Seguro
+RouterPrincipal -down- SwitchCampus : Enlace Troncal Campus
+
+' Distribución hacia Sede CEUNP
+SwitchCampus -left- SwitchCEUNP : Red Cableada CEUNP
+SwitchCEUNP -down- PCAdmin : Red LAN Ethernet
+SwitchCEUNP -down- PCFiscalizador : Red LAN Ethernet
+
+' Distribución hacia Aula de Votación (Mesas)
+SwitchCampus -down- SwitchMesa : Red Cableada Mesas
+SwitchMesa -down- PCMesa : Red LAN Ethernet
+SwitchMesa -down- PCCabina : Red LAN Segura (VLAN Votación)
+
+' Periféricos en la Mesa Electoral
+PCMesa -right- LectorQR : Conexión USB
+PCMesa -down- ImpresoraMesa : Conexión USB
+
+' Red Inalámbrica hacia Docentes Electores
+RouterPrincipal -right- AccessPoint : Enlace Wi-Fi 802.11ax
+AccessPoint -down- LaptopDocente : Red Wi-Fi Docente
+AccessPoint -down- MovilDocente : Red Wi-Fi / Celular
+
+' ==============================================================================
+' LEYENDA EXPLICATIVA ESTILO RATIONAL ROSE
+' ==============================================================================
+legend right
+  |<#D5D8DC>| **Processor (Caja sombreada en gris):** Equipo con CPU y capacidad de cómputo / ejecución de software. |
+  |<#FFFFFF>| **Device (Caja normal blanca):** Dispositivo de red, comunicación o periférico sin CPU general. |
+  |<#8B1C3F>| **Connection (Línea continua):** Enlace físico o de red de comunicación entre nodos. |
+endlegend
 
 @enduml

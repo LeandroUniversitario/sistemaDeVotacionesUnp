@@ -1,0 +1,155 @@
+@startuml Diagrama_Componentes
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam roundcorner 8
+skinparam shadowing true
+skinparam packageBackgroundColor #FDFEFE
+skinparam packageBorderColor #7F8C8D
+skinparam componentBackgroundColor #EBF5FB
+skinparam componentBorderColor #2980B9
+skinparam interfaceBackgroundColor #FADBD8
+skinparam interfaceBorderColor #C0392B
+skinparam databaseBackgroundColor #E8F8F5
+skinparam databaseBorderColor #16A085
+
+title **DIAGRAMA DE COMPONENTES - SISTEMA DE ELECCIONES DOCENTES UNP**\n(Arquitectura en 3 Capas: Frontend React SPA, Backend Spring Boot y Motor de Reglas en MariaDB)
+
+' ============================================================================
+' CAPA DE PRESENTACIÓN (FRONTEND SPA - REACT / VITE)
+' ============================================================================
+package "Capa de Presentación (Frontend SPA - React 19 / Vite)" as CapaFrontend {
+    
+    component [Módulo de Autenticación & Cuenta\n(LoginPage, CuentaPage, CambiarPassword)] as CompAuthUI
+    component [Módulo de Preparación Electoral\n(Convocatoria, Padrón, Listas, Tachas, Sorteos)] as CompPrepUI
+    component [Módulo de Mesa de Sufragio & Cabina\n(Instalación, Verificación, Terminal Cabina, Cierre)] as CompVotoUI
+    component [Módulo de Escrutinio, Cómputo & Resultados\n(Escrutinio, Impugnaciones, Cómputo, Portal Resultados)] as CompResultadosUI
+    component [Módulo de Administración & Auditoría\n(Gestión Usuarios, Parámetros, Bitácora, Respaldos)] as CompAdminUI
+    
+    component [Servicio Cliente HTTP\n(apiClient.js / Fetch + Axios)] as CompApiClient
+    component [Motor Lector QR\n(jsQR / Canvas WebCam Scanner)] as CompLectorQR
+    component [Generador de Credenciales & Actas\n(SVG / QRCode Encoder / PDF Reports)] as CompGeneradorDocs
+
+    CompAuthUI ..> CompApiClient : usa
+    CompPrepUI ..> CompApiClient : usa
+    CompVotoUI ..> CompApiClient : usa
+    CompResultadosUI ..> CompApiClient : usa
+    CompAdminUI ..> CompApiClient : usa
+
+    CompVotoUI ..> CompLectorQR : escaneo QR
+    CompPrepUI ..> CompGeneradorDocs : genera credenciales
+    CompResultadosUI ..> CompGeneradorDocs : genera actas
+}
+
+' ============================================================================
+' INTERFACES REST EXPUESTAS POR EL BACKEND
+' ============================================================================
+interface "IAuthService\n(/api/auth/**)" as IAuthAPI
+interface "IElectoralService\n(/api/procesos/**, /api/listas/**, /api/sorteos/**)" as IElectoralAPI
+interface "IVotingCabinaService\n(/api/mesas/**, /api/cabina/**, /api/votos/**)" as IVotingAPI
+interface "IResultsPublicService\n(/api/computo/**, /api/resultados/**, /api/publico/**)" as IResultsAPI
+interface "IAdminAuditoriaService\n(/api/admin/**, /api/bitacora/**, /api/parametros/**)" as IAdminAPI
+
+CompApiClient ..> IAuthAPI : HTTP/JSON (JWT)
+CompApiClient ..> IElectoralAPI : HTTP/JSON (JWT)
+CompApiClient ..> IVotingAPI : HTTP/JSON (Device Token / JWT)
+CompApiClient ..> IResultsAPI : HTTP/JSON (Público)
+CompApiClient ..> IAdminAPI : HTTP/JSON (JWT ADMIN)
+
+' ============================================================================
+' CAPA DE LÓGICA DE NEGOCIO Y APLICACIÓN (BACKEND SPRING BOOT)
+' ============================================================================
+package "Capa de Aplicación y Lógica de Negocio (Backend Spring Boot 3.5.6)" as CapaBackend {
+    
+    package "Módulo de Seguridad & Filtros" as SubSeguridad {
+        component [Filtro de Autenticación JWT\n(JwtAuthenticationFilter)] as CompJwtFilter
+        component [Limitador de Peticiones\n(LimitePeticionesFilter / RateLimiter)] as CompRateLimiter
+        component [Configuración de Seguridad\n(SecurityConfig - Stateless)] as CompSecConfig
+    }
+
+    package "Capa de Controladores REST (Boundary)" as SubBoundary {
+        component [Controladores de Acceso y Cuenta\n(AuthController, DocentePortalController)] as CtrlAuth
+        component [Controladores de Proceso y Padrón\n(ProcesoController, PadronController, ImportacionDocenteController)] as CtrlProceso
+        component [Controladores de Candidaturas y Sorteo\n(InscripcionController, TachasController, SorteoMesaController)] as CtrlCandidaturas
+        component [Controladores de Mesa y Cabina de Votación\n(MesaController, CabinaController, TerminalVotacionController)] as CtrlMesa
+        component [Controladores de Cómputo, Multas y Resultados\n(EscrutinioController, ComputoController, NulidadesController, MultasController, PublicoController)] as CtrlComputo
+        component [Controladores de Administración y Bitácora\n(AdministracionController, BitacoraController)] as CtrlAdmin
+    }
+
+    IAuthAPI - CtrlAuth
+    IElectoralAPI - CtrlProceso
+    IElectoralAPI - CtrlCandidaturas
+    IVotingAPI - CtrlMesa
+    IResultsAPI - CtrlComputo
+    IAdminAPI - CtrlAdmin
+
+    SubBoundary ..> SubSeguridad : validado por
+
+    package "Capa de Lógica de Negocio (Control / Services)" as SubControl {
+        component [Servicio de Usuarios & Política Password\n(UsuarioService, PoliticaPassword)] as SrvUsuario
+        component [Servicio de Importación de Docentes\n(ImportacionDocenteService)] as SrvImportacion
+        component [Servicio de Sorteos con Compromiso Criptográfico\n(PreparacionSorteo, EjecutarSorteo - Commit-Reveal)] as SrvSorteo
+        component [Servicio de Emisión y Registro de Voto\n(RegistrarVoto - Descorrelación y Token Aleatorio)] as SrvVoto
+        component [Servicio de Escrutinio y Conciliación de Cédulas\n(ConciliarVotos, GenerarActaEscrutinio)] as SrvEscrutinio
+        component [Servicio de Cómputo Oficial y Proclamación\n(ComputarProclamar, VerificarActas)] as SrvComputo
+        component [Servicio de Respaldos Cifrados AES-256-GCM\n(RespaldarBD, CifradoRespaldo)] as SrvRespaldo
+    }
+
+    CtrlAuth --> SrvUsuario
+    CtrlProceso --> SrvImportacion
+    CtrlCandidaturas --> SrvSorteo
+    CtrlMesa --> SrvVoto
+    CtrlComputo --> SrvEscrutinio
+    CtrlComputo --> SrvComputo
+    CtrlAdmin --> SrvRespaldo
+
+    package "Capa de Acceso a Datos & Enlace Transaccional" as SubDatos {
+        component [Gateway de Procedimientos Almacenados\n(ProcedimientoDao - JDBC Template)] as CompDaoProc
+        component [Repositorios Spring Data JPA\n(UsuarioRepository, DocenteRepository, etc.)] as CompJPARepos
+        component [Pool de Conexiones HikariCP\n(HikariDataSource Pool)] as CompHikari
+    }
+
+    SubControl --> CompDaoProc : invoca transacciones complejas
+    SubControl --> CompJPARepos : operaciones ORM simples
+    CompDaoProc --> CompHikari : obtiene conexión
+    CompJPARepos --> CompHikari : obtiene conexión
+}
+
+' ============================================================================
+' INTERFAZ JDBC
+' ============================================================================
+interface "JDBC Interface (TCP 3306)\n(MariaDB/MySQL Protocol)" as IJDBCConnection
+CompHikari ..> IJDBCConnection : TCP/IP Driver
+
+' ============================================================================
+' CAPA DE PERSISTENCIA Y REGLAS (BASE DE DATOS MARIADB / MYSQL)
+' ============================================================================
+package "Capa de Persistencia y Reglas de Negocio (MariaDB / MySQL: elecciones_unp)" as CapaBD {
+    
+    component [Motor de Procedimientos Almacenados\n(80 Stored Procedures Transaccionales ACID)] as CompSPs
+    component [Motor de Disparadores de Reglas de Negocio\n(79 Triggers - RN01 a RN36)] as CompTriggers
+    component [Funciones Criptográficas y de Validación\n(fn_bytes_aleatorios, fn_participacion_cargo)] as CompFunciones
+    component [Vistas de Consulta Segura y Transparencia\n(35 Vistas Desnormalizadas)] as CompVistas
+    
+    database "Esquema Relacional de Tablas (56 Tablas)" as CompTablas {
+        folder "Padrón y Usuarios" as TblPadron
+        folder "Procesos, Listas y Sorteos" as TblProcesos
+        folder "Jornada, Mesas y Cabinas" as TblMesas
+        folder "Votos Anonimizados & Constancias" as TblVotos
+        folder "Actas, Escrutinio y Cómputo" as TblActas
+        folder "Multas, Omisos e Impugnaciones" as TblMultas
+        folder "Bitácora Criptográfica (Hash Chain)" as TblBitacora
+    }
+
+    IJDBCConnection - CompSPs
+    IJDBCConnection - CompVistas
+    IJDBCConnection - CompTablas
+
+    CompSPs ..> CompTablas : modifica con transacciones
+    CompTriggers ..> CompTablas : valida en INSERT/UPDATE/DELETE
+    CompTriggers ..> CompFunciones : usa
+    CompSPs ..> CompFunciones : usa
+    CompVistas ..> CompTablas : proyecta datos
+    CompTriggers ..> TblBitacora : registra auditoría inalterable
+}
+
+@enduml
