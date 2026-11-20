@@ -533,7 +533,7 @@ export default function PantallaBitacora({ session, onSessionExpired }) {
                 <thead><tr><th className="n">N.º</th><th>Fecha y hora</th><th>Acción</th><th>Usuario</th><th>Referido a</th><th>IP / navegador</th><th /></tr></thead>
                 <tbody>
                   {(resultado?.registros ?? []).map((x) => (
-                    <tr key={x.idLog} className={`bt-fila${x.idLog === idLog ? ' ad-fila-on' : ''}`} onClick={() => setIdLog(x.idLog === idLog ? null : x.idLog)}>
+                    <tr key={x.idLog} className={`bt-fila${x.idLog === idLog ? ' ad-fila-on' : ''}`} onClick={() => setIdLog(x.idLog)}>
                       <td className="n"><code>{x.idLog}</code></td>
                       <td className="bt-fecha">{fecha(x.fechaHora)}</td>
                       <td>
@@ -552,8 +552,8 @@ export default function PantallaBitacora({ session, onSessionExpired }) {
                       </td>
                       <td>{x.ipOrigen ? <code>{x.ipOrigen}</code> : <span className="muted">—</span>}{x.userAgent && <small className="pd-sub">{navegador(x.userAgent)}</small>}</td>
                       <td className="n">
-                        <button type="button" className="cv-btn cv-btn-soft" onClick={(e) => { e.stopPropagation(); setIdLog(x.idLog === idLog ? null : x.idLog); }}>
-                          <MenuIcon name={x.idLog === idLog ? 'close' : 'eye'} size={14} /> {x.idLog === idLog ? 'Cerrar' : 'Ver'}
+                        <button type="button" className="cv-btn cv-btn-soft" onClick={(e) => { e.stopPropagation(); setIdLog(x.idLog); }} title="Ver detalle del registro en ventana emergente">
+                          <MenuIcon name="eye" size={14} /> Ver
                         </button>
                       </td>
                     </tr>
@@ -582,13 +582,6 @@ export default function PantallaBitacora({ session, onSessionExpired }) {
               </div>
             )}
           </div>
-
-          {idLog && (
-            <FichaRegistro
-              d={detalle} idLog={idLog} vista={vistaJson} setVista={setVistaJson} admin={session?.username}
-              onIr={setIdLog} onCerrar={() => setIdLog(null)} onFiltrar={filtrarPor} onDescargar={descargarJson}
-            />
-          )}
         </>
       )}
 
@@ -666,7 +659,7 @@ export default function PantallaBitacora({ session, onSessionExpired }) {
                             <td><small>{a.detalle}</small></td>
                             <td className="n">
                               {a.tipo !== 'FINAL_ELIMINADO' && (
-                                <button type="button" className="cv-btn cv-btn-soft" onClick={() => { setPaso('REGISTROS'); setIdLog(a.idLog); }}>
+                                <button type="button" className="cv-btn cv-btn-soft" onClick={() => setIdLog(a.idLog)} title="Ver detalle del registro en ventana emergente">
                                   <MenuIcon name="eye" size={14} /> Ver
                                 </button>
                               )}
@@ -714,114 +707,168 @@ export default function PantallaBitacora({ session, onSessionExpired }) {
           </div>
         </>
       )}
+
+      {/* ── Ventana emergente (modal overlay) de detalle del registro ── */}
+      {idLog && (
+        <FichaRegistro
+          d={detalle} idLog={idLog} vista={vistaJson} setVista={setVistaJson} admin={session?.username}
+          onIr={setIdLog} onCerrar={() => setIdLog(null)} onFiltrar={filtrarPor} onDescargar={descargarJson}
+        />
+      )}
     </div>
   );
 }
 
-/** 6 seleccionarRegistro → 9 mostrarDetalleJSON: ficha del registro con su detalle, su sello y su contexto. */
+/** 6 seleccionarRegistro → 9 mostrarDetalleJSON: ficha del registro con su detalle, su sello y su contexto en ventana emergente (modal). */
 function FichaRegistro({ d, idLog, vista, setVista, admin, onIr, onCerrar, onFiltrar, onDescargar }) {
-  if (!d || d.registro.idLog !== idLog) {
-    return <div className="panel cv-form ad-ficha"><p className="muted">Cargando el registro N.º {idLog}…</p></div>;
-  }
-  const x = d.registro;
-  const selloOk = si(x.contenidoIntegro) && si(x.enlaceValido);
-  const filas = d.detalle != null ? pares(d.detalle) : [];
-  const textoJson = d.detalle != null ? JSON.stringify(d.detalle, null, 2) : (x.detalleJson ?? '');
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onCerrar();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onCerrar]);
+
+  const cargando = !d || d.registro?.idLog !== idLog;
+  const x = d?.registro;
+  const selloOk = x ? si(x.contenidoIntegro) && si(x.enlaceValido) : false;
+  const filas = d?.detalle != null ? pares(d.detalle) : [];
+  const textoJson = d?.detalle != null ? JSON.stringify(d.detalle, null, 2) : (x?.detalleJson ?? '');
 
   return (
-    <div className="panel cv-form ad-ficha bt-ficha">
-      <div className="cv-section-head">
-        <div>
-          <h3>Registro N.º {x.idLog} <span className={`cv-estado ${selloOk ? 'votacion' : 'anulado'}`}>{selloOk ? 'Sello válido' : 'Sello no válido'}</span></h3>
-          <p className="muted">{x.etiqueta} · {fecha(x.fechaHora)}{x.descripcionAccion ? ` · ${x.descripcionAccion}` : ''}</p>
-        </div>
-        <div className="cs-acciones-head">
-          <button type="button" className="cv-btn cv-btn-ghost" disabled={!x.idAnterior} onClick={() => onIr(x.idAnterior)} title="Registro anterior de la cadena">‹ N.º {x.idAnterior ?? '—'}</button>
-          <button type="button" className="cv-btn cv-btn-ghost" disabled={!x.idSiguiente} onClick={() => onIr(x.idSiguiente)} title="Registro siguiente de la cadena">N.º {x.idSiguiente ?? '—'} ›</button>
-          <button type="button" className="cv-btn cv-btn-ghost" onClick={onCerrar}><MenuIcon name="close" size={15} /> Cerrar</button>
-        </div>
-      </div>
-
-      <dl className="mx-datos cp-meta">
-        <div><dt>Acción</dt><dd>{x.etiqueta}<small className="pd-sub"><code>{x.accion}</code></small></dd></div>
-        <div><dt>Módulo y criticidad</dt><dd className="bt-etiquetas"><Modulo valor={x.modulo} caso={x.casoUso} /><Criticidad valor={x.criticidad} /></dd></div>
-        <div><dt>Usuario</dt><dd>{x.username ? <>{x.username}<small className="pd-sub">{rolTexto(x.rol)}{x.usuarioDocente ? ` · ${x.usuarioDocente}` : ''}</small></> : 'Sin cuenta (sistema o elector)'}</dd></div>
-        <div><dt>Fecha y hora</dt><dd>{fecha(x.fechaHora)}</dd></div>
-        <div><dt>Docente referido</dt><dd>{x.docente ? <>{x.docente}<small className="pd-sub">DNI {x.dniDocente} · N.º {x.idDocente}</small></> : '—'}</dd></div>
-        <div><dt>Proceso</dt><dd>{x.proceso ?? '—'}</dd></div>
-        <div><dt>IP de origen</dt><dd>{x.ipOrigen ? <code>{x.ipOrigen}</code> : '—'}</dd></div>
-        <div><dt>Navegador</dt><dd>{navegador(x.userAgent) ?? '—'}{x.userAgent && <small className="pd-sub bt-ua" title={x.userAgent}>{x.userAgent}</small>}</dd></div>
-      </dl>
-
-      {x.accion === 'EMITIR_VOTO' && (
-        <div className="mx-mensaje info" role="note">
-          <MenuIcon name="lock" size={18} />
-          <div><h4>Secreto del voto (RNF05)</h4><p>El registro solo dice que el docente votó por el cargo; la opción elegida nunca se guarda en la bitácora.</p></div>
-        </div>
-      )}
-
-      <div className="bt-json">
-        <div className="bt-json-head">
-          <h4>Detalle registrado <small>detalle_json</small></h4>
-          <div className="cq-chips" role="group" aria-label="Vista del detalle">
-            <button type="button" className={`cq-chip${vista === 'LEGIBLE' ? ' on' : ''}`} onClick={() => setVista('LEGIBLE')}>Legible</button>
-            <button type="button" className={`cq-chip${vista === 'JSON' ? ' on' : ''}`} onClick={() => setVista('JSON')}>JSON</button>
+    <div
+      className="modal-overlay bt-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bt-modal-titulo"
+      onClick={(e) => { if (e.target === e.currentTarget) onCerrar(); }}
+    >
+      <div className="modal-card bt-modal-card">
+        <div className="bt-modal-head">
+          <div>
+            <h3 id="bt-modal-titulo" className="bt-modal-titulo">
+              Registro N.º {idLog}{' '}
+              {!cargando && (
+                <span className={`cv-estado ${selloOk ? 'votacion' : 'anulado'}`}>
+                  {selloOk ? 'Sello válido' : 'Sello no válido'}
+                </span>
+              )}
+            </h3>
+            <p className="muted">
+              {cargando
+                ? 'Consultando detalle y validando sello criptográfico…'
+                : `${x.etiqueta} · ${fecha(x.fechaHora)}${x.descripcionAccion ? ` · ${x.descripcionAccion}` : ''}`}
+            </p>
+          </div>
+          <div className="cs-acciones-head">
+            {!cargando && (
+              <>
+                <button type="button" className="cv-btn cv-btn-ghost" disabled={!x.idAnterior} onClick={() => onIr(x.idAnterior)} title="Registro anterior de la cadena">‹ N.º {x.idAnterior ?? '—'}</button>
+                <button type="button" className="cv-btn cv-btn-ghost" disabled={!x.idSiguiente} onClick={() => onIr(x.idSiguiente)} title="Registro siguiente de la cadena">N.º {x.idSiguiente ?? '—'} ›</button>
+              </>
+            )}
+            <button type="button" className="cv-btn cv-btn-ghost bt-modal-btn-cerrar" onClick={onCerrar} title="Cerrar ventana emergente (Esc)">
+              <MenuIcon name="close" size={15} /> Cerrar
+            </button>
           </div>
         </div>
-        {!x.detalleJson ? <p className="muted">El registro no tiene detalle.</p>
-          : !si(d.detalleValido) ? <pre className="bt-pre">{x.detalleJson}</pre>
-            : vista === 'JSON' ? <pre className="bt-pre">{textoJson}</pre>
-              : (
-                <table className="bt-pares">
-                  <tbody>{filas.map(([k, v]) => <tr key={k}><th>{claveLegible(k)}</th><td>{v == null || v === '' ? <span className="muted">—</span> : String(v)}</td></tr>)}</tbody>
-                </table>
+
+        <div className="bt-modal-body">
+          {cargando ? (
+            <div className="bt-modal-cargando">
+              <p className="muted">Cargando el registro N.º {idLog}…</p>
+            </div>
+          ) : (
+            <>
+              <dl className="mx-datos cp-meta">
+                <div><dt>Acción</dt><dd>{x.etiqueta}<small className="pd-sub"><code>{x.accion}</code></small></dd></div>
+                <div><dt>Módulo y criticidad</dt><dd className="bt-etiquetas"><Modulo valor={x.modulo} caso={x.casoUso} /><Criticidad valor={x.criticidad} /></dd></div>
+                <div><dt>Usuario</dt><dd>{x.username ? <>{x.username}<small className="pd-sub">{rolTexto(x.rol)}{x.usuarioDocente ? ` · ${x.usuarioDocente}` : ''}</small></> : 'Sin cuenta (sistema o elector)'}</dd></div>
+                <div><dt>Fecha y hora</dt><dd>{fecha(x.fechaHora)}</dd></div>
+                <div><dt>Docente referido</dt><dd>{x.docente ? <>{x.docente}<small className="pd-sub">DNI {x.dniDocente} · N.º {x.idDocente}</small></> : '—'}</dd></div>
+                <div><dt>Proceso</dt><dd>{x.proceso ?? '—'}</dd></div>
+                <div><dt>IP de origen</dt><dd>{x.ipOrigen ? <code>{x.ipOrigen}</code> : '—'}</dd></div>
+                <div><dt>Navegador</dt><dd>{navegador(x.userAgent) ?? '—'}{x.userAgent && <small className="pd-sub bt-ua" title={x.userAgent}>{x.userAgent}</small>}</dd></div>
+              </dl>
+
+              {x.accion === 'EMITIR_VOTO' && (
+                <div className="mx-mensaje info" role="note">
+                  <MenuIcon name="lock" size={18} />
+                  <div><h4>Secreto del voto (RNF05)</h4><p>El registro solo dice que el docente votó por el cargo; la opción elegida nunca se guarda en la bitácora.</p></div>
+                </div>
               )}
-      </div>
 
-      <div className="bt-hashes">
-        <div><span>Sello anterior</span><code>{x.hashAnterior ?? '—'}</code><small className={si(x.enlaceValido) ? 'bt-bien' : 'bt-mal'}>{si(x.enlaceValido) ? '✓ enlazado al registro anterior' : '✗ no coincide con el registro anterior'}</small></div>
-        <div><span>Sello del registro</span><code>{x.hashRegistro ?? '—'}</code><small className={si(x.contenidoIntegro) ? 'bt-bien' : 'bt-mal'}>{si(x.contenidoIntegro) ? '✓ el contenido no cambió' : `✗ recalculado: ${x.hashCalculado?.slice(0, 16)}…`}</small></div>
-      </div>
+              <div className="bt-json">
+                <div className="bt-json-head">
+                  <h4>Detalle registrado <small>detalle_json</small></h4>
+                  <div className="cq-chips" role="group" aria-label="Vista del detalle">
+                    <button type="button" className={`cq-chip${vista === 'LEGIBLE' ? ' on' : ''}`} onClick={() => setVista('LEGIBLE')}>Legible</button>
+                    <button type="button" className={`cq-chip${vista === 'JSON' ? ' on' : ''}`} onClick={() => setVista('JSON')}>JSON</button>
+                  </div>
+                </div>
+                {!x.detalleJson ? <p className="muted">El registro no tiene detalle.</p>
+                  : !si(d.detalleValido) ? <pre className="bt-pre">{x.detalleJson}</pre>
+                    : vista === 'JSON' ? <pre className="bt-pre">{textoJson}</pre>
+                      : (
+                        <table className="bt-pares">
+                          <tbody>{filas.map(([k, v]) => <tr key={k}><th>{claveLegible(k)}</th><td>{v == null || v === '' ? <span className="muted">—</span> : String(v)}</td></tr>)}</tbody>
+                        </table>
+                      )}
+              </div>
 
-      <div className="cv-actions cp-izq ad-botones">
-        <button type="button" className="cv-btn cv-btn-ghost" onClick={() => navigator.clipboard?.writeText(textoJson)} disabled={!x.detalleJson}><MenuIcon name="key" size={15} /> Copiar JSON</button>
-        <button type="button" className="cv-btn cv-btn-ghost" onClick={onDescargar}><MenuIcon name="download" size={15} /> Descargar JSON</button>
-        <button type="button" className="cv-btn cv-btn-ghost" onClick={() => imprimirRegistro(d, admin)}><MenuIcon name="file" size={15} /> Imprimir ficha</button>
-        <button type="button" className="cv-btn cv-btn-soft" onClick={() => onFiltrar({ accion: x.accion })}><MenuIcon name="filter" size={14} /> Misma acción</button>
-        {x.idUsuario != null && <button type="button" className="cv-btn cv-btn-soft" onClick={() => onFiltrar({ idUsuario: String(x.idUsuario) })}><MenuIcon name="user" size={14} /> Acciones de {x.username} ({x.accionesUsuario})</button>}
-        {x.idProceso != null && <button type="button" className="cv-btn cv-btn-soft" onClick={() => onFiltrar({ idProceso: String(x.idProceso) })}><MenuIcon name="calendar" size={14} /> Mismo proceso ({x.accionesProceso})</button>}
-        {x.idDocente != null && <button type="button" className="cv-btn cv-btn-soft" onClick={() => onFiltrar({ idDocente: String(x.idDocente) })}><MenuIcon name="person" size={14} /> Sobre el mismo docente</button>}
-        {x.ipOrigen && <button type="button" className="cv-btn cv-btn-soft" onClick={() => onFiltrar({ ip: x.ipOrigen })}><MenuIcon name="search" size={14} /> Misma IP</button>}
-      </div>
+              <div className="bt-hashes">
+                <div><span>Sello anterior</span><code>{x.hashAnterior ?? '—'}</code><small className={si(x.enlaceValido) ? 'bt-bien' : 'bt-mal'}>{si(x.enlaceValido) ? '✓ enlazado al registro anterior' : '✗ no coincide con el registro anterior'}</small></div>
+                <div><span>Sello del registro</span><code>{x.hashRegistro ?? '—'}</code><small className={si(x.contenidoIntegro) ? 'bt-bien' : 'bt-mal'}>{si(x.contenidoIntegro) ? '✓ el contenido no cambió' : `✗ recalculado: ${x.hashCalculado?.slice(0, 16)}…`}</small></div>
+              </div>
 
-      <div className="ad-actividad">
-        <div>
-          <h4>{x.idUsuario != null ? `${x.username}: 30 minutos antes y después` : 'Registros vecinos de la cadena'}</h4>
-          <ul>
-            {d.contexto.map((c) => (
-              <li key={c.idLog} style={{ borderLeftColor: CRITICIDAD[c.criticidad]?.color }}>
-                <button type="button" className="bt-enlace" onClick={() => onIr(c.idLog)}>
-                  <strong>N.º {c.idLog} · {c.etiqueta}</strong>
-                  <small>{fecha(c.fechaHora)}{c.username && x.idUsuario == null ? ` · ${c.username}` : ''}{c.proceso ? ` · ${c.proceso}` : ''}</small>
-                </button>
-              </li>
-            ))}
-            {d.contexto.length === 0 && <li><small>Sin otras acciones en ese intervalo.</small></li>}
-          </ul>
-        </div>
-        <div>
-          <h4>Sobre el mismo docente</h4>
-          <ul>
-            {d.mismoDocente.map((c) => (
-              <li key={c.idLog} style={{ borderLeftColor: CRITICIDAD[c.criticidad]?.color }}>
-                <button type="button" className="bt-enlace" onClick={() => onIr(c.idLog)}>
-                  <strong>N.º {c.idLog} · {c.etiqueta}</strong>
-                  <small>{fecha(c.fechaHora)}{c.username ? ` · ${c.username}` : ''}{c.proceso ? ` · ${c.proceso}` : ''}</small>
-                </button>
-              </li>
-            ))}
-            {d.mismoDocente.length === 0 && <li><small>{x.idDocente ? 'Sin otros registros del docente.' : 'El registro no se refiere a un docente.'}</small></li>}
-          </ul>
+              <div className="cv-actions cp-izq ad-botones">
+                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => navigator.clipboard?.writeText(textoJson)} disabled={!x.detalleJson}><MenuIcon name="key" size={15} /> Copiar JSON</button>
+                <button type="button" className="cv-btn cv-btn-ghost" onClick={onDescargar}><MenuIcon name="download" size={15} /> Descargar JSON</button>
+                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => imprimirRegistro(d, admin)}><MenuIcon name="file" size={15} /> Imprimir ficha</button>
+                <button type="button" className="cv-btn cv-btn-soft" onClick={() => onFiltrar({ accion: x.accion })}><MenuIcon name="filter" size={14} /> Misma acción</button>
+                {x.idUsuario != null && <button type="button" className="cv-btn cv-btn-soft" onClick={() => onFiltrar({ idUsuario: String(x.idUsuario) })}><MenuIcon name="user" size={14} /> Acciones de {x.username} ({x.accionesUsuario})</button>}
+                {x.idProceso != null && <button type="button" className="cv-btn cv-btn-soft" onClick={() => onFiltrar({ idProceso: String(x.idProceso) })}><MenuIcon name="calendar" size={14} /> Mismo proceso ({x.accionesProceso})</button>}
+                {x.idDocente != null && <button type="button" className="cv-btn cv-btn-soft" onClick={() => onFiltrar({ idDocente: String(x.idDocente) })}><MenuIcon name="person" size={14} /> Sobre el mismo docente</button>}
+                {x.ipOrigen && <button type="button" className="cv-btn cv-btn-soft" onClick={() => onFiltrar({ ip: x.ipOrigen })}><MenuIcon name="search" size={14} /> Misma IP</button>}
+              </div>
+
+              <div className="ad-actividad">
+                <div>
+                  <h4>{x.idUsuario != null ? `${x.username}: 30 minutos antes y después` : 'Registros vecinos de la cadena'}</h4>
+                  <ul>
+                    {d.contexto.map((c) => (
+                      <li key={c.idLog} style={{ borderLeftColor: CRITICIDAD[c.criticidad]?.color }}>
+                        <button type="button" className="bt-enlace" onClick={() => onIr(c.idLog)}>
+                          <strong>N.º {c.idLog} · {c.etiqueta}</strong>
+                          <small>{fecha(c.fechaHora)}{c.username && x.idUsuario == null ? ` · ${c.username}` : ''}{c.proceso ? ` · ${c.proceso}` : ''}</small>
+                        </button>
+                      </li>
+                    ))}
+                    {d.contexto.length === 0 && <li><small>Sin otras acciones en ese intervalo.</small></li>}
+                  </ul>
+                </div>
+                <div>
+                  <h4>Sobre el mismo docente</h4>
+                  <ul>
+                    {d.mismoDocente.map((c) => (
+                      <li key={c.idLog} style={{ borderLeftColor: CRITICIDAD[c.criticidad]?.color }}>
+                        <button type="button" className="bt-enlace" onClick={() => onIr(c.idLog)}>
+                          <strong>N.º {c.idLog} · {c.etiqueta}</strong>
+                          <small>{fecha(c.fechaHora)}{c.username ? ` · ${c.username}` : ''}{c.proceso ? ` · ${c.proceso}` : ''}</small>
+                        </button>
+                      </li>
+                    ))}
+                    {d.mismoDocente.length === 0 && <li><small>{x.idDocente ? 'Sin otros registros del docente.' : 'El registro no se refiere a un docente.'}</small></li>}
+                  </ul>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
