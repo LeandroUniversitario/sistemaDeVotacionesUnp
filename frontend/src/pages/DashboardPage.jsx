@@ -69,6 +69,8 @@ const MENU_POR_ROL = {
     // M4: el CEUNP supervisa la jornada y puede cerrar el sufragio (CUS08, CUS11, CUS12)
     { group: 'Jornada electoral' },
     { key: 'instalacion', label: 'Instalación de mesas', icon: 'shield', color: '#0ea5e9' },
+    { key: 'verificar-elector', label: 'Verificar elector', icon: 'scan', color: '#0ea5e9' },
+    { key: 'terminal', label: 'Terminal de votación', icon: 'vote', color: '#6366f1' },
     { key: 'cierre', label: 'Cierre del sufragio', icon: 'lock', color: '#f43f5e' },
     { key: 'escrutinio', label: 'Escrutinio de mesas', icon: 'table', color: '#2563eb' },
     { group: 'Resultados' },
