@@ -1105,11 +1105,11 @@ function Expediente({
               <input type="number" min={1} max={9} required value={resolucion.miembrosPleno} disabled={saving} onChange={set('miembrosPleno')} />
             </label>
             <label className="cv-field">
-              <span className="cv-label">Votos a favor</span>
+              <span className="cv-label">Votos a favor de la decisión elegida</span>
               <input type="number" min={0} max={9} required value={resolucion.votosFavor} disabled={saving} onChange={set('votosFavor')} />
             </label>
             <label className="cv-field">
-              <span className="cv-label">Votos en contra</span>
+              <span className="cv-label">Votos en contra de la decisión elegida</span>
               <input type="number" min={0} max={9} required value={resolucion.votosContra} disabled={saving} onChange={set('votosContra')} />
             </label>
             {empate && (

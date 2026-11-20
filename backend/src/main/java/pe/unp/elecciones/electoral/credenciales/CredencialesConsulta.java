@@ -56,7 +56,23 @@ public class CredencialesConsulta {
                 """);
         if (existe == 0) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Falta la tabla credencial_qr: ejecute base-de-datos/04_credenciales_qr.sql en la base de datos.");
+                    "Falta la tabla credencial_qr: ejecute base-de-datos/actualizar_sin_borrar.sql en la base de datos.");
+        }
+        // Hallazgo G8 (recorrido 20/11/2026): una base actualizada sin la migración de credenciales
+        // daba un error 500 genérico. Se comprueban también la columna y la tabla que esa migración agrega.
+        int columna = dao.entero("""
+                SELECT COUNT(*) FROM information_schema.columns
+                 WHERE table_schema = DATABASE() AND table_name = 'credencial_qr' AND column_name = 'codigo_qr'
+                """);
+        int solicitudes = dao.entero("""
+                SELECT COUNT(*) FROM information_schema.tables
+                 WHERE table_schema = DATABASE() AND table_name = 'solicitud_regeneracion_qr'
+                """);
+        if (columna == 0 || solicitudes == 0) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "La base de datos no tiene la última versión de Credenciales QR (falta "
+                    + (columna == 0 ? "la columna credencial_qr.codigo_qr" : "la tabla solicitud_regeneracion_qr")
+                    + "): ejecute base-de-datos/actualizar_sin_borrar.sql (no borra datos).");
         }
         instalada = true;
     }

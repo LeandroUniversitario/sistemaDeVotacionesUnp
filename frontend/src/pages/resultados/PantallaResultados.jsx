@@ -333,7 +333,8 @@ export default function PantallaResultados({ session, publico = false, codigoIni
           <div className="cq-kpi" style={{ '--cq-color': '#2563eb' }}>
             <span>Participación <em>RN31</em></span>
             <strong>{pct(p.participacionPct)}</strong>
-            <small>{p.votaron ?? 0} de {p.electoresHabiles ?? 0} electores · mínimo {pct(p.quorumMinimo)}</small>
+            <small>{p.votaron ?? 0} de {p.electoresHabiles ?? 0} electores · mínimo {pct(p.quorumMinimo)}
+              {p.mesasAnuladas ? ' · incluye a quienes votaron en mesas anuladas, cuyos votos no se computan' : ''}</small>
           </div>
           <div className="cq-kpi" style={{ '--cq-color': '#6366f1' }}>
             <span>Mesas <em>RF99</em></span>

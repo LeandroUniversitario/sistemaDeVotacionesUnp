@@ -768,7 +768,9 @@ export default function PantallaEscrutinio({ session, onSessionExpired, onIrImpu
                 <textarea rows={3} maxLength={1000} required={obsObligatoria} value={datosActa.observaciones} disabled={!puedeOperar || !soyPresidente || saving}
                   placeholder="Ej.: una cédula de la Lista A tenía una marca adicional y se calificó nula; tras el recuento prevalece la cédula física."
                   onChange={(e) => setDatosActa((d) => ({ ...d, observaciones: e.target.value }))} />
-                <small className="muted">{saldraObservada ? 'El acta se emitirá marcada como OBSERVADA (A5).' : 'Sin observaciones, el acta se emite sin marca.'}</small>
+                <small className="muted">{saldraObservada
+                  ? 'El acta se emitirá marcada como OBSERVADA (A5): el CEUNP tendrá que calificar la mesa con una resolución antes del cómputo. Si no hubo incidencias, deje este campo vacío (no escriba «sin incidencias»).'
+                  : 'Sin observaciones, el acta se emite sin marca. Escriba solo incidencias reales: cualquier texto marca el acta como OBSERVADA.'}</small>
               </label>
 
               <div className="cs-firmantes">

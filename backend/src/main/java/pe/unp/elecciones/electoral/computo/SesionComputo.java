@@ -40,8 +40,16 @@ public class SesionComputo {
         }
         // RN32 (todas las mesas cerradas) lo valida sp_cambiar_estado_proceso
         dao.llamar("sp_cambiar_estado_proceso", ProcedimientoDao.SIN_SALIDA, idProceso, "CERRADO", usuario.getId());
-        return respuesta("Votación concluida: el proceso pasó a CERRADO. Verifique las actas e instale la sesión de cómputo.",
-                idProceso, usuario);
+        // Hallazgo C13-1 (recorrido 20/11/2026): avisar de lo que todavía bloqueará el cómputo
+        int impugnaciones = dao.entero("""
+                SELECT COUNT(*) FROM impugnacion_electoral
+                 WHERE id_proceso = ? AND estado IN ('PRESENTADA', 'APELADA')
+                """, idProceso);
+        String aviso = impugnaciones == 0 ? ""
+                : " Atención: hay " + impugnaciones + " impugnación(es) sin resolver o apelada(s); el cómputo"
+                        + " quedará bloqueado hasta que la mesa o el CEUNP las resuelvan (CUS13).";
+        return respuesta("Votación concluida: el proceso pasó a CERRADO. Verifique las actas e instale la sesión de cómputo."
+                + aviso, idProceso, usuario);
     }
 
     /** Paso 4 (RF91): sesión de cómputo general con quórum y los personeros presentes. */

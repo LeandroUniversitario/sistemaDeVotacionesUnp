@@ -29,7 +29,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *       El bloqueo por cuenta no frena a quien prueba una clave en muchas cuentas; este sí.</li>
  *   <li>Portal público (/api/publico/**): como mucho {@code app.limites.publico-por-ip} consultas por
  *       IP por minuto, porque no exige sesión.</li>
- *   <li>Cabina (/api/cabina/**): 600 por minuto por IP, para cortar a quien pruebe secretos.</li>
+ *   <li>Cabina (/api/cabina/terminales/{id}/**): 300 peticiones por minuto por terminal y 3000 por IP.
+ *       Antes eran 600 por IP para todas las cabinas: si un local salía a Internet con una sola IP (NAT),
+ *       las cabinas se frenaban entre sí en medio de un voto (hallazgo C09-2 del recorrido del
+ *       20/11/2026). El límite por terminal sigue cortando a quien pruebe secretos.</li>
  * </ul>
  *
  * Se guarda en memoria (una instancia del backend). Detrás de un proxy, el perfil prod respeta
@@ -41,7 +44,8 @@ public class LimitePeticionesFilter extends OncePerRequestFilter {
 
     private static final Duration VENTANA_LOGIN = Duration.ofMinutes(15);
     private static final Duration VENTANA_MINUTO = Duration.ofMinutes(1);
-    private static final int MAX_CABINA = 600;
+    private static final int MAX_CABINA_TERMINAL = 300;
+    private static final int MAX_CABINA_IP = 3000;
 
     private final int maxLogin;
     private final int maxPublico;
@@ -86,14 +90,24 @@ public class LimitePeticionesFilter extends OncePerRequestFilter {
             }
             registrar(clave);
         } else if (ruta.startsWith("/api/cabina/")) {
-            String clave = "cabina|" + ip;
-            if (superado(clave, MAX_CABINA, VENTANA_MINUTO)) {
+            String claveIp = "cabina|" + ip;
+            String claveTerminal = "cabina-terminal|" + ip + "|" + terminalDe(ruta);
+            if (superado(claveTerminal, MAX_CABINA_TERMINAL, VENTANA_MINUTO)
+                    || superado(claveIp, MAX_CABINA_IP, VENTANA_MINUTO)) {
                 rechazar(response, "Demasiadas peticiones del terminal. Espere un minuto.");
                 return;
             }
-            registrar(clave);
+            registrar(claveTerminal);
+            registrar(claveIp);
         }
         chain.doFilter(request, response);
+    }
+
+    /** Id del terminal en /api/cabina/terminales/{id}/...; "?" si la ruta no lo trae. */
+    static String terminalDe(String ruta) {
+        String[] partes = ruta.split("/");
+        // ["", "api", "cabina", "terminales", "{id}", ...]
+        return partes.length > 4 && partes[4].matches("\\d{1,9}") ? partes[4] : "?";
     }
 
     /** true si la clave ya alcanzó el máximo dentro de la ventana (descarta los eventos vencidos). */

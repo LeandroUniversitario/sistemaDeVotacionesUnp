@@ -77,4 +77,32 @@ class LimitePeticionesFilterTest {
         reloj.ms += 60_001;
         assertEquals(200, publico(f, "10.0.0.4"));
     }
+
+    private static int cabina(LimitePeticionesFilter f, String ip, int terminal) throws Exception {
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/cabina/terminales/" + terminal);
+        req.setRemoteAddr(ip);
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        f.doFilter(req, res, new MockFilterChain());
+        return res.getStatus();
+    }
+
+    /** Hallazgo C09-2: las cabinas detrás de una misma IP no se frenan entre sí. */
+    @Test
+    void limitaLaCabinaPorTerminalYNoPorIp() throws Exception {
+        RelojManual reloj = new RelojManual();
+        LimitePeticionesFilter f = new LimitePeticionesFilter(20, 100, reloj);
+        for (int i = 0; i < 300; i++) {
+            assertEquals(200, cabina(f, "10.0.0.5", 1));
+        }
+        assertEquals(429, cabina(f, "10.0.0.5", 1));   // el terminal 1 llegó a su límite
+        assertEquals(200, cabina(f, "10.0.0.5", 2));   // el terminal 2 de la misma IP sigue votando
+        reloj.ms += 60_001;
+        assertEquals(200, cabina(f, "10.0.0.5", 1));
+    }
+
+    @Test
+    void extraeElTerminalDeLaRuta() {
+        assertEquals("12", LimitePeticionesFilter.terminalDe("/api/cabina/terminales/12/voto"));
+        assertEquals("?", LimitePeticionesFilter.terminalDe("/api/cabina/terminales/x"));
+    }
 }

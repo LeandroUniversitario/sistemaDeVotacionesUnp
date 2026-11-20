@@ -1077,6 +1077,13 @@ function FichaMesa({
                       <MenuIcon name="key" size={13} /> Comprobar autenticidad
                     </button>
                   )}
+                  {/* Hallazgo C14-1: si solo falló el QR (la huella del contenido coincide), se puede leer otra vez */}
+                  {puede && a.comprobacion === 'NO_AUTENTICA' && si(a.huellaCoincide) && !si(a.qrCoincide) && (
+                    <button type="button" className="cv-btn cv-btn-ghost cq-mini" disabled={saving} onClick={() => setAccion(`COMPROBAR:${a.idActa}`)}
+                      title="El contenido del acta está íntegro; solo el QR leído no correspondía. Lea el QR del ejemplar correcto.">
+                      <MenuIcon name="key" size={13} /> Volver a leer el QR
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

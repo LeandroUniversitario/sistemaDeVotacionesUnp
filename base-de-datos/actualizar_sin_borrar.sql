@@ -51,6 +51,25 @@ DELIMITER ;
 CALL sp_tmp_add_col('usuario', 'token_valido_desde', 'DATETIME(3) NULL');
 CALL sp_tmp_add_col('terminal_votacion', 'secreto_hash', 'CHAR(64) NULL');
 CALL sp_tmp_add_col('terminal_votacion', 'id_usuario_conexion', 'INT NULL');
+-- CUS07 (migración del 12/11/2026, que faltaba aquí; hallazgo G8 del recorrido del 20/11/2026)
+CALL sp_tmp_add_col('credencial_qr', 'codigo_qr', 'VARCHAR(255) NULL AFTER token_qr_hash');
+
+CREATE TABLE IF NOT EXISTS solicitud_regeneracion_qr (
+  id_solicitud        INT AUTO_INCREMENT PRIMARY KEY,
+  id_proceso          INT NOT NULL,
+  id_docente          INT NOT NULL,
+  tipo                ENUM('ELECTOR','MIEMBRO_MESA','PERSONERO') NOT NULL,
+  id_titular          INT NULL,
+  motivo              VARCHAR(255) NOT NULL,
+  estado              ENUM('PENDIENTE','APROBADA','RECHAZADA') NOT NULL DEFAULT 'PENDIENTE',
+  fecha_solicitud     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fecha_atencion      DATETIME NULL,
+  id_usuario_atencion INT NULL,
+  observacion_atencion VARCHAR(255) NULL,
+  CONSTRAINT fk_sol_proc FOREIGN KEY (id_proceso) REFERENCES proceso_electoral(id_proceso),
+  CONSTRAINT fk_sol_doc  FOREIGN KEY (id_docente) REFERENCES docente(id_docente),
+  CONSTRAINT fk_sol_usu  FOREIGN KEY (id_usuario_atencion) REFERENCES usuario(id_usuario)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP PROCEDURE IF EXISTS sp_tmp_fix_voto;
 DELIMITER $$
@@ -956,6 +975,10 @@ BEGIN
   DECLARE v_n      INT DEFAULT 0;
   DECLARE v_abiertas TEXT DEFAULT NULL;
   DECLARE v_msg    VARCHAR(255);
+  DECLARE v_limite DATETIME DEFAULT NULL;
+  DECLARE v_inicio DATETIME DEFAULT NULL;
+  DECLARE v_fin    DATETIME DEFAULT NULL;
+  DECLARE v_control INT DEFAULT 1;
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
   BEGIN
     ROLLBACK;
@@ -985,6 +1008,27 @@ BEGIN
   END IF;
 
   IF v_nuevo = 'VOTACION' THEN
+    -- RN05 / RN06 (hallazgo C01-1 del recorrido 20/11/2026): la votación solo se abre con la
+    -- inscripción cerrada y el día del sufragio, antes de la hora de fin. Con
+    -- INSTALACION_CONTROL_HORARIO = 0 (modo de pruebas) no se exige el día, pero sí el cierre
+    -- de la inscripción y que el sufragio no haya terminado.
+    SELECT fecha_limite_inscripcion, fecha_inicio, fecha_fin INTO v_limite, v_inicio, v_fin
+      FROM proceso_electoral WHERE id_proceso = p_id_proceso;
+    SET v_control = COALESCE((SELECT CAST(valor AS UNSIGNED) FROM parametro_global
+                               WHERE clave = 'INSTALACION_CONTROL_HORARIO'), 1);
+    IF v_limite IS NOT NULL AND NOW() < v_limite THEN
+      SET v_msg = CONCAT('RN05: el plazo de inscripcion de listas sigue abierto hasta el ',
+                         DATE_FORMAT(v_limite, '%d/%m/%Y %H:%i'), '; la votacion se abre despues.');
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
+    END IF;
+    IF v_fin IS NOT NULL AND NOW() >= v_fin THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RN06: la hora de fin del sufragio ya paso; no se puede abrir la votacion.';
+    END IF;
+    IF v_control = 1 AND v_inicio IS NOT NULL AND CURDATE() <> DATE(v_inicio) THEN
+      SET v_msg = CONCAT('RN06: la votacion se abre el dia del sufragio (',
+                         DATE_FORMAT(v_inicio, '%d/%m/%Y'), ').');
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
+    END IF;
     -- RN04: padrón aprobado
     SELECT COUNT(*) INTO v_n FROM padron_electoral WHERE id_proceso = p_id_proceso;
     IF v_n = 0 THEN
@@ -1262,6 +1306,9 @@ BEGIN
   IF v_estado <> 'INSCRIPCION' THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Las listas solo se califican en etapa de INSCRIPCION.';
   END IF;
+  IF v_lista_est = 'TACHADA' THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RN12: la lista quedo TACHADA por una tacha fundada; ya no se califica.';
+  END IF;
   IF v_lista_est <> 'INSCRITA' THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La lista ya fue calificada.';
   END IF;
@@ -1406,6 +1453,10 @@ BEGIN
     UPDATE candidato
        SET estado_validacion = 'EXCLUIDO', motivo_exclusion = 'Tacha declarada fundada'
      WHERE id_candidato = v_candidato;
+    -- RN12: la inscripción es en bloque; caen todos los integrantes de la lista
+    UPDATE candidato
+       SET estado_validacion = 'EXCLUIDO', motivo_exclusion = 'Lista tachada por RN12 (inscripción en bloque)'
+     WHERE id_lista = v_lista AND id_candidato <> v_candidato;
     UPDATE lista_electoral
        SET estado = 'TACHADA', orden_cedula = NULL, motivo_exclusion = 'Tacha fundada contra un integrante (RN12)'
      WHERE id_lista = v_lista;
@@ -4581,10 +4632,16 @@ END$$
 
 -- RF90: la comprobación de un acta dudosa se registra una sola vez
 DROP TRIGGER IF EXISTS trg_verificacion_bu$$
+-- RF90 excepción (hallazgo C14-1 del
+-- recorrido 20/11/2026): si salió NO_AUTENTICA solo porque el QR leído no correspondía (la huella
+-- SHA-256 del contenido sí coincide) y la mesa aún no fue calificada, se admite una nueva lectura
+-- del QR. Cada intento queda en la bitácora (COMPROBAR_ACTA).
 CREATE TRIGGER trg_verificacion_bu BEFORE UPDATE ON verificacion_acta
 FOR EACH ROW
 BEGIN
-  IF OLD.resultado IS NOT NULL THEN
+  IF OLD.resultado IS NOT NULL
+     AND NOT (OLD.resultado = 'NO_AUTENTICA' AND OLD.huella_coincide = 1
+              AND NOT EXISTS (SELECT 1 FROM calificacion_mesa WHERE id_mesa = OLD.id_mesa)) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RF90: la autenticidad de esta acta ya fue comprobada.';
   END IF;
   IF NOT (NEW.motivo_duda <=> OLD.motivo_duda) OR NOT (NEW.id_acta <=> OLD.id_acta) OR NOT (NEW.fecha_marca <=> OLD.fecha_marca) THEN
@@ -4942,6 +4999,8 @@ BEGIN
   DECLARE v_qr        INT DEFAULT NULL;
   DECLARE v_final     VARCHAR(12);
   DECLARE v_n         INT DEFAULT 0;
+  DECLARE v_huella_prev INT DEFAULT NULL;
+  DECLARE v_mesa_ver  INT DEFAULT NULL;
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
   BEGIN
     ROLLBACK;
@@ -4953,13 +5012,18 @@ BEGIN
   IF v_n = 0 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RF90: marque primero el acta como dudosa.';
   END IF;
-  SELECT v.id_proceso, v.resultado, SHA2(a.contenido_json, 256), a.hash_integridad, a.token_qr_hash
-    INTO v_proceso, v_resultado, v_hash, v_guardado, v_token_h
+  SELECT v.id_proceso, v.resultado, v.huella_coincide, v.id_mesa, SHA2(a.contenido_json, 256), a.hash_integridad, a.token_qr_hash
+    INTO v_proceso, v_resultado, v_huella_prev, v_mesa_ver, v_hash, v_guardado, v_token_h
     FROM verificacion_acta v JOIN acta_electoral a ON a.id_acta = v.id_acta
    WHERE v.id_acta = p_id_acta
      FOR UPDATE;
-  IF v_resultado IS NOT NULL THEN
+  -- C14-1: una lectura de QR equivocada no condena el acta si su contenido está íntegro
+  IF v_resultado = 'AUTENTICA' THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RF90: la autenticidad de esta acta ya fue comprobada.';
+  END IF;
+  IF v_resultado = 'NO_AUTENTICA' AND (COALESCE(v_huella_prev, 0) = 0
+       OR EXISTS (SELECT 1 FROM calificacion_mesa WHERE id_mesa = v_mesa_ver)) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RF90: el contenido del acta no coincide con su huella o la mesa ya fue calificada; solo procede la nulidad de la mesa.';
   END IF;
   IF EXISTS (SELECT 1 FROM computo_proceso WHERE id_proceso = v_proceso AND estado <> 'SESION_INSTALADA') THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RN32: las actas se verifican antes del cómputo.';
@@ -5594,6 +5658,11 @@ BEGIN
   IF v_comp IS NULL OR v_comp = 'SESION_INSTALADA' THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RN33: la segunda vuelta se convoca después del cómputo oficial.';
   END IF;
+  -- Hallazgo C14-4: primero se dice si corresponde la segunda vuelta y después se validan las fechas
+  IF NOT EXISTS (SELECT 1 FROM cargo_electoral
+                  WHERE id_proceso = p_id_proceso AND estado_resultado = 'SEGUNDA_VUELTA') THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RN33: ningun cargo de este proceso requiere segunda vuelta.';
+  END IF;
   IF p_fecha_inicio IS NULL OR p_fecha_fin IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Indique fecha de inicio y de fin de la segunda vuelta.';
   END IF;
@@ -6184,7 +6253,7 @@ BEGIN
   END IF;
   SET v_dirimente = COALESCE(p_voto_dirimente, FALSE) AND p_votos_favor = p_votos_contra;
   IF p_votos_favor < p_votos_contra OR (p_votos_favor = p_votos_contra AND NOT v_dirimente) THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RN36: la decisión requiere mayoría simple; en empate decide el voto dirimente del Presidente.';
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RN36: los votos a favor de la decisión elegida deben ser mayoría simple; en empate decide el voto dirimente del Presidente.';
   END IF;
 
   -- Etapa en que se puede resolver; si el recurso perdió su objeto solo procede IMPROCEDENTE
@@ -9063,8 +9132,11 @@ CREATE TABLE IF NOT EXISTS bitacora_cadena (
 -- ---------------------------------------------------------------------
 INSERT IGNORE INTO bitacora_accion (codigo, etiqueta, descripcion, modulo, caso_uso, criticidad, orden) VALUES
   -- Seguridad del acceso
-  ('LOGIN_SUCCESS',                  'Inicio de sesión',                      'Ingreso correcto al sistema con usuario y contraseña.', 'SEGURIDAD', 'CUS01', 'BAJA', 10),
-  ('LOGIN_FAILED',                   'Inicio de sesión fallido',              'Contraseña incorrecta, cuenta inactiva o bloqueada por intentos.', 'SEGURIDAD', 'CUS01', 'MEDIA', 20),
+  ('LOGIN_SUCCESS',                  'Inicio de sesión',                      'Ingreso correcto al sistema con usuario y contraseña.', 'SEGURIDAD', 'CUS00', 'BAJA', 10),
+  ('LOGIN_FAILED',                   'Inicio de sesión fallido',              'Contraseña incorrecta, cuenta inactiva o bloqueada por intentos.', 'SEGURIDAD', 'CUS00', 'MEDIA', 20),
+  ('LOGIN_BLOQUEADO',                'Ingreso a una cuenta bloqueada',        'Intento de ingreso mientras la cuenta está bloqueada por intentos fallidos.', 'SEGURIDAD', 'CUS00', 'ALTA', 30),
+  ('LOGIN_INACTIVO',                 'Ingreso a una cuenta inactiva',         'Intento de ingreso con una cuenta desactivada por el administrador.', 'SEGURIDAD', 'CUS00', 'MEDIA', 40),
+  ('CAMBIO_CLAVE',                   'Contraseña cambiada',                   'El usuario cambió su propia contraseña (primer ingreso o voluntario).', 'SEGURIDAD', 'CUS21', 'MEDIA', 50),
   -- Administración (CUS18) y bitácora (CUS19)
   ('CREAR_USUARIO',                  'Cuenta creada',                         'Alta de una cuenta con su rol y, si corresponde, su docente.', 'ADMINISTRACION', 'CUS18', 'MEDIA', 10),
   ('ACTUALIZAR_USUARIO',             'Rol o docente de la cuenta modificado', 'Cambio del rol o del docente asociado a la cuenta.', 'ADMINISTRACION', 'CUS18', 'ALTA', 20),
@@ -9167,6 +9239,8 @@ INSERT IGNORE INTO bitacora_accion (codigo, etiqueta, descripcion, modulo, caso_
   ('DENEGAR_JUSTIFICACION',          'Justificación denegada',                'Se denegó la justificación.', 'MULTAS', 'CUS16', 'MEDIA', 60),
   ('EXONERAR_MULTA',                 'Multa exonerada',                       'Exoneración de la multa.', 'MULTAS', 'CUS16', 'ALTA', 70),
   ('REGISTRAR_PAGO_MULTA',           'Pago de multa registrado',              'Registro del recibo de pago.', 'MULTAS', 'CUS16', 'MEDIA', 80);
+-- Hallazgo C19-2: iniciar sesión es CUS00 (el INSERT IGNORE no corrige filas ya cargadas)
+UPDATE bitacora_accion SET caso_uso = 'CUS00' WHERE codigo IN ('LOGIN_SUCCESS', 'LOGIN_FAILED');
 
 -- (Se cargan en la sección 6, junto con los demás parámetros.)
 
@@ -9659,3 +9733,15 @@ END$$
 DELIMITER ;
 
 DELIMITER ;
+
+-- ---------------------------------------------------------------------
+-- Correcciones de datos del recorrido del 20/11/2026 (hallazgo C04-1)
+-- En bases que resolvieron tachas con la versión anterior de sp_resolver_tacha, los demás
+-- integrantes de una lista TACHADA quedaron en PENDIENTE y seguían contando como candidatos
+-- (RN20/RN21). La inscripción es en bloque (RN12): se excluyen.
+-- ---------------------------------------------------------------------
+UPDATE candidato c
+  JOIN lista_electoral l ON l.id_lista = c.id_lista
+   SET c.estado_validacion = 'EXCLUIDO',
+       c.motivo_exclusion = 'Lista tachada por RN12 (inscripción en bloque)'
+ WHERE l.estado = 'TACHADA' AND c.estado_validacion = 'PENDIENTE';

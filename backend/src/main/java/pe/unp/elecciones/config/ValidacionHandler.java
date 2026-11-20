@@ -29,7 +29,12 @@ public class ValidacionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ProblemDetail formato(HttpMessageNotReadableException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
-                "Formato de datos inválido. Revise las fechas (aaaa-mm-dd / aaaa-mm-ddThh:mm:ss) y los números.");
+        // Hallazgo C03-2 (recorrido 20/11/2026): el mensaje solo hablaba de fechas y números aunque
+        // el problema fuera otro (por ejemplo, un texto con tildes enviado con otra codificación).
+        String causa = exception.getMostSpecificCause() == null ? "" : exception.getMostSpecificCause().getClass().getSimpleName();
+        String mensaje = causa.contains("CharConversion") || causa.contains("MalformedInput") || causa.contains("JsonParse")
+                ? "Los datos enviados no se pudieron leer. Revise que el texto esté en UTF-8 (tildes y eñes) y que el formato sea JSON válido."
+                : "Formato de datos inválido. Revise las fechas (aaaa-mm-dd / aaaa-mm-ddThh:mm:ss), los números y los textos.";
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, mensaje);
     }
 }
