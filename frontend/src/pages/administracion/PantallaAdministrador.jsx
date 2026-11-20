@@ -76,6 +76,19 @@ function situacion(u) {
   return { clase: 'votacion', texto: 'Activa' };
 }
 
+function generarBotonesPagina(actual, total) {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  if (actual <= 4) {
+    return [1, 2, 3, 4, 5, '...', total];
+  }
+  if (actual >= total - 3) {
+    return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+  }
+  return [1, '...', actual - 1, actual, actual + 1, '...', total];
+}
+
 export default function PantallaAdministrador({ session, onSessionExpired, seccionInicial = 'USUARIOS', ocultarTabs = false }) {
   const [detalle, setDetalle] = useState(null);
   const [paso, setPaso] = useState(seccionInicial);
@@ -85,8 +98,10 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
   const [accion, setAccion] = useState(null);      // NUEVO | EDITAR | CLAVE | DESBLOQUEAR | DESACTIVAR | ACTIVAR | ELIMINAR | PARAMETRO | RESTAURAR | RESPALDO
   const [confirmando, setConfirmando] = useState(false);
 
-  // Cuentas
+  // Cuentas y Paginación
   const [filtro, setFiltro] = useState({ rol: 'TODOS', estado: 'TODAS', texto: '' });
+  const [paginaUsuarios, setPaginaUsuarios] = useState(1);
+  const [porPaginaUsuarios, setPorPaginaUsuarios] = useState(25);
   const [idUsuario, setIdUsuario] = useState(null);
   const [actividad, setActividad] = useState(null);
   const [nuevo, setNuevo] = useState(nuevoVacio);
@@ -364,6 +379,17 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
       && (!texto || `${u.username} ${u.docente ?? ''} ${u.dni ?? ''} ${u.facultad ?? ''}`.toLowerCase().includes(texto)));
   }, [detalle, filtro]);
 
+  useEffect(() => {
+    setPaginaUsuarios(1);
+  }, [filtro.rol, filtro.estado, filtro.texto]);
+
+  const totalUsuarios = usuariosFiltrados.length;
+  const totalPaginasUsuarios = Math.max(1, Math.ceil(totalUsuarios / porPaginaUsuarios));
+  const paginaActualUsuarios = Math.min(Math.max(1, paginaUsuarios), totalPaginasUsuarios);
+  const inicioUsuarios = (paginaActualUsuarios - 1) * porPaginaUsuarios;
+  const finUsuarios = Math.min(inicioUsuarios + porPaginaUsuarios, totalUsuarios);
+  const usuariosPaginados = usuariosFiltrados.slice(inicioUsuarios, finUsuarios);
+
   if (cargando) return <div className="panel"><p className="muted">Cargando la administración del sistema…</p></div>;
   if (!detalle) {
     return (
@@ -521,7 +547,7 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
               <table>
                 <thead><tr><th>Usuario</th><th>Rol</th><th>Docente</th><th>Situación</th><th>Último acceso</th><th /></tr></thead>
                 <tbody>
-                  {usuariosFiltrados.map((u) => {
+                  {usuariosPaginados.map((u) => {
                     const s = situacion(u);
                     return (
                       <tr key={u.idUsuario} className={u.idUsuario === idUsuario ? 'ad-fila-on' : ''}>
@@ -544,6 +570,99 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
                 </tbody>
               </table>
             </div>
+
+            {/* Paginador para la tabla de cuentas / docentes */}
+            {totalUsuarios > 0 && (
+              <div className="pd-pager" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginTop: '14px', padding: '10px 14px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '.84rem', color: '#64748b', flexWrap: 'wrap' }}>
+                  <span>
+                    Mostrando <strong>{inicioUsuarios + 1}</strong>–<strong>{finUsuarios}</strong> de <strong>{totalUsuarios}</strong> {filtro.rol === 'DOCENTE' ? 'docentes' : 'cuentas'}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '.8rem' }}>Por página:</span>
+                    <select
+                      value={porPaginaUsuarios}
+                      onChange={(e) => { setPorPaginaUsuarios(Number(e.target.value)); setPaginaUsuarios(1); }}
+                      style={{ padding: '3px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '.82rem', color: '#0f172a', cursor: 'pointer' }}
+                    >
+                      <option value={15}>15</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
+
+                {totalPaginasUsuarios > 1 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <button
+                      type="button"
+                      className="cv-btn cv-btn-ghost"
+                      disabled={paginaActualUsuarios === 1}
+                      onClick={() => setPaginaUsuarios(1)}
+                      title="Primera página"
+                      style={{ padding: '4px 8px', fontSize: '.8rem' }}
+                    >
+                      ««
+                    </button>
+                    <button
+                      type="button"
+                      className="cv-btn cv-btn-ghost"
+                      disabled={paginaActualUsuarios === 1}
+                      onClick={() => setPaginaUsuarios((p) => Math.max(1, p - 1))}
+                      style={{ padding: '4px 10px', fontSize: '.8rem' }}
+                    >
+                      ◀ Ant.
+                    </button>
+
+                    <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                      {generarBotonesPagina(paginaActualUsuarios, totalPaginasUsuarios).map((num, idx) => (
+                        num === '...' ? (
+                          <span key={`dots-${idx}`} style={{ padding: '0 4px', color: '#94a3b8', fontSize: '.82rem' }}>…</span>
+                        ) : (
+                          <button
+                            key={num}
+                            type="button"
+                            className={`cv-btn ${paginaActualUsuarios === num ? 'cv-btn-primary' : 'cv-btn-ghost'}`}
+                            onClick={() => setPaginaUsuarios(num)}
+                            style={{
+                              minWidth: '30px',
+                              height: '30px',
+                              padding: '0 6px',
+                              fontSize: '.8rem',
+                              fontWeight: paginaActualUsuarios === num ? 700 : 500,
+                              borderRadius: '6px'
+                            }}
+                          >
+                            {num}
+                          </button>
+                        )
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="cv-btn cv-btn-ghost"
+                      disabled={paginaActualUsuarios === totalPaginasUsuarios}
+                      onClick={() => setPaginaUsuarios((p) => Math.min(totalPaginasUsuarios, p + 1))}
+                      style={{ padding: '4px 10px', fontSize: '.8rem' }}
+                    >
+                      Sig. ▶
+                    </button>
+                    <button
+                      type="button"
+                      className="cv-btn cv-btn-ghost"
+                      disabled={paginaActualUsuarios === totalPaginasUsuarios}
+                      onClick={() => setPaginaUsuarios(totalPaginasUsuarios)}
+                      title="Última página"
+                      style={{ padding: '4px 8px', fontSize: '.8rem' }}
+                    >
+                      »»
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {seleccionado && (

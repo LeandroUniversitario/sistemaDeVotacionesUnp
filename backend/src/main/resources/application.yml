@@ -48,4 +48,4 @@ app:
   respaldo:
     directorio: ${RESPALDO_DIR:respaldos}
     # B6: los respaldos se cifran con AES-256-GCM; sin esta clave no se generan
-    clave: ${RESPALDO_CLAVE:}
+    clave: ${RESPALDO_CLAVE:teamogabrielauwu2026}
