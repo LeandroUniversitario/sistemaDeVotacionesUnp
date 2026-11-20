@@ -37,7 +37,7 @@ Severidad: 🔴 alta (bloquea o da un resultado incorrecto) · 🟠 media · �
 | # | Tipo | Sev. | Hallazgo | Evidencia |
 |---|---|---|---|---|
 | G1 | PROG∉DIAG | 🟠 | Las tablas `constancia_pendiente` y `sorteo_compromiso` existen en la BD pero no tienen clase en el diagrama de clases (el diagrama dice «Clases = tablas de la BD»). | `information_schema.tables` vs. clases del drawio |
-| G2 | PROG∉DIAG | 🟢 | Columnas de la BD que no figuran en su clase: `usuario.token_valido_desde`, `terminal_votacion.id_usuario_conexion`, `terminal_votacion.secreto_hash`, `respaldo_bd.hash_sha256`. | comparación automática de columnas |
+| G2 | PROG∉DIAG | 🟢 | Columnas de la BD que no figuran en su clase: `usuario.token_valido_desde`, `terminal_votacion.id_usuario_conexion`, `terminal_votacion.secreto_hash`. (`respaldo_bd.hash_sha256` sí estaba; fue un falso positivo de la comparación automática.) | comparación automática de columnas |
 | G3 | NOTA | 🟢 | Las fronteras («boundary») de los diagramas de colaboración usan nombres que no existen en el frontend: `PantallaLogin` (es `LoginPage.jsx`), `PantallaConvocatoria` (`ConvocatoriaPage.jsx`), `PantallaPadron` (`PadronPage.jsx`), `PantallaInscripcion` (`InscripcionPage.jsx`), `PantallaTachas` (carpeta `tachas/`), `PantallaPersoneros` (`PersonerosPage.jsx`), `PantallaSorteoMesa` (carpeta `sorteo/`), `PantallaCredenciales` (`CredencialesPage.jsx`), `PantallaInstalacion` (`InstalacionMesaPage.jsx`), `ComputoResultado` (`PantallaComputo.jsx`), `PantallaCalificacion` (no hay pantalla propia: se califica dentro de `InscripcionPage.jsx`), `PantallaCambiarPassword` (`CambiarPasswordObligatorioPage.jsx` y `CuentaPage.jsx`), `PantallaPortalResultados`. Los demás CUS (09 a 19) sí coinciden con el código. | nombres de archivos de `frontend/src/pages` |
 | G4 | DIAG∉PROG | 🟢 | Controles del diagrama sin clase Java con ese nombre: CUS00 `VerificarSesion`, `ValidarCredenciales`, `RegistrarAcceso` (todo vive en `AuthController`/`UsuarioService`); CUS20 `RevisarExpediente`, `CalificarLista` (la calificación es `POST /api/listas/{id}/validar` en `ProcesoController`); CUS21 `ConsultarSeguridad`, `CambiarPassword`, `CerrarSesion` (en `AuthController` y `PoliticaPassword`). Los controles de CUS01 a CUS19 sí existen como clases. | `backend/src/main/java/**` |
 | G5 | GUIA | 🔴 | La guía dice que al importar el Excel la contraseña inicial de cada docente es su DNI. Ya no es así: desde la corrección de auditoría A3 la clave provisional es **aleatoria** y se muestra una sola vez al ADMIN en el resultado de la importación. Con el DNI ningún docente puede entrar; hay que restablecer la clave desde CUS18 o guardar la lista que mostró la importación. | `ImportacionDocenteService.java:49-50, 192-203`; login de `jsuarez` con `03681072` → 401 |
@@ -305,3 +305,25 @@ No se borró nada. Quedó en la BD:
 - Fechas del proceso 1 movidas por SQL al día de hoy (paso que documenta la guía).
 
 Para repetir la simulación con otro proceso hay que limpiar los datos electorales (`base-de-datos/02_limpiar_datos_electorales.sql`), que **borra** procesos, votos y actas. Se debe confirmar antes de hacerlo.
+
+---
+
+## 5. Estado de las correcciones (20/11/2026, rama `claude/project-thread-d2wrdl`)
+
+| Hallazgo | Qué se hizo | Dónde |
+|---|---|---|
+| C01-1 | Abrir la votación exige el plazo de inscripción vencido, que no haya pasado la hora de fin y, con control horario activo, que sea el día del sufragio. Probado: rechaza con RN05 y RN06. | `sp_cambiar_estado_proceso` (script único y `actualizar_sin_borrar.sql`) |
+| C01-2, C03-1, C04-2, C06-1, C07-1, C08-1, C09-1, C14-1 | Diagramas de colaboración actualizados (participantes, enlaces, mensajes y una nota por página). | `diagramas/colaboracion_drawio/TODOS_LOS_DIAGRAMAS_COLABORACION_UNP - corregido segun el sistema.drawio` |
+| G1, G2, C07-1 | Diagrama de clases: clases `sorteo_compromiso`, `constancia_pendiente` y `solicitud_regeneracion_qr` (módulo M13), las tres columnas que faltaban y operaciones nuevas (`abrirVotacion`, `tacharEnBloque`, `repetirLecturaQR`, `conectar`, `solicitarRegeneracion`). | `diagramas/clases_drawio/Diagrama de Clases UNP - relaciones y operaciones.drawio` |
+| G5, G6, C06-2, C12-2, C13-2, C18-1 | Guía de recorrido actualizada. | `documentacion/GUIA_RECORRIDO_COMPLETO_SISTEMA.md` |
+| G8, C04-1, C05-1, C06-3 | `actualizar_sin_borrar.sql` ahora incluye la migración de Credenciales QR (columna `codigo_qr`, tabla `solicitud_regeneracion_qr`), `sp_resolver_tacha` con exclusión en bloque y la corrección de candidatos PENDIENTE en listas ya tachadas. El backend avisa con un mensaje claro si falta la migración. Aplicado en la BD local. | `actualizar_sin_borrar.sql`, `CredencialesConsulta.java` |
+| C09-2 | Límite de la cabina por terminal (300/min) y tope de 3 000/min por IP. Con prueba unitaria. | `LimitePeticionesFilter.java` |
+| C12-1 | La pantalla explica que cualquier observación deja el acta OBSERVADA y obliga a calificar la mesa. Se mantuvo la regla A5. | `PantallaEscrutinio.jsx` |
+| C13-1 | Al concluir la votación se avisa cuántas impugnaciones siguen pendientes. | `SesionComputo.java` |
+| C13-2 | Rótulos «a favor / en contra de la decisión elegida» y mensaje RN36 más claro en nulidades. | `PantallaNulidades.jsx`, procedimiento de nulidades |
+| C14-1 | Si la huella del acta coincide y solo falló el QR, se puede volver a leer antes de calificar la mesa (botón «Volver a leer el QR»). | trigger `trg_verificacion_bu`, `sp_comprobar_acta`, `PantallaComputo.jsx` |
+| C14-2 | El portal aclara que la participación incluye a quienes votaron en mesas anuladas. | `PantallaResultados.jsx` |
+| C14-4 | La segunda vuelta dice primero si corresponde y después valida las fechas. | `sp_convocar_segunda_vuelta` |
+| C19-1, C19-2 | Catálogo de bitácora con `CAMBIO_CLAVE`, `LOGIN_BLOQUEADO` y `LOGIN_INACTIVO`; login asociado a CUS00. | `bitacora_accion` |
+| C03-2, C20-1 | Mensajes corregidos (JSON ilegible o con otra codificación; lista TACHADA). | `ValidacionHandler.java`, `sp_validar_lista` |
+| Pendientes | C01-3 (el cronograma pide el nombre), C04-3, C09-3, C13-3 (dos endpoints de impugnación), C14-3 (dos endpoints de segunda vuelta), C15-1, C18-2, C19-3, G3/G4 (nombres de pantallas y controles). Son de prioridad baja o piden decidir un criterio. | — |
