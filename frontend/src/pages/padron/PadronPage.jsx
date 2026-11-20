@@ -670,10 +670,27 @@ function Stat({ label, value, sub, tone, small }) {
   );
 }
 
+function generarBotonesPagina(actual, total) {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  if (actual <= 4) {
+    return [1, 2, 3, 4, 5, '...', total];
+  }
+  if (actual >= total - 3) {
+    return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+  }
+  return [1, '...', actual - 1, actual, actual + 1, '...', total];
+}
+
 function TablaPaginada({ filas, pagina, onPagina, columnas, renderFila, vacio }) {
-  const paginas = Math.max(1, Math.ceil(filas.length / POR_PAGINA));
-  const actual = Math.min(pagina, paginas);
-  const visibles = filas.slice((actual - 1) * POR_PAGINA, actual * POR_PAGINA);
+  const [porPagina, setPorPagina] = useState(POR_PAGINA);
+  const total = filas.length;
+  const paginas = Math.max(1, Math.ceil(total / porPagina));
+  const actual = Math.min(Math.max(1, pagina), paginas);
+  const inicio = (actual - 1) * porPagina;
+  const fin = Math.min(inicio + porPagina, total);
+  const visibles = filas.slice(inicio, fin);
   return (
     <>
       <div className="table-wrap">
@@ -685,11 +702,95 @@ function TablaPaginada({ filas, pagina, onPagina, columnas, renderFila, vacio })
           </tbody>
         </table>
       </div>
-      {paginas > 1 && (
-        <div className="pd-pager">
-          <button type="button" className="cv-btn cv-btn-ghost" disabled={actual === 1} onClick={() => onPagina(actual - 1)}>Anterior</button>
-          <span>Página {actual} de {paginas}</span>
-          <button type="button" className="cv-btn cv-btn-ghost" disabled={actual === paginas} onClick={() => onPagina(actual + 1)}>Siguiente</button>
+      {total > 0 && (
+        <div className="pd-pager" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginTop: '14px', padding: '10px 14px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '.84rem', color: '#64748b', flexWrap: 'wrap' }}>
+            <span>
+              Mostrando <strong>{inicio + 1}</strong>–<strong>{fin}</strong> de <strong>{total}</strong> registros
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '.8rem' }}>Por página:</span>
+              <select
+                value={porPagina}
+                onChange={(e) => { setPorPagina(Number(e.target.value)); onPagina(1); }}
+                style={{ padding: '3px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '.82rem', color: '#0f172a', cursor: 'pointer' }}
+              >
+                <option value={15}>15</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+
+          {paginas > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                type="button"
+                className="cv-btn cv-btn-ghost"
+                disabled={actual === 1}
+                onClick={() => onPagina(1)}
+                title="Primera página"
+                style={{ padding: '4px 8px', fontSize: '.8rem' }}
+              >
+                ««
+              </button>
+              <button
+                type="button"
+                className="cv-btn cv-btn-ghost"
+                disabled={actual === 1}
+                onClick={() => onPagina(Math.max(1, actual - 1))}
+                style={{ padding: '4px 10px', fontSize: '.8rem' }}
+              >
+                ◀ Ant.
+              </button>
+
+              <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                {generarBotonesPagina(actual, paginas).map((num, idx) => (
+                  num === '...' ? (
+                    <span key={`dots-${idx}`} style={{ padding: '0 4px', color: '#94a3b8', fontSize: '.82rem' }}>…</span>
+                  ) : (
+                    <button
+                      key={num}
+                      type="button"
+                      className={`cv-btn ${actual === num ? 'cv-btn-primary' : 'cv-btn-ghost'}`}
+                      onClick={() => onPagina(num)}
+                      style={{
+                        minWidth: '30px',
+                        height: '30px',
+                        padding: '0 6px',
+                        fontSize: '.8rem',
+                        fontWeight: actual === num ? 700 : 500,
+                        borderRadius: '6px'
+                      }}
+                    >
+                      {num}
+                    </button>
+                  )
+                ))}
+              </div>
+
+              <button
+                type="button"
+                className="cv-btn cv-btn-ghost"
+                disabled={actual === paginas}
+                onClick={() => onPagina(Math.min(paginas, actual + 1))}
+                style={{ padding: '4px 10px', fontSize: '.8rem' }}
+              >
+                Sig. ▶
+              </button>
+              <button
+                type="button"
+                className="cv-btn cv-btn-ghost"
+                disabled={actual === paginas}
+                onClick={() => onPagina(paginas)}
+                title="Última página"
+                style={{ padding: '4px 8px', fontSize: '.8rem' }}
+              >
+                »»
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>
