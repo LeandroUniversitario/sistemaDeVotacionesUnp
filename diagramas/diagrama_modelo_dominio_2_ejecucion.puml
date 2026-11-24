@@ -30,6 +30,17 @@ class RegistroSorteo {
 class ComputoGeneral {
   participación%
   resultado
+  votosDocentes (2/3)
+  votosEstudiantes (1/3)
+  porcentajePonderado (Art. 66/71 Ley 30220)
+}
+
+class ComputoEstudiantil {
+  proceso
+  cargo
+  lista
+  votosEstudiantes
+  fechaRegistro
 }
 
 class ResolucionCEUNP {
@@ -63,6 +74,7 @@ class ActaElectoral {
 class Docente {
   dni
   nombres
+  departamentoAcadémico
   categoría
   vínculoLaboral
   licenciaSinGoce
@@ -77,6 +89,7 @@ class Impugnacion {
 ProcesoElectoral "1" -- "1..*" MesaSufragio
 ProcesoElectoral "1" -- "1..*" RegistroSorteo
 ProcesoElectoral "1" -- "1" ComputoGeneral
+ProcesoElectoral "1" -- "0..*" ComputoEstudiantil
 ProcesoElectoral "1" -- "0..*" ResolucionCEUNP
 
 MesaSufragio -- "6" MiembroMesa
@@ -84,7 +97,8 @@ MesaSufragio -- "0..*" AsistenciaSufragio
 MesaSufragio -- "0..*" Voto
 MesaSufragio -- "3" ActaElectoral
 
-ComputoGeneral --> ActaElectoral : consolida
+ComputoGeneral --> ActaElectoral : consolida docentes (2/3)
+ComputoGeneral --> ComputoEstudiantil : consolida estudiantes (1/3)
 
 ActaElectoral -- "0..*" Impugnacion
 

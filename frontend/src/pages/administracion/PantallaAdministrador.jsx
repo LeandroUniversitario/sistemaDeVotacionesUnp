@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiRequest, apiUrl } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import { DEPARTAMENTOS } from '../facultadesData';
 import { fecha } from '../credenciales/LectorQR';
 import {
   GRUPO, ORIGEN, ROL, ROL_CORTO, ROL_NOTA, ROLES_CON_DOCENTE, bytes, hora, valorLegible,
@@ -99,7 +100,7 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
   const [confirmando, setConfirmando] = useState(false);
 
   // Cuentas y Paginación
-  const [filtro, setFiltro] = useState({ rol: 'TODOS', estado: 'TODAS', texto: '' });
+  const [filtro, setFiltro] = useState({ rol: 'TODOS', estado: 'TODAS', departamento: 'TODOS', texto: '' });
   const [paginaUsuarios, setPaginaUsuarios] = useState(1);
   const [porPaginaUsuarios, setPorPaginaUsuarios] = useState(25);
   const [idUsuario, setIdUsuario] = useState(null);
@@ -368,6 +369,14 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
 
   // ─── Datos derivados ─────────────────────────────────────────────────────
 
+  const departamentosCuentas = useMemo(() => {
+    const set = new Set();
+    (detalle?.usuarios ?? []).forEach((u) => {
+      if (u.departamento) set.add(u.departamento.trim());
+    });
+    return Array.from(set).sort();
+  }, [detalle]);
+
   const usuariosFiltrados = useMemo(() => {
     const texto = filtro.texto.trim().toLowerCase();
     return (detalle?.usuarios ?? []).filter((u) => (filtro.rol === 'TODOS' || u.rol === filtro.rol)
@@ -376,12 +385,13 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
         || (filtro.estado === 'INACTIVAS' && !si(u.activo))
         || (filtro.estado === 'BLOQUEADAS' && si(u.bloqueada))
         || (filtro.estado === 'PROVISIONAL' && si(u.debeCambiarPassword)))
-      && (!texto || `${u.username} ${u.docente ?? ''} ${u.dni ?? ''} ${u.facultad ?? ''}`.toLowerCase().includes(texto)));
+      && (filtro.departamento === 'TODOS' || u.departamento === filtro.departamento)
+      && (!texto || `${u.username} ${u.docente ?? ''} ${u.dni ?? ''} ${u.facultad ?? ''} ${u.departamento ?? ''}`.toLowerCase().includes(texto)));
   }, [detalle, filtro]);
 
   useEffect(() => {
     setPaginaUsuarios(1);
-  }, [filtro.rol, filtro.estado, filtro.texto]);
+  }, [filtro.rol, filtro.estado, filtro.departamento, filtro.texto]);
 
   const totalUsuarios = usuariosFiltrados.length;
   const totalPaginasUsuarios = Math.max(1, Math.ceil(totalUsuarios / porPaginaUsuarios));
@@ -493,14 +503,35 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
             </section>
 
             {/* Barra de filtros y acción principal */}
-            <div className="mu-filtros" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '18px' }}>
+            <div className="mu-filtros" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '18px' }}>
               <div className="cq-chips" role="group" aria-label="Estado de la cuenta" style={{ margin: 0, display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 {ESTADOS.map(([v, t]) => (
                   <button key={v} type="button" className={`cq-chip${filtro.estado === v ? ' on' : ''}`} onClick={() => setFiltro((f) => ({ ...f, estado: v }))}>{t}</button>
                 ))}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto', flexWrap: 'nowrap' }}>
-                <label className="mu-buscar" style={{ margin: 0, width: '320px', minWidth: '280px', height: '40px', display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px', border: '1.5px solid #cbd5e1', borderRadius: '10px', background: '#fff', boxSizing: 'border-box' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto', flexWrap: 'wrap' }}>
+                <select
+                  value={filtro.departamento}
+                  onChange={(e) => setFiltro((f) => ({ ...f, departamento: e.target.value }))}
+                  style={{
+                    height: '40px',
+                    padding: '0 12px',
+                    border: '1.5px solid #cbd5e1',
+                    borderRadius: '10px',
+                    background: '#fff',
+                    fontSize: '0.88rem',
+                    color: '#0f172a',
+                    cursor: 'pointer',
+                    maxWidth: '220px'
+                  }}
+                  title="Filtrar por Departamento Académico"
+                >
+                  <option value="TODOS">Todos los departamentos</option>
+                  {(departamentosCuentas.length > 0 ? departamentosCuentas : DEPARTAMENTOS.map(d => d.nombre)).map((dep) => (
+                    <option key={dep} value={dep}>{dep}</option>
+                  ))}
+                </select>
+                <label className="mu-buscar" style={{ margin: 0, width: '280px', minWidth: '220px', height: '40px', display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px', border: '1.5px solid #cbd5e1', borderRadius: '10px', background: '#fff', boxSizing: 'border-box' }}>
                   <MenuIcon name="search" size={16} />
                   <input
                     value={filtro.texto}
@@ -510,6 +541,17 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
                     style={{ flex: 1, width: '100%', minHeight: 'unset', height: 'auto', padding: 0, margin: 0, border: 'none', outline: 'none', background: 'transparent', boxShadow: 'none', fontSize: '0.88rem', color: '#0f172a' }}
                   />
                 </label>
+                {(filtro.rol !== 'TODOS' || filtro.estado !== 'TODAS' || filtro.departamento !== 'TODOS' || filtro.texto) && (
+                  <button
+                    type="button"
+                    className="cv-btn cv-btn-ghost"
+                    style={{ height: '40px', padding: '0 12px', borderRadius: '10px', fontSize: '.84rem' }}
+                    onClick={() => setFiltro({ rol: 'TODOS', estado: 'TODAS', departamento: 'TODOS', texto: '' })}
+                    title="Restablecer filtros"
+                  >
+                    Limpiar
+                  </button>
+                )}
                 <button type="button" className="cv-btn cv-btn-primary" disabled={saving} onClick={abrirNuevo} style={{ height: '40px', whiteSpace: 'nowrap', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '10px', padding: '0 16px' }}>
                   <MenuIcon name="plus" size={15} /> Nueva cuenta
                 </button>
@@ -554,7 +596,7 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
                         <td><strong>{u.username}</strong>{u.idUsuario === detalle.idAdmin && <em className="ad-yo">usted</em>}
                           <small className="pd-sub">Creada {fecha(u.fechaCreacion)}{u.creadoPor ? ` por ${u.creadoPor}` : ''}</small></td>
                         <td><span className="ad-rol-pill" style={{ '--ad-color': COLOR_ROL[u.rol] }}>{ROL_CORTO[u.rol] ?? u.rol}</span></td>
-                        <td>{u.docente ? <>{u.docente}<small className="pd-sub">DNI {u.dni} · {u.facultad}</small></> : <span className="muted">Sin docente</span>}</td>
+                        <td>{u.docente ? <>{u.docente}<small className="pd-sub">DNI {u.dni} · {u.facultad}{u.departamento ? ` · ${u.departamento}` : ''}</small></> : <span className="muted">Sin docente</span>}</td>
                         <td><span className={`cv-estado ${s.clase}`}>{s.texto}</span>
                           {si(u.activo) && Number(u.intentosFallidos) > 0 && !si(u.bloqueada) && <small className="pd-sub">{u.intentosFallidos} intento(s) fallido(s)</small>}</td>
                         <td>{u.ultimoAcceso ? fecha(u.ultimoAcceso) : <span className="muted">Nunca</span>}</td>
@@ -1232,6 +1274,7 @@ function SelectorDocente({ titulo, docente, onElegir, verificacion, requerido, d
   const [q, setQ] = useState('');
   const [resultados, setResultados] = useState([]);
   const [buscando, setBuscando] = useState(false);
+  const [deptoFiltro, setDeptoFiltro] = useState('TODOS');
 
   useEffect(() => {
     if (docente || q.trim().length < 2) {
@@ -1251,64 +1294,90 @@ function SelectorDocente({ titulo, docente, onElegir, verificacion, requerido, d
     return () => clearTimeout(t);
   }, [q, docente, onError]);
 
+  const filtrados = resultados.filter((d) => deptoFiltro === 'TODOS' || d.departamento === deptoFiltro);
+
   return (
     <div className="ad-docente">
       <span className="cv-label">{titulo}</span>
       {!docente ? (
         <>
-          <label
-            className="mu-buscar ad-buscar"
-            style={{
-              width: '100%',
-              maxWidth: '100%',
-              height: '42px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '0 12px',
-              border: '1.5px solid #cbd5e1',
-              borderRadius: '8px',
-              background: '#fff',
-              boxSizing: 'border-box',
-              margin: '8px 0 6px'
-            }}
-          >
-            <MenuIcon name="search" size={16} />
-            <input
-              value={q}
-              disabled={disabled}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Escriba DNI, apellidos o nombres del docente..."
-              aria-label="Buscar docente"
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', margin: '8px 0 6px', flexWrap: 'wrap' }}>
+            <label
+              className="mu-buscar ad-buscar"
               style={{
                 flex: 1,
-                width: '100%',
-                border: 'none',
-                outline: 'none',
-                background: 'transparent',
-                boxShadow: 'none',
-                minHeight: 'unset',
-                height: 'auto',
-                fontSize: '.88rem',
-                color: '#0f172a'
+                minWidth: '220px',
+                height: '42px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '0 12px',
+                border: '1.5px solid #cbd5e1',
+                borderRadius: '8px',
+                background: '#fff',
+                boxSizing: 'border-box',
+                margin: 0
               }}
-            />
-          </label>
+            >
+              <MenuIcon name="search" size={16} />
+              <input
+                value={q}
+                disabled={disabled}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Escriba DNI, apellidos o nombres del docente..."
+                aria-label="Buscar docente"
+                style={{
+                  flex: 1,
+                  width: '100%',
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  boxShadow: 'none',
+                  minHeight: 'unset',
+                  height: 'auto',
+                  fontSize: '.88rem',
+                  color: '#0f172a'
+                }}
+              />
+            </label>
+            <select
+              value={deptoFiltro}
+              onChange={(e) => setDeptoFiltro(e.target.value)}
+              disabled={disabled}
+              style={{
+                height: '42px',
+                padding: '0 10px',
+                borderRadius: '8px',
+                border: '1.5px solid #cbd5e1',
+                fontSize: '.84rem',
+                background: '#fff',
+                color: '#0f172a',
+                maxWidth: '220px',
+                cursor: 'pointer'
+              }}
+              title="Filtrar por Departamento Académico"
+            >
+              <option value="TODOS">Todos los depto.</option>
+              {DEPARTAMENTOS.map((dep) => (
+                <option key={dep.id} value={dep.nombre}>{dep.nombre}</option>
+              ))}
+            </select>
+          </div>
           {requerido && <small className="muted">Este rol requiere asociar la cuenta a un docente activo del padrón.</small>}
           {buscando && <small className="muted">Buscando…</small>}
-          {resultados.length > 0 && (
+          {filtrados.length > 0 && (
             <ul className="ad-resultados">
-              {resultados.map((d) => (
+              {filtrados.map((d) => (
                 <li key={d.idDocente}>
-                  <button type="button" onClick={() => { onElegir(d); setQ(''); }}>
+                  <button type="button" onClick={() => { onElegir(d); setQ(''); setDeptoFiltro('TODOS'); }}>
                     <strong>{d.docente}</strong>
-                    <small>DNI {d.dni} · {d.facultad} · {d.estado.toLowerCase()}{d.cuentas ? ` · cuentas: ${d.cuentas}` : ' · sin cuentas'}</small>
+                    <small>DNI {d.dni} · {d.facultad}{d.departamento ? ` · ${d.departamento}` : ''} · {d.estado.toLowerCase()}{d.cuentas ? ` · cuentas: ${d.cuentas}` : ' · sin cuentas'}</small>
                   </button>
                 </li>
               ))}
             </ul>
           )}
-          {!buscando && q.trim().length >= 2 && resultados.length === 0 && <small className="muted">Ningún docente coincide.</small>}
+          {!buscando && q.trim().length >= 2 && filtrados.length === 0 && <small className="muted">Ningún docente coincide.</small>}
         </>
       ) : (
         <div className={`ad-verificacion ${verificacion?.error ? 'error' : verificacion?.advertencia ? 'aviso' : verificacion ? 'ok' : ''}`}>

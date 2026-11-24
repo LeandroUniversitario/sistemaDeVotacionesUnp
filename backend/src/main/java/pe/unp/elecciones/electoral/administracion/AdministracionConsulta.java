@@ -162,10 +162,12 @@ public class AdministracionConsulta {
         String patron = "%" + q.replace("%", "").replace("_", "") + "%";
         return dao.consultar("""
                 SELECT d.id_docente, d.dni, CONCAT(d.apellidos, ', ', d.nombres) AS docente, d.nombres, d.apellidos,
-                       CONCAT(d.estado, '') AS estado, CONCAT(d.categoria, '') AS categoria, f.nombre AS facultad,
+                       CONCAT(d.estado, '') AS estado, CONCAT(d.categoria, '') AS categoria, f.nombre AS facultad, dp.nombre AS departamento,
                        (SELECT GROUP_CONCAT(CONCAT(u.username, ' (', u.rol, ')') ORDER BY u.id_usuario SEPARATOR ' · ')
                           FROM usuario u WHERE u.id_docente = d.id_docente) AS cuentas
-                  FROM docente d JOIN facultad f ON f.id_facultad = d.id_facultad
+                  FROM docente d
+                  JOIN facultad f ON f.id_facultad = d.id_facultad
+                  LEFT JOIN departamento dp ON dp.id_departamento = d.id_departamento
                  WHERE d.dni LIKE ? OR CONCAT(d.apellidos, ' ', d.nombres) LIKE ? OR CONCAT(d.nombres, ' ', d.apellidos) LIKE ?
                  ORDER BY d.apellidos, d.nombres LIMIT 15
                 """, patron, patron, patron);

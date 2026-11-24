@@ -122,6 +122,22 @@ public class ComputarProclamar {
         return respuesta;
     }
 
+    /** RF100: registra o actualiza los votos del estamento estudiantil para el cómputo ponderado (Ley 30220). */
+    public Map<String, Object> guardarVotosEstudiantiles(Integer idProceso, ComputoDto.GuardarVotosEstudiantes datos, Usuario usuario) {
+        consulta.proceso(idProceso);
+        if (datos.votos() != null) {
+            for (ComputoDto.VotoEstudiantil item : datos.votos()) {
+                dao.llamar("sp_registrar_votos_estudiantiles", ProcedimientoDao.SIN_SALIDA,
+                        idProceso, item.idCargo(), item.idLista(), item.votosEstudiantes(), usuario.getId());
+            }
+        }
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("mensaje", "Votos del estamento estudiantil registrados correctamente.");
+        respuesta.put("votosEstudiantiles", consulta.votosEstudiantiles(idProceso));
+        respuesta.put("detalle", consulta.detalle(idProceso, usuario));
+        return respuesta;
+    }
+
     private static Map<String, Object> primera(ProcedimientoDao.Resultado r) {
         if (r.filas().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "El procedimiento no devolvió resultados.");

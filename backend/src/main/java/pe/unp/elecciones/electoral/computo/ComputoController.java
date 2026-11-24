@@ -124,6 +124,13 @@ public class ComputoController {
 
     // ─── 1-15 Cómputo, 16-17 proclamación, 18-19 publicación ────────────────
 
+    @PostMapping("/procesos/{id}/votos-estudiantiles")
+    @PreAuthorize("hasRole('CEUNP')")
+    public Map<String, Object> guardarVotosEstudiantiles(@PathVariable Integer id,
+            @Valid @RequestBody ComputoDto.GuardarVotosEstudiantes datos, Authentication authentication) {
+        return computarProclamar.guardarVotosEstudiantiles(id, datos, usuarioActual.requerido(authentication));
+    }
+
     @PostMapping("/procesos/{id}/computo")
     @PreAuthorize("hasRole('CEUNP')")
     public Map<String, Object> ejecutarComputo(@PathVariable Integer id, Authentication authentication) {

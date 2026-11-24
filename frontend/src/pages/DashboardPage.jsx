@@ -50,6 +50,7 @@ const MENU_POR_ROL = {
     { key: 'parametros', label: 'Parámetros del sistema', icon: 'settings', color: '#7c3aed' },
     { key: 'respaldo', label: 'Respaldo de la base', icon: 'download', color: '#0891b2' },
     { key: 'padron', label: 'Padrón e importación', icon: 'list', color: '#0ea5e9' },
+    { key: 'docentes', label: 'Docentes', icon: 'users', color: '#8b5cf6' },
     { key: 'cargos-excluidos', label: 'Excepciones Sorteo', icon: 'shield', color: '#f43f5e' },
     { key: 'bitacora', label: 'Bitácora', icon: 'eye', color: '#14b8a6' },
     { key: 'resultados', label: 'Resultados y actas', icon: 'trophy', color: '#059669' },
@@ -217,7 +218,7 @@ const seccionPorDefecto = (rol) => SECCION_INICIAL_ROL[rol] ?? 'resumen';
 
 // Secciones que el rol puede abrir aunque no estén en su menú (accesos desde otras pantallas)
 const SECCIONES_EXTRA_ROL = {
-  ADMIN: ['administracion', 'instalacion', 'cierre', 'escrutinio', 'computo', 'nulidades', 'impugnaciones', 'multas', 'pase', 'verificar-qr'],
+  ADMIN: ['administracion', 'docentes', 'instalacion', 'cierre', 'escrutinio', 'computo', 'nulidades', 'impugnaciones', 'multas', 'pase', 'verificar-qr'],
   CEUNP: ['terminal', 'verificar-elector', 'verificar-qr', 'pase'],
   MIEMBRO_MESA: [],
   PERSONERO: ['verificar-qr'],
@@ -352,7 +353,7 @@ export default function DashboardPage({ session, onLogout }) {
   const [ceunpStats, setCeunpStats] = useState({ listas: 0, mesas: 0, solicitudesPendientes: 0 });
 
   async function loadData() {
-    if (!canManage) { setLoading(false); return; }
+    if (!canManage && !isAdmin) { setLoading(false); return; }
     setLoading(true);
     try {
       const [processData, teacherData] = await Promise.all([
@@ -1848,13 +1849,13 @@ export default function DashboardPage({ session, onLogout }) {
           <PadronPage session={session} onChange={loadData} onSessionExpired={onLogout} />
         )}
 
-        {/* Docentes — CRUD completo (solo CEUNP) */}
-        {section === 'docentes' && canManage && (
+        {/* Docentes — CRUD completo (CEUNP y ADMIN) */}
+        {section === 'docentes' && (canManage || isAdmin) && (
           <DocentesPage
             teachers={teachers}
             loading={loading}
             onRefresh={loadData}
-            canManage={canManage}
+            canManage={canManage || isAdmin}
             onGestionarPadron={() => setSection('padron')}
             onSessionExpired={onLogout}
           />

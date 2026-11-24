@@ -1,13 +1,15 @@
 import { useState, useMemo } from 'react';
+import { DEPARTAMENTOS, getDepartamentoNombre, getFacultadNombre } from '../pages/facultadesData';
 
 /**
  * Tabla del padrón de docentes con buscador en tiempo real,
- * filtros por categoría y estado, y paginación rápida.
+ * filtros por categoría, departamento y estado, y paginación rápida.
  */
 export default function TeacherTable({ teachers = [], loading = false }) {
   const [search, setSearch] = useState('');
   const [categoriaFilter, setCategoriaFilter] = useState('TODAS');
   const [estadoFilter, setEstadoFilter] = useState('TODOS');
+  const [departamentoFilter, setDepartamentoFilter] = useState('TODOS');
   const [page, setPage] = useState(1);
   const pageSize = 15;
 
@@ -18,9 +20,13 @@ export default function TeacherTable({ teachers = [], loading = false }) {
       const matchSearch = fullText.includes(search.toLowerCase().trim());
       const matchCat = categoriaFilter === 'TODAS' || t.categoria === categoriaFilter;
       const matchEst = estadoFilter === 'TODOS' || t.estado === estadoFilter;
-      return matchSearch && matchCat && matchEst;
+      const matchDep = departamentoFilter === 'TODOS'
+        || String(t.idDepartamento) === String(departamentoFilter)
+        || (t.departamento && t.departamento.toLowerCase() === departamentoFilter.toLowerCase())
+        || (getDepartamentoNombre(t.idDepartamento).toLowerCase() === departamentoFilter.toLowerCase());
+      return matchSearch && matchCat && matchEst && matchDep;
     });
-  }, [teachers, search, categoriaFilter, estadoFilter]);
+  }, [teachers, search, categoriaFilter, estadoFilter, departamentoFilter]);
 
   // Reset a la página 1 cuando cambia algún filtro
   const totalPages = Math.ceil(filteredTeachers.length / pageSize) || 1;
@@ -59,6 +65,21 @@ export default function TeacherTable({ teachers = [], loading = false }) {
           />
         </div>
 
+        {/* Filtro Departamento */}
+        <div style={{ flex: '0 0 200px' }}>
+          <select
+            value={departamentoFilter}
+            onChange={(e) => { setDepartamentoFilter(e.target.value); setPage(1); }}
+            style={{ margin: 0 }}
+            title="Filtrar por Departamento Académico"
+          >
+            <option value="TODOS">Todos los departamentos</option>
+            {DEPARTAMENTOS.map((d) => (
+              <option key={d.id} value={d.id}>{d.nombre}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Filtro Categoría */}
         <div style={{ flex: '0 0 160px' }}>
           <select
@@ -87,6 +108,24 @@ export default function TeacherTable({ teachers = [], loading = false }) {
             <option value="INACTIVO">INACTIVO</option>
           </select>
         </div>
+
+        {(search || categoriaFilter !== 'TODAS' || estadoFilter !== 'TODOS' || departamentoFilter !== 'TODOS') && (
+          <button
+            type="button"
+            className="secondary-button"
+            style={{ padding: '6px 12px', fontSize: '.8rem', margin: 0 }}
+            onClick={() => {
+              setSearch('');
+              setCategoriaFilter('TODAS');
+              setEstadoFilter('TODOS');
+              setDepartamentoFilter('TODOS');
+              setPage(1);
+            }}
+            title="Restablecer filtros"
+          >
+            Limpiar filtros
+          </button>
+        )}
       </div>
 
       {/* Contador de registros */}
@@ -115,7 +154,12 @@ export default function TeacherTable({ teachers = [], loading = false }) {
             <tbody>
               {paginatedTeachers.map((teacher) => (
                 <tr key={teacher.id || teacher.dni}>
-                  <td><strong>{teacher.apellidos}, {teacher.nombres}</strong></td>
+                  <td>
+                    <strong>{teacher.apellidos}, {teacher.nombres}</strong>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 2 }}>
+                      {getFacultadNombre(teacher.idFacultad)} · <span style={{ color: '#2563eb', fontWeight: 600 }}>{teacher.departamento || getDepartamentoNombre(teacher.idDepartamento)}</span>
+                    </div>
+                  </td>
                   <td><code>{teacher.dni}</code></td>
                   <td>{teacher.categoria}</td>
                   <td>{teacher.dedicacion}</td>

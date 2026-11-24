@@ -1,7 +1,7 @@
 # CUS14 · Computar y proclamar resultados
 
 **Actor:** CEUNP (verifica, instala la sesión, computa, proclama y publica); ADMIN solo consulta · **Pantalla:** menú «Cómputo y proclamación» (`PantallaComputo`, boundary «ComputoResultado»)
-**Caso de negocio:** CUN11 Computar y proclamar · **Módulo:** M12 (RF89 a RF99) · **Reglas:** RN26, RN31, RN32, RN33, RN34, RN36 · **Fuente:** tabla 39 del informe v2.1
+**Caso de negocio:** CUN11 Computar y proclamar · **Módulo:** M12 (RF89 a RF100) · **Reglas:** RN26, RN31, RN32, RN33, RN34, RN36, RN37 · **Fuente:** tabla 39 del informe v2.1 y Art. 66/71 Ley Universitaria 30220
 **Requiere:** mesas con el sufragio cerrado (CUS11), el escrutinio con su acta emitida y entregada al CEUNP (CUS12, RF87) y las impugnaciones resueltas (CUS13).
 **Instalación:** incluido en `base-de-datos/00_script_unico_elecciones_unp.sql` (sección 5d); el proyecto usa una sola base creada con ese script. `02_limpiar_datos_electorales.sql` ya vacía sus tablas.
 
@@ -53,7 +53,9 @@
 - **RF95 / RF94:** la calificación VÁLIDA solo procede en un acta que difiere y es auténtica; la NULIDAD exige número de resolución único (también frente a las resoluciones de impugnaciones y de proclamación). La decisión es inapelable (RN36).
 - **RN36:** la sesión y la proclamación exigen el quórum del Pleno (`CEUNP_QUORUM_PLENO`, 5).
 - **RN31 / RN34:** un cargo con participación de 60 % o menos queda SIN_QUORUM; si ninguno lo supera, nulidad total del proceso.
-- **RF96 / RF97 / RN33:** gana la lista con más del mínimo del cargo (`porcentaje_minimo_victoria`); si no, o hay empate, SEGUNDA_VUELTA. En segunda vuelta gana la mitad más uno; si no, EMPATE. Plazo: `SEGUNDA_VUELTA_PLAZO_DIAS` (15).
+- **RN37 (Ponderación Estamentaria Ley 30220):** en elecciones de Rector, Vicerrectores y Decanos, los votos válidos docentes representan dos tercios (2/3 = 66.67%) y los votos válidos estudiantiles representan un tercio (1/3 = 33.33%). El puntaje ponderado final determina la posición y el ganador legal.
+- **RF100:** el CEUNP registra los votos válidos de estudiantes agregados por lista (de las actas físicas de mesas de alumnos) en la fase de consolidación antes de ejecutar el cómputo oficial.
+- **RF96 / RF97 / RN33:** gana la lista con más del mínimo del cargo (`porcentaje_minimo_victoria`) sobre el puntaje ponderado; si no, o hay empate, SEGUNDA_VUELTA. En segunda vuelta gana la mitad más uno; si no, EMPATE. Plazo: `SEGUNDA_VUELTA_PLAZO_DIAS` (15).
 - **RN26:** cómputo único e irreversible. Los triggers impiden retroceder de etapa, cambiar el acta general, la proclamación o las credenciales, y registrar personeros después del cómputo.
 - **RF99:** el portal público solo muestra resultados con el cómputo en PUBLICADO. Un proceso computado con el cómputo heredado (`sp_computar_resultados`, sin CUS14) se sigue mostrando como antes.
 - Los tokens del QR solo se devuelven al emitir el acta general y la resolución. La pantalla los guarda en la sesión del navegador para reimprimir con QR; en otro navegador la reimpresión lleva la huella SHA-256.
@@ -71,17 +73,18 @@
 | POST | `/actas/{id}/dudosa` `{motivo}` | Marca el acta dudosa |
 | POST | `/actas/{id}/comprobacion` `{tokenQr, observacion}` | Comprueba la autenticidad |
 | POST | `/mesas/{id}/calificacion` `{calificacion, fundamento, numeroResolucion}` | VALIDA o NULIDAD |
-| POST | `/procesos/{id}/computo` | Cómputo oficial; devuelve `tokenQr` |
+| POST | `/procesos/{id}/votos-estudiantiles` `{votos: [{idLista, idCargo, votosEstudiantes}]}` | Registra votos de estudiantes (RF100, Art. 66 Ley 30220) |
+| POST | `/procesos/{id}/computo` | Cómputo oficial ponderado; devuelve `tokenQr` |
 | POST | `/procesos/{id}/proclamacion` `{numeroResolucion, miembrosPleno, presidente, fundamento}` | Proclamación; devuelve `tokenQr` |
 | POST | `/procesos/{id}/publicacion` | Publicación en el portal |
 | POST | `/procesos/{id}/segunda-vuelta` `{fechaInicio, fechaFin}` | A2; devuelve `idProcesoNuevo` |
 
 Públicos (sin sesión): `GET /api/publico/computo/{token}` (verifica el acta general o la resolución), `GET /api/publico/resultados` y `GET /api/publico/procesos/{id}/resultados` (con la proclamación y los resultados por mesa). `POST /api/procesos/{id}/computo` (heredado) usa ahora `sp_ejecutar_computo` cuando el CUS14 está instalado.
 
-## Base de datos (`00_script_unico_elecciones_unp.sql`, sección 5d)
-- Tablas: `computo_proceso` (sesión, cómputo con acta general, proclamación y publicación), `computo_personero`, `verificacion_acta`, `calificacion_mesa` y `proclamacion_cargo`.
+## Base de datos (`00_script_unico_elecciones_unp.sql`, sección 5d y `15_ponderacion_tercios_ley30220.sql`)
+- Tablas: `computo_proceso` (sesión, cómputo con acta general, proclamación y publicación), `computo_estudiantil` (votos por lista para ponderación 1/3), `computo_personero`, `verificacion_acta`, `calificacion_mesa` y `proclamacion_cargo`.
 - Vistas: `v_computo_actas`, `v_computo_mesas`, `v_computo_conteo_mesa`, `v_computo_resultados` y `v_portal_resultados`.
-- Procedimientos: `sp_instalar_sesion_computo`, `sp_registrar_personero_computo`, `sp_marcar_acta_dudosa`, `sp_comprobar_acta`, `sp_calificar_mesa`, `sp_ejecutar_computo`, `sp_proclamar_resultados`, `sp_publicar_resultados`, `sp_convocar_segunda_vuelta` y `sp_verificar_acta_computo`.
+- Procedimientos: `sp_instalar_sesion_computo`, `sp_registrar_personero_computo`, `sp_marcar_acta_dudosa`, `sp_comprobar_acta`, `sp_calificar_mesa`, `sp_registrar_votos_estudiantiles`, `sp_obtener_votos_estudiantiles`, `sp_ejecutar_computo` (con ponderación legal), `sp_proclamar_resultados`, `sp_publicar_resultados`, `sp_convocar_segunda_vuelta` y `sp_verificar_acta_computo`.
 - Triggers: `trg_computo_bu`, `trg_computo_bd`, `trg_cpersonero_bi`, `trg_verificacion_bu`, `trg_verificacion_bd`, `trg_calificacion_bu`, `trg_calificacion_bd`, `trg_proclamacion_bu` y `trg_proclamacion_bd`.
 - Parámetros: `SEGUNDA_VUELTA_PLAZO_DIAS` (15) y `CEUNP_QUORUM_PLENO` (5, del CUS13).
 - Bitácora: `INSTALAR_SESION_COMPUTO`, `REGISTRAR_PERSONERO_COMPUTO`, `MARCAR_ACTA_DUDOSA`, `COMPROBAR_ACTA`, `CALIFICAR_ACTA`, `DECLARAR_NULIDAD_MESA`, `COMPUTAR_RESULTADOS`, `PROCLAMAR_RESULTADOS`, `PUBLICAR_RESULTADOS` y `CREAR_SEGUNDA_VUELTA`.

@@ -206,6 +206,7 @@ public class ComputoConsulta {
                 """, idProceso));
         respuesta.put("participacion", participacion(idProceso));
         respuesta.put("consolidado", consolidado(idProceso));
+        respuesta.put("votosEstudiantiles", votosEstudiantiles(idProceso));
         respuesta.put("personeros", personeros(idProceso));
         respuesta.put("resultados", etapa == null || "SESION_INSTALADA".equals(etapa) ? null : resultados(idProceso));
         respuesta.put("proclamados", dao.consultar("""
@@ -351,10 +352,14 @@ public class ComputoConsulta {
         for (Map<String, Object> c : cargos) {
             int idCargo = numero(c.get("idCargo"));
             List<Map<String, Object>> listas = dao.consultar("""
-                    SELECT id_lista, nombre AS lista, simbolo, orden_cedula FROM lista_electoral
-                     WHERE id_cargo = ? AND estado = 'ADMITIDA' ORDER BY COALESCE(orden_cedula, 999), nombre
-                    """, idCargo);
+                    SELECT l.id_lista, l.nombre AS lista, l.simbolo, l.orden_cedula,
+                           COALESCE(ce.votos_estudiantes, 0) AS votos_estudiantes
+                      FROM lista_electoral l
+                      LEFT JOIN computo_estudiantil ce ON ce.id_cargo = l.id_cargo AND ce.id_lista = l.id_lista AND ce.id_proceso = ?
+                     WHERE l.id_cargo = ? AND l.estado = 'ADMITIDA' ORDER BY COALESCE(l.orden_cedula, 999), l.nombre
+                    """, idProceso, idCargo);
             int validos = 0;
+            int validosEstudiantes = 0;
             int blancos = 0;
             int nulos = 0;
             int impugnados = 0;
@@ -382,19 +387,33 @@ public class ComputoConsulta {
                     default -> impugnados += votos;
                 }
             }
-            int top = 0;
+            for (Map<String, Object> l : listas) {
+                validosEstudiantes += numero(l.get("votosEstudiantes"));
+            }
+            double topPond = 0;
             for (Map<String, Object> l : listas) {
                 l.putIfAbsent("votos", 0);
                 l.putIfAbsent("votosActas", 0);
                 l.putIfAbsent("impugnadosAsignados", 0);
                 l.putIfAbsent("votosDigital", 0);
-                top = Math.max(top, numero(l.get("votos")));
-                l.put("porcentaje", porcentaje(numero(l.get("votos")), validos));
+                l.putIfAbsent("votosEstudiantes", 0);
+                BigDecimal pctDoc = porcentaje(numero(l.get("votos")), validos);
+                BigDecimal pctEst = validosEstudiantes > 0 ? porcentaje(numero(l.get("votosEstudiantes")), validosEstudiantes) : BigDecimal.ZERO;
+                BigDecimal pctPond = validosEstudiantes > 0
+                        ? BigDecimal.valueOf((pctDoc.doubleValue() * 2.0 / 3.0) + (pctEst.doubleValue() * 1.0 / 3.0)).setScale(2, RoundingMode.HALF_UP)
+                        : pctDoc;
+                l.put("porcentajeDocente", pctDoc);
+                l.put("porcentajeEstudiante", pctEst);
+                l.put("porcentajePonderado", pctPond);
+                l.put("porcentaje", pctPond);
+                topPond = Math.max(topPond, pctPond.doubleValue());
             }
-            listas.sort((a, b) -> numero(b.get("votos")) - numero(a.get("votos")));
+            listas.sort((a, b) -> Double.compare(
+                    ((Number) b.get("porcentajePonderado")).doubleValue(),
+                    ((Number) a.get("porcentajePonderado")).doubleValue()));
             int empatados = 0;
             for (Map<String, Object> l : listas) {
-                if (numero(l.get("votos")) == top) {
+                if (Double.compare(((Number) l.get("porcentajePonderado")).doubleValue(), topPond) == 0 && topPond > 0) {
                     empatados++;
                 }
             }
@@ -405,21 +424,22 @@ public class ComputoConsulta {
             } else if (validos == 0) {
                 proyeccion = "DESIERTO";
             } else if ("SEGUNDA_VUELTA".equals(tipo)) {
-                proyeccion = empatados == 1 && top * 2 > validos ? "ELEGIDO" : "EMPATE";
-            } else if (empatados == 1 && top * 100.0 / validos > minimo) {
+                proyeccion = empatados == 1 && topPond > 50.0 ? "ELEGIDO" : "EMPATE";
+            } else if (empatados == 1 && topPond > minimo) {
                 proyeccion = "ELEGIDO";
             } else {
                 proyeccion = "SEGUNDA_VUELTA";
             }
             c.put("listas", listas);
             c.put("validos", validos);
+            c.put("validosEstudiantes", validosEstudiantes);
             c.put("blancos", blancos);
             c.put("nulos", nulos);
             c.put("impugnados", impugnados);
             c.put("emitidos", validos + blancos + nulos + impugnados);
             c.put("mesasComputables", mesas);
             c.put("proyeccion", proyeccion);
-            c.put("listaPuntera", top > 0 && empatados == 1 ? listas.get(0).get("lista") : null);
+            c.put("listaPuntera", topPond > 0 && empatados == 1 ? listas.get(0).get("lista") : null);
         }
         return cargos;
     }
@@ -440,13 +460,32 @@ public class ComputoConsulta {
         respuesta.put("detalle", dao.consultar("""
                 SELECT r.id_cargo, r.id_lista, COALESCE(l.nombre, CASE r.tipo_voto WHEN 'BLANCO' THEN 'Votos en blanco'
                                                                     ELSE 'Votos nulos' END) AS lista,
-                       CONCAT(r.tipo_voto, '') AS tipo_voto, r.total_votos, r.porcentaje_validos, r.posicion, l.orden_cedula
+                       CONCAT(r.tipo_voto, '') AS tipo_voto, r.total_votos,
+                       COALESCE(r.votos_docentes, r.total_votos) AS votos_docentes,
+                       COALESCE(r.votos_estudiantes, 0) AS votos_estudiantes,
+                       COALESCE(r.porcentaje_validos, 0) AS porcentaje_validos,
+                       COALESCE(r.pct_docente, r.porcentaje_validos) AS pct_docente,
+                       COALESCE(r.pct_estudiante, 0) AS pct_estudiante,
+                       COALESCE(r.pct_ponderado, r.porcentaje_validos) AS pct_ponderado,
+                       r.posicion, l.orden_cedula
                   FROM resultado_electoral r
                   LEFT JOIN lista_electoral l ON l.id_lista = r.id_lista
                  WHERE r.id_proceso = ?
                  ORDER BY r.id_cargo, (r.id_lista IS NULL), r.posicion, r.tipo_voto
                 """, idProceso));
         return respuesta;
+    }
+
+    /** Lista de votos estudiantiles registrados por lista (RF100). */
+    public List<Map<String, Object>> votosEstudiantiles(Integer idProceso) {
+        return dao.consultar("""
+                SELECT ce.id_proceso, ce.id_cargo, ce.id_lista, l.nombre AS lista,
+                       ce.votos_estudiantes, ce.fecha_registro
+                  FROM computo_estudiantil ce
+                  JOIN lista_electoral l ON l.id_lista = ce.id_lista
+                 WHERE ce.id_proceso = ?
+                 ORDER BY ce.id_cargo, l.orden_cedula
+                """, idProceso);
     }
 
     /** Resultados por mesa (insumo del portal, RF99). */

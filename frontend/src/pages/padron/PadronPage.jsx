@@ -103,6 +103,7 @@ export default function PadronPage({ session, onChange, onSessionExpired }) {
   // Paso 2
   const [depuracion, setDepuracion] = useState(null);   // { resumen, motivos, docentes, cambios? }
   const [filtro, setFiltro] = useState('TODOS');
+  const [departamentoFiltro, setDepartamentoFiltro] = useState('TODOS');
   const [busqueda, setBusqueda] = useState('');
   const [pagina, setPagina] = useState(1);
 
@@ -203,6 +204,14 @@ export default function PadronPage({ session, onChange, onSessionExpired }) {
     }
   }
 
+  const departamentosPadron = useMemo(() => {
+    const set = new Set();
+    (depuracion?.docentes ?? []).forEach((d) => {
+      if (d.departamento) set.add(d.departamento.trim());
+    });
+    return Array.from(set).sort();
+  }, [depuracion]);
+
   const docentesFiltrados = useMemo(() => {
     const lista = depuracion?.docentes ?? [];
     const q = busqueda.trim().toLowerCase();
@@ -210,10 +219,14 @@ export default function PadronPage({ session, onChange, onSessionExpired }) {
       const hab = Boolean(num(d.habilitado));
       if (filtro === 'HABILITADOS' && !hab) return false;
       if (filtro === 'INHABILITADOS' && hab) return false;
+      if (departamentoFiltro !== 'TODOS' && d.departamento !== departamentoFiltro) return false;
       if (!q) return true;
-      return d.dni.includes(q) || d.docente.toLowerCase().includes(q) || (d.facultad ?? '').toLowerCase().includes(q);
+      return d.dni.includes(q)
+        || d.docente.toLowerCase().includes(q)
+        || (d.facultad ?? '').toLowerCase().includes(q)
+        || (d.departamento ?? '').toLowerCase().includes(q);
     });
-  }, [depuracion, filtro, busqueda]);
+  }, [depuracion, filtro, departamentoFiltro, busqueda]);
 
   // ─── 9 confirmarAprobacion(id_proceso) → 10 generarDefinitivo(id_proceso) ─
   async function cargarProcesos() {
@@ -463,7 +476,7 @@ export default function PadronPage({ session, onChange, onSessionExpired }) {
             </div>
           )}
 
-          <div className="pd-toolbar">
+          <div className="pd-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <div className="pd-tabs" role="tablist">
               {[
                 ['TODOS', 'Todos', depuracion?.docentes?.length ?? 0],
@@ -477,8 +490,31 @@ export default function PadronPage({ session, onChange, onSessionExpired }) {
                 </button>
               ))}
             </div>
-            <input className="pd-search" placeholder="Buscar por DNI, nombre o facultad…" value={busqueda}
+            <select
+              className="pd-select"
+              value={departamentoFiltro}
+              onChange={(e) => { setDepartamentoFiltro(e.target.value); setPagina(1); }}
+              style={{ minWidth: '220px', maxWidth: '300px' }}
+              title="Filtrar por Departamento Académico"
+            >
+              <option value="TODOS">Todos los departamentos</option>
+              {departamentosPadron.map((dep) => (
+                <option key={dep} value={dep}>{dep}</option>
+              ))}
+            </select>
+            <input className="pd-search" placeholder="Buscar por DNI, nombre, facultad o depto…" value={busqueda}
               onChange={(e) => { setBusqueda(e.target.value); setPagina(1); }} />
+            {(busqueda || filtro !== 'TODOS' || departamentoFiltro !== 'TODOS') && (
+              <button
+                type="button"
+                className="cv-btn cv-btn-ghost"
+                style={{ padding: '6px 12px', fontSize: '.8rem' }}
+                onClick={() => { setFiltro('TODOS'); setDepartamentoFiltro('TODOS'); setBusqueda(''); setPagina(1); }}
+                title="Restablecer filtros"
+              >
+                Limpiar
+              </button>
+            )}
           </div>
 
           {!depuracion ? (

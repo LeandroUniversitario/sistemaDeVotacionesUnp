@@ -103,7 +103,7 @@ export default function PantallaMultas({ onSessionExpired }) {
   const [paso, setPaso] = useState('OMISOS');
   const [accion, setAccion] = useState(null);   // GENERAR | RESOLUCION | NOTIFICAR | NOTIFICAR:<id> | DESCARGO | PAGO
   const [confirmando, setConfirmando] = useState(false);
-  const [filtro, setFiltro] = useState({ motivo: 'TODOS', estado: 'TODOS', texto: '' });
+  const [filtro, setFiltro] = useState({ motivo: 'TODOS', estado: 'TODOS', departamento: 'TODOS', texto: '' });
   const [idMulta, setIdMulta] = useState(null);
   const [multa, setMulta] = useState(null);
   const [resolucion, setResolucion] = useState({ numeroResolucion: '', miembrosPleno: '5', fundamento: '' });
@@ -285,16 +285,25 @@ export default function PantallaMultas({ onSessionExpired }) {
 
   // ─── Datos derivados ─────────────────────────────────────────────────────
 
+  const departamentosMultas = useMemo(() => {
+    const set = new Set();
+    (detalle?.multas ?? []).forEach((m) => { if (m.departamento) set.add(m.departamento.trim()); });
+    (detalle?.omisos ?? []).forEach((o) => { if (o.departamento) set.add(o.departamento.trim()); });
+    return Array.from(set).sort();
+  }, [detalle]);
+
   const multasFiltradas = useMemo(() => {
     const texto = filtro.texto.trim().toLowerCase();
     return (detalle?.multas ?? []).filter((m) => (filtro.motivo === 'TODOS' || m.motivo === filtro.motivo)
       && (filtro.estado === 'TODOS' || m.estadoPago === filtro.estado)
+      && (filtro.departamento === 'TODOS' || m.departamento === filtro.departamento)
       && (!texto || `${m.dni} ${m.docente} ${m.facultad} ${m.departamento ?? ''}`.toLowerCase().includes(texto)));
   }, [detalle, filtro]);
 
   const omisosFiltrados = useMemo(() => {
     const texto = filtro.texto.trim().toLowerCase();
     return (detalle?.omisos ?? []).filter((o) => (filtro.motivo === 'TODOS' || o.motivo === filtro.motivo)
+      && (filtro.departamento === 'TODOS' || o.departamento === filtro.departamento)
       && (!texto || `${o.dni} ${o.docente} ${o.facultad} ${o.departamento ?? ''}`.toLowerCase().includes(texto)));
   }, [detalle, filtro]);
 
@@ -320,7 +329,7 @@ export default function PantallaMultas({ onSessionExpired }) {
   const etapa = !reporte ? 'Sin generar' : detalle.desactualizado ? 'Desactualizado' : resuelto ? 'Determinadas' : 'Generadas';
 
   const filtros = (conEstado) => (
-    <div className="mu-filtros">
+    <div className="mu-filtros" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
       <div className="cq-chips" role="group" aria-label="Motivo">
         {[['TODOS', 'Todos'], ['OMISO_VOTACION', 'No votaron'], ['OMISO_MESA', 'Inasistentes a mesa']].map(([v, t]) => (
           <button key={v} type="button" className={`cq-chip${filtro.motivo === v ? ' on' : ''}`} onClick={() => setFiltro((f) => ({ ...f, motivo: v }))}>{t}</button>
@@ -335,10 +344,33 @@ export default function PantallaMultas({ onSessionExpired }) {
           ))}
         </div>
       )}
+      <select
+        className="pd-select"
+        value={filtro.departamento}
+        onChange={(e) => setFiltro((f) => ({ ...f, departamento: e.target.value }))}
+        style={{ minWidth: '180px', maxWidth: '240px', height: '36px', fontSize: '.84rem' }}
+        title="Filtrar por Departamento Académico"
+      >
+        <option value="TODOS">Todos los departamentos</option>
+        {departamentosMultas.map((dep) => (
+          <option key={dep} value={dep}>{dep}</option>
+        ))}
+      </select>
       <label className="mu-buscar">
         <MenuIcon name="search" size={14} />
-        <input value={filtro.texto} onChange={(e) => setFiltro((f) => ({ ...f, texto: e.target.value }))} placeholder="DNI, docente o facultad" aria-label="Buscar" />
+        <input value={filtro.texto} onChange={(e) => setFiltro((f) => ({ ...f, texto: e.target.value }))} placeholder="DNI, docente, facultad o depto" aria-label="Buscar" />
       </label>
+      {(filtro.motivo !== 'TODOS' || filtro.estado !== 'TODOS' || filtro.departamento !== 'TODOS' || filtro.texto) && (
+        <button
+          type="button"
+          className="cv-btn cv-btn-ghost"
+          style={{ padding: '4px 10px', fontSize: '.8rem' }}
+          onClick={() => setFiltro({ motivo: 'TODOS', estado: 'TODOS', departamento: 'TODOS', texto: '' })}
+          title="Restablecer filtros"
+        >
+          Limpiar
+        </button>
+      )}
     </div>
   );
 

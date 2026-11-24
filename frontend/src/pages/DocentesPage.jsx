@@ -59,6 +59,7 @@ export default function DocentesPage({
   const [search, setSearch]             = useState('');
   const [catFilter, setCatFilter]       = useState('TODAS');
   const [estFilter, setEstFilter]       = useState('TODOS');
+  const [depFilter, setDepFilter]       = useState('TODOS');
   const [page, setPage]                 = useState(1);
   const PAGE_SIZE = 15;
 
@@ -85,13 +86,17 @@ export default function DocentesPage({
     const q = search.toLowerCase().trim();
     return teachers.filter(t => {
       const text = `${t.apellidos || ''} ${t.nombres || ''} ${t.dni || ''}`.toLowerCase();
+      const matchDep = depFilter === 'TODOS'
+        || String(t.idDepartamento) === String(depFilter)
+        || (t.departamento && t.departamento.toLowerCase() === depFilter.toLowerCase());
       return (
         (!q || text.includes(q)) &&
         (catFilter === 'TODAS' || t.categoria === catFilter) &&
-        (estFilter === 'TODOS' || t.estado === estFilter)
+        (estFilter === 'TODOS' || t.estado === estFilter) &&
+        matchDep
       );
     });
-  }, [teachers, search, catFilter, estFilter]);
+  }, [teachers, search, catFilter, estFilter, depFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currPage   = Math.min(page, totalPages);
@@ -273,7 +278,7 @@ export default function DocentesPage({
       </div>
 
       {/* ── Barra de filtros ── */}
-      <div className="filter-bar">
+      <div className="filter-bar" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
         <div className="search-box">
           <span className="search-icon"><MenuIcon name="search" size={16} /></span>
           <input
@@ -284,6 +289,16 @@ export default function DocentesPage({
           />
           {search && <button className="clear-btn" onClick={() => { setSearch(''); setPage(1); }}>✕</button>}
         </div>
+        <select
+          value={depFilter}
+          onChange={e => { setDepFilter(e.target.value); setPage(1); }}
+          className="filter-select"
+          style={{ maxWidth: 240 }}
+          title="Filtrar por Departamento Académico"
+        >
+          <option value="TODOS">Todos los departamentos</option>
+          {DEPARTAMENTOS.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+        </select>
         <select value={catFilter} onChange={e => { setCatFilter(e.target.value); setPage(1); }} className="filter-select">
           <option value="TODAS">Todas las categ.</option>
           {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
@@ -292,6 +307,23 @@ export default function DocentesPage({
           <option value="TODOS">Todos los estados</option>
           {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
         </select>
+        {(search || catFilter !== 'TODAS' || estFilter !== 'TODOS' || depFilter !== 'TODOS') && (
+          <button
+            type="button"
+            className="btn-ghost"
+            style={{ padding: '6px 12px', fontSize: '.8rem', borderRadius: 8 }}
+            onClick={() => {
+              setSearch('');
+              setCatFilter('TODAS');
+              setEstFilter('TODOS');
+              setDepFilter('TODOS');
+              setPage(1);
+            }}
+            title="Restablecer todos los filtros"
+          >
+            Limpiar filtros
+          </button>
+        )}
         {totalPages > 1 && (
           <span className="result-count">Pág. {currPage}/{totalPages}</span>
         )}
@@ -322,7 +354,7 @@ export default function DocentesPage({
                     <td>
                       <strong style={{ color: '#0f172a' }}>{t.apellidos}, {t.nombres}</strong>
                       <div style={{ fontSize: '.78rem', color: '#64748b', marginTop: 2 }}>
-                        {getFacultadNombre(t.idFacultad)}
+                        {getFacultadNombre(t.idFacultad)} · <span style={{ color: '#2563eb', fontWeight: 600 }}>{getDepartamentoNombre(t.idDepartamento)}</span>
                       </div>
                     </td>
                     <td>

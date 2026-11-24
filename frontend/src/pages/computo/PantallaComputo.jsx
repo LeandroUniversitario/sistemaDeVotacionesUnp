@@ -123,6 +123,8 @@ export default function PantallaComputo({ session, onSessionExpired }) {
   const [segunda, setSegunda] = useState({ fechaInicio: '', fechaFin: '' });
   const [filasMesa, setFilasMesa] = useState(null);
   const [tokens, setTokens] = useState({});
+  const [votosEst, setVotosEst] = useState({});
+  const [guardandoEst, setGuardandoEst] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -137,12 +139,40 @@ export default function PantallaComputo({ session, onSessionExpired }) {
     const d = await apiRequest(`/api/computo/procesos/${id}`);
     setDetalle(d);
     setTokens(leerTokens(id));
+    const estMap = {};
+    (d.votosEstudiantiles ?? []).forEach((ve) => {
+      estMap[ve.idLista] = ve.votosEstudiantes;
+    });
+    setVotosEst(estMap);
     if (moverPaso) setPaso(pasoActual(d));
     const quorum = String(d.parametros?.quorumPleno ?? 5);
     setFormSesion((f) => ({ ...f, miembrosCeunp: f.miembrosCeunp || quorum }));
     setProclamacion((p) => ({ ...p, miembrosPleno: p.miembrosPleno || quorum }));
     return d;
   }, []);
+
+  const guardarVotosEstudiantes = async (idCargo) => {
+    const c = detalle?.consolidado?.find((x) => x.idCargo === idCargo);
+    if (!c) return;
+    const payload = c.listas.map((l) => ({
+      idLista: l.idLista,
+      idCargo: c.idCargo,
+      votosEstudiantes: Math.max(0, parseInt(votosEst[l.idLista], 10) || 0),
+    }));
+    setGuardandoEst(true);
+    try {
+      const resp = await apiRequest(`/api/computo/procesos/${idProceso}/votos-estudiantiles`, {
+        method: 'POST',
+        body: JSON.stringify({ votos: payload }),
+      });
+      setFeedback({ type: 'success', text: resp.mensaje || 'Votos del estamento estudiantil registrados correctamente.' });
+      await cargarDetalle(idProceso, false);
+    } catch (e) {
+      manejarError(e);
+    } finally {
+      setGuardandoEst(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -627,29 +657,70 @@ export default function PantallaComputo({ session, onSessionExpired }) {
                 </div>
                 <div className="table-wrap">
                   <table>
-                    <thead><tr><th>Lista</th><th className="n">Actas</th><th className="n">Impugnados asignados</th><th className="n">Votos</th><th className="n">% válidos</th><th className="n">Conteo digital</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th>Lista</th>
+                        <th className="n">Votos Docentes</th>
+                        <th className="n">% Doc (2/3)</th>
+                        <th className="n">Votos Estudiantiles</th>
+                        <th className="n">% Est (1/3)</th>
+                        <th className="n">% Ponderado</th>
+                        <th className="n">Conteo digital</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {c.listas.map((l) => (
                         <tr key={l.idLista} className={c.listaPuntera === l.lista ? 'cp-puntera' : ''}>
                           <td><strong>{l.ordenCedula != null ? `${l.ordenCedula}. ` : ''}{l.lista}</strong></td>
-                          <td className="n">{l.votosActas}</td><td className="n">{l.impugnadosAsignados}</td>
                           <td className="n"><strong>{l.votos}</strong></td>
+                          <td className="n">{pct(l.porcentajeDocente ?? l.porcentaje)}</td>
                           <td className="n">
-                            {pct(l.porcentaje)}
-                            <i className="cq-barra cp-barra" style={{ '--cp-umbral': `${c.porcentajeMinimoVictoria}%` }}><b style={{ width: `${Math.min(100, Number(l.porcentaje))}%` }} /></i>
+                            {!computado && esCeunp ? (
+                              <input
+                                type="number"
+                                min="0"
+                                className="cv-input"
+                                style={{ width: '110px', textAlign: 'right', padding: '3px 8px', display: 'inline-block' }}
+                                value={votosEst[l.idLista] ?? ''}
+                                onChange={(e) => setVotosEst((prev) => ({ ...prev, [l.idLista]: e.target.value }))}
+                                placeholder="0"
+                              />
+                            ) : (
+                              <strong>{l.votosEstudiantes ?? 0}</strong>
+                            )}
+                          </td>
+                          <td className="n">{pct(l.porcentajeEstudiante ?? 0)}</td>
+                          <td className="n">
+                            <strong>{pct(l.porcentajePonderado ?? l.porcentaje)}</strong>
+                            <i className="cq-barra cp-barra" style={{ '--cp-umbral': `${c.porcentajeMinimoVictoria}%` }}><b style={{ width: `${Math.min(100, Number(l.porcentajePonderado ?? l.porcentaje))}%` }} /></i>
                           </td>
                           <td className="n">{l.votosDigital}</td>
                         </tr>
                       ))}
-                      <tr className="cp-total"><td>Votos válidos</td><td /><td /><td className="n">{c.validos}</td><td className="n">100.00 %</td><td /></tr>
-                      <tr><td>Votos en blanco</td><td /><td /><td className="n">{c.blancos}</td><td /><td /></tr>
-                      <tr><td>Votos nulos</td><td /><td /><td className="n">{c.nulos}</td><td /><td /></tr>
-                      {c.impugnados > 0 && <tr className="cp-alerta"><td>Impugnados sin resolver (CUS13)</td><td /><td /><td className="n">{c.impugnados}</td><td /><td /></tr>}
-                      <tr className="cp-total"><td>Votos emitidos</td><td /><td /><td className="n">{c.emitidos}</td><td /><td /></tr>
+                      <tr className="cp-total"><td>Votos válidos</td><td className="n">{c.validos}</td><td className="n">100.00 %</td><td className="n">{c.validosEstudiantes ?? 0}</td><td className="n">100.00 %</td><td className="n">100.00 %</td><td /></tr>
+                      <tr><td>Votos en blanco (docentes)</td><td className="n">{c.blancos}</td><td /><td /><td /><td /><td /></tr>
+                      <tr><td>Votos nulos (docentes)</td><td className="n">{c.nulos}</td><td /><td /><td /><td /></tr>
+                      {c.impugnados > 0 && <tr className="cp-alerta"><td>Impugnados sin resolver (CUS13)</td><td className="n">{c.impugnados}</td><td /><td /><td /><td /><td /></tr>}
+                      <tr className="cp-total"><td>Votos emitidos docentes</td><td className="n">{c.emitidos}</td><td /><td /><td /><td /><td /></tr>
                     </tbody>
                   </table>
                 </div>
-                <p className="muted cp-nota">Para ganar en {proceso.tipo === 'SEGUNDA_VUELTA' ? 'segunda vuelta se requiere la mitad más uno' : `primera vuelta se requiere más del ${pct(c.porcentajeMinimoVictoria)}`} de los votos válidos (RF96). Mesas con acta: {c.mesasComputables}.</p>
+                {!computado && esCeunp && (
+                  <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <span className="muted" style={{ fontSize: '0.82rem' }}>
+                      * Ley Universitaria 30220 (Art. 66 y 71): Docentes representan 2/3 (66.67%) y Estudiantes 1/3 (33.33%) del resultado ponderado.
+                    </span>
+                    <button
+                      type="button"
+                      className="cv-btn cv-btn-primary cq-mini"
+                      disabled={guardandoEst}
+                      onClick={() => guardarVotosEstudiantes(c.idCargo)}
+                    >
+                      <MenuIcon name="check" size={13} /> {guardandoEst ? 'Guardando…' : 'Guardar votos estudiantiles'}
+                    </button>
+                  </div>
+                )}
+                <p className="muted cp-nota">Para ganar en {proceso.tipo === 'SEGUNDA_VUELTA' ? 'segunda vuelta se requiere la mitad más uno' : `primera vuelta se requiere más del ${pct(c.porcentajeMinimoVictoria)}`} de los votos válidos ponderados (RF96). Mesas con acta: {c.mesasComputables}.</p>
               </div>
             ))}
           </div>
@@ -766,16 +837,38 @@ export default function PantallaComputo({ session, onSessionExpired }) {
               {detalle.resultados && (
                 <div className="table-wrap">
                   <table>
-                    <thead><tr><th>Cargo</th><th>Resultado</th><th>Lista</th><th className="n">Votos</th><th className="n">% válidos</th><th className="n">Participación</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th>Cargo</th>
+                        <th>Resultado</th>
+                        <th>Puesto</th>
+                        <th>Lista</th>
+                        <th className="n">Votos Doc.</th>
+                        {detalle.resultados.detalle.some((r) => (r.votosEstudiantes ?? 0) > 0) && (
+                          <>
+                            <th className="n">% Doc (2/3)</th>
+                            <th className="n">Votos Est.</th>
+                            <th className="n">% Est (1/3)</th>
+                          </>
+                        )}
+                        <th className="n">% Ponderado</th>
+                        <th className="n">Participación</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {detalle.resultados.cargos.map((c) => {
                         const filas = detalle.resultados.detalle.filter((r) => r.idCargo === c.idCargo && r.tipoVoto === 'VALIDO');
+                        const tieneEst = filas.some((r) => (r.votosEstudiantes ?? 0) > 0);
                         return filas.map((r, i) => (
                           <tr key={`${c.idCargo}-${r.idLista}`} className={r.idLista === c.idListaGanadora ? 'cp-puntera' : ''}>
                             {i === 0 && <td rowSpan={filas.length}><strong>{c.cargo}</strong></td>}
                             {i === 0 && <td rowSpan={filas.length}><span className={`cv-estado ${CLASE_RESULTADO[c.estadoResultado] ?? 'creado'}`}>{ESTADO_RESULTADO[c.estadoResultado]}</span></td>}
-                            <td>{r.posicion}. {r.lista}</td>
-                            <td className="n">{r.totalVotos}</td><td className="n">{pct(r.porcentajeValidos)}</td>
+                            <td><strong>{r.posicion}.</strong> {r.lista}</td>
+                            <td className="n">{r.votosDocentes ?? r.totalVotos}</td>
+                            {tieneEst && <td className="n">{pct(r.pctDocente ?? r.porcentajeValidos)}</td>}
+                            {tieneEst && <td className="n">{r.votosEstudiantes ?? 0}</td>}
+                            {tieneEst && <td className="n">{pct(r.pctEstudiante ?? 0)}</td>}
+                            <td className="n"><strong>{pct(r.pctPonderado ?? r.porcentajeValidos)}</strong></td>
                             {i === 0 && <td rowSpan={filas.length} className="n">{pct(c.participacionPct)}</td>}
                           </tr>
                         ));

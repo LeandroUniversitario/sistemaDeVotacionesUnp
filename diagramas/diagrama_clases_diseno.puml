@@ -32,6 +32,12 @@ package "Capa de Presentación (Boundary)" {
         + presentarImpugnacion()
         + consultarActaMesa()
     }
+    class ComputoResultadoView {
+        + solicitarComputo(idProceso: int)
+        + ingresarVotosEstudiantiles(idProceso: int, votos: List)
+        + ejecutarComputo(idProceso: int)
+        + proclamarResultados(idProceso: int)
+    }
 }
 
 package "Capa de Lógica de Negocio (Control)" {
@@ -56,15 +62,31 @@ package "Capa de Lógica de Negocio (Control)" {
     }
     class PadronController {
         + generarPadronElectoral(idProceso: int, idCargo: int): void
+        + filtrarPorDepartamento(idDepartamento: Integer): List<PadronElectoral>
     }
     class ProcesoElectoralController {
         + crearProceso(nombre: String): ProcesoElectoral
         + verificarQuorum(idProceso: int): boolean
     }
+    class ComputarProclamarController {
+        + registrarVotosEstudiantiles(idProceso: int, votos: List): void
+        + ejecutarComputo(idProceso: int): ResultadoComputo
+        + calcularPonderacionTercios(idCargo: int): void
+        + proclamar(idProceso: int, datos: Proclamacion): void
+    }
 }
 
 package "Capa de Entidades (Entity)" {
-    class Docente
+    class Docente {
+        - idDocente: int
+        - dni: String
+        - nombres: String
+        - apellidos: String
+        - idDepartamento: int
+        - categoria: String
+        - condicion: String
+        - dedicacion: String
+    }
     class CatalogoCargo {
         - nombreCargo: String
         - nivel: String
@@ -127,6 +149,24 @@ package "Capa de Entidades (Entity)" {
         - tokenQRHash: String
         - estado: String
     }
+    class ComputoEstudiantil {
+        - idProceso: int
+        - idCargo: int
+        - idLista: int
+        - votosEstudiantes: int
+    }
+    class ResultadoElectoral {
+        - idProceso: int
+        - idCargo: int
+        - idLista: int
+        - totalVotos: int
+        - votosDocentes: int
+        - votosEstudiantes: int
+        - pctDocente: BigDecimal
+        - pctEstudiante: BigDecimal
+        - pctPonderado: BigDecimal
+        - posicion: int
+    }
     class LogAuditoria
     class Usuario
     class SesionActiva
@@ -148,9 +188,17 @@ package "Capa de Acceso a Datos (Repository)" {
         + emitir(idProceso: int, idCargo: int, idDocente: int): ConstanciaVoto
         + verificar(token: String): ResultadoVerificacion
     }
-    interface DocenteRepository
+    interface DocenteRepository {
+        + listarDocentes(idDepartamento: Integer, busqueda: String): List<Docente>
+        + obtenerPorId(idDocente: int): Docente
+    }
     interface MesaElectoralRepository
     interface ParticipacionPersoneroRepository
+    interface ComputoRepository {
+        + registrarVotosEstudiantiles(idProceso: int, idCargo: int, idLista: int, votos: int): void
+        + ejecutarComputo(idProceso: int): void
+        + obtenerResultados(idProceso: int): List<ResultadoElectoral>
+    }
 }
 
 EmisionVotoView --> VotacionController
@@ -159,6 +207,7 @@ SorteoMesaView --> SorteoMesaController
 InscripcionListaView --> ProcesoElectoralController
 PersoneroGeneralView --> ParticipacionPersoneroController
 PersoneroMesaView --> ParticipacionPersoneroController
+ComputoResultadoView --> ComputarProclamarController
 
 VotacionController --> PadronElectoralRepository
 VotacionController --> ListaElectoralRepository
@@ -169,6 +218,7 @@ ParticipacionPersoneroController --> ParticipacionPersoneroRepository
 SorteoMesaController --> DocenteRepository
 SorteoMesaController --> MesaElectoralRepository
 PadronController --> PadronElectoralRepository
+ComputarProclamarController --> ComputoRepository
 
 Docente "1" -- "*" CargoAdministrativo
 CatalogoCargo "1" -- "*" CargoAdministrativo

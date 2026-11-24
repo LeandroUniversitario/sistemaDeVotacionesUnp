@@ -82,4 +82,21 @@ public final class ComputoDto {
             @NotNull(message = "Indique la fecha de fin de la segunda vuelta.")
             LocalDateTime fechaFin) {
     }
+
+    /** Voto del estamento estudiantil por lista para ponderación (Art. 66 y 71 Ley 30220). */
+    public record VotoEstudiantil(
+            @NotNull(message = "Elija la lista electoral.")
+            Integer idLista,
+            @NotNull(message = "Indique el cargo electoral.")
+            Integer idCargo,
+            @NotNull(message = "Indique la cantidad de votos estudiantiles.")
+            @Min(value = 0, message = "Los votos no pueden ser negativos.")
+            Integer votosEstudiantes) {
+    }
+
+    /** Colección de votos estudiantiles a registrar antes del cómputo oficial. */
+    public record GuardarVotosEstudiantes(
+            @NotNull(message = "Indique los votos de las listas.")
+            List<VotoEstudiantil> votos) {
+    }
 }
