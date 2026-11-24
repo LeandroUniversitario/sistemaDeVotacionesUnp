@@ -64,6 +64,11 @@ public class InscripcionController {
         return consulta.detalle(idProceso);
     }
 
+    @GetMapping("/procesos/{idProceso}/listas")
+    public List<Map<String, Object>> listas(@PathVariable Integer idProceso) {
+        return consulta.listas(idProceso);
+    }
+
     // ─── 1-4: Lista ───────────────────────────────────────────────────────────
 
     @PreAuthorize("hasRole('CEUNP')") // ADMIN solo consulta (actor del CUS: CEUNP)
