@@ -222,15 +222,33 @@ export default function InscripcionPage({ onSessionExpired }) {
   }
 
   // ─── CUS03·ext: Calificar lista (Admitir / Excluir) ─────────────────────
-  async function calificarLista(admitir, motivo) {
+  async function calificarLista(admitir, motivo, antiguedadVerificada = false) {
     setSaving(true);
     setFeedback(null);
     try {
       const idActual = listaSel.id;
-      const data = await apiRequest(`/api/listas/${idActual}/validar`, {
-        method: 'POST',
-        body: JSON.stringify({ admitir, motivo: motivo ?? '' }),
-      });
+      let data;
+      try {
+        data = await apiRequest(`/api/listas/${idActual}/validar`, {
+          method: 'POST',
+          body: JSON.stringify({ admitir, motivo: motivo ?? '', antiguedadVerificada }),
+        });
+      } catch (error) {
+        // RN09: a un candidato le falta la fecha de ingreso a su categoría. El CEUNP revisa el
+        // expediente y confirma la antigüedad antes de admitir la lista.
+        const texto = String(error?.message ?? '');
+        if (admitir && !antiguedadVerificada && texto.includes('RN09: falta la fecha')
+            && window.confirm(`${texto}
+
+¿Confirma que verificó en el expediente la antigüedad exigida?`)) {
+          data = await apiRequest(`/api/listas/${idActual}/validar`, {
+            method: 'POST',
+            body: JSON.stringify({ admitir, motivo: motivo ?? '', antiguedadVerificada: true }),
+          });
+        } else {
+          throw error;
+        }
+      }
       const actDetalle = await apiRequest(`/api/inscripcion/procesos/${idProceso}`);
       setDetalle(actDetalle);
       setVista({ idLista: idActual });

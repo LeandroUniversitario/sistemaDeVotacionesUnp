@@ -7327,7 +7327,7 @@
             <mxRectangle height="30" width="30" as="alternateBounds" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="re-col2-vdoc" parent="re-row-vdoc" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="votos_docentes    INT NOT NULL DEFAULT 0" vertex="1">
+        <mxCell id="re-col2-vdoc" parent="re-row-vdoc" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="votos_docentes    INT NULL" vertex="1">
           <mxGeometry height="30" width="290" x="30" as="geometry">
             <mxRectangle height="30" width="290" as="alternateBounds" />
           </mxGeometry>
@@ -7353,7 +7353,7 @@
             <mxRectangle height="30" width="30" as="alternateBounds" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="re-col2-fdoc" parent="re-row-fdoc" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="factor_docente    DECIMAL(5,4) NOT NULL DEFAULT 0.6667" vertex="1">
+        <mxCell id="re-col2-fdoc" parent="re-row-fdoc" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="pct_docente       DECIMAL(5,2) NULL" vertex="1">
           <mxGeometry height="30" width="290" x="30" as="geometry">
             <mxRectangle height="30" width="290" as="alternateBounds" />
           </mxGeometry>
@@ -7366,7 +7366,7 @@
             <mxRectangle height="30" width="30" as="alternateBounds" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="re-col2-fest" parent="re-row-fest" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="factor_estudiante DECIMAL(5,4) NOT NULL DEFAULT 0.3333" vertex="1">
+        <mxCell id="re-col2-fest" parent="re-row-fest" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="pct_estudiante    DECIMAL(5,2) NULL" vertex="1">
           <mxGeometry height="30" width="290" x="30" as="geometry">
             <mxRectangle height="30" width="290" as="alternateBounds" />
           </mxGeometry>
@@ -7379,7 +7379,7 @@
             <mxRectangle height="30" width="30" as="alternateBounds" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="re-col2-ppon" parent="re-row-ppon" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="porcentaje_ponderado DECIMAL(5,2) NULL" vertex="1">
+        <mxCell id="re-col2-ppon" parent="re-row-ppon" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="pct_ponderado     DECIMAL(5,2) NULL" vertex="1">
           <mxGeometry height="30" width="290" x="30" as="geometry">
             <mxRectangle height="30" width="290" as="alternateBounds" />
           </mxGeometry>
@@ -14882,7 +14882,7 @@
         <mxCell id="cest-r1-c1" parent="cest-r1" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;strokeColor=inherit;top=0;left=0;bottom=0;right=0;fontStyle=1;" value="PK" vertex="1">
           <mxGeometry height="30" width="30" as="geometry"><mxRectangle height="30" width="30" as="alternateBounds" /></mxGeometry>
         </mxCell>
-        <mxCell id="cest-r1-c2" parent="cest-r1" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;fontStyle=5;" value="id_computo_estudiantil INT AUTO_INCREMENT" vertex="1">
+        <mxCell id="cest-r1-c2" parent="cest-r1" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;fontStyle=5;" value="PRIMARY KEY (id_proceso, id_cargo, id_lista)" vertex="1">
           <mxGeometry height="30" width="290" x="30" as="geometry"><mxRectangle height="30" width="290" as="alternateBounds" /></mxGeometry>
         </mxCell>
         <mxCell id="cest-r2" parent="tbl-computo-estudiantil" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;strokeColor=inherit;top=0;left=0;right=0;bottom=1;" value="" vertex="1">
@@ -14936,7 +14936,7 @@
         <mxCell id="cest-r7-c1" parent="cest-r7" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;strokeColor=inherit;top=0;left=0;bottom=0;right=0;" value="" vertex="1">
           <mxGeometry height="30" width="30" as="geometry"><mxRectangle height="30" width="30" as="alternateBounds" /></mxGeometry>
         </mxCell>
-        <mxCell id="cest-r7-c2" parent="cest-r7" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="KEY ix_cest_proceso_cargo (id_proceso, id_cargo)" vertex="1">
+        <mxCell id="cest-r7-c2" parent="cest-r7" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="id_usuario         INT NOT NULL (registró la cifra)" vertex="1">
           <mxGeometry height="30" width="290" x="30" as="geometry"><mxRectangle height="30" width="290" as="alternateBounds" /></mxGeometry>
         </mxCell>
         <mxCell id="cest-r8" parent="tbl-computo-estudiantil" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;strokeColor=inherit;top=0;left=0;right=0;bottom=0;" value="" vertex="1">
@@ -14945,7 +14945,7 @@
         <mxCell id="cest-r8-c1" parent="cest-r8" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;strokeColor=inherit;top=0;left=0;bottom=0;right=0;" value="" vertex="1">
           <mxGeometry height="30" width="30" as="geometry"><mxRectangle height="30" width="30" as="alternateBounds" /></mxGeometry>
         </mxCell>
-        <mxCell id="cest-r8-c2" parent="cest-r8" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="CONSTRAINT fk_cest_proceso FOREIGN KEY (id_proceso) REFERENCES proceso_electoral(id_proceso)" vertex="1">
+        <mxCell id="cest-r8-c2" parent="cest-r8" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="CONSTRAINT fk_comp_est_proceso FOREIGN KEY (id_proceso) REFERENCES proceso_electoral(id_proceso)" vertex="1">
           <mxGeometry height="30" width="290" x="30" as="geometry"><mxRectangle height="30" width="290" as="alternateBounds" /></mxGeometry>
         </mxCell>
         <mxCell id="cest-r9" parent="tbl-computo-estudiantil" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;strokeColor=inherit;top=0;left=0;right=0;bottom=0;" value="" vertex="1">
@@ -14954,7 +14954,7 @@
         <mxCell id="cest-r9-c1" parent="cest-r9" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;strokeColor=inherit;top=0;left=0;bottom=0;right=0;" value="" vertex="1">
           <mxGeometry height="30" width="30" as="geometry"><mxRectangle height="30" width="30" as="alternateBounds" /></mxGeometry>
         </mxCell>
-        <mxCell id="cest-r9-c2" parent="cest-r9" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="CONSTRAINT fk_cest_cargo FOREIGN KEY (id_cargo) REFERENCES cargo_electoral(id_cargo)" vertex="1">
+        <mxCell id="cest-r9-c2" parent="cest-r9" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="CONSTRAINT fk_comp_est_cargo FOREIGN KEY (id_cargo) REFERENCES cargo_electoral(id_cargo)" vertex="1">
           <mxGeometry height="30" width="290" x="30" as="geometry"><mxRectangle height="30" width="290" as="alternateBounds" /></mxGeometry>
         </mxCell>
         <mxCell id="cest-r10" parent="tbl-computo-estudiantil" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;strokeColor=inherit;top=0;left=0;right=0;bottom=0;" value="" vertex="1">
@@ -14963,7 +14963,7 @@
         <mxCell id="cest-r10-c1" parent="cest-r10" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;strokeColor=inherit;top=0;left=0;bottom=0;right=0;" value="" vertex="1">
           <mxGeometry height="30" width="30" as="geometry"><mxRectangle height="30" width="30" as="alternateBounds" /></mxGeometry>
         </mxCell>
-        <mxCell id="cest-r10-c2" parent="cest-r10" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="CONSTRAINT fk_cest_lista FOREIGN KEY (id_lista) REFERENCES lista_electoral(id_lista)" vertex="1">
+        <mxCell id="cest-r10-c2" parent="cest-r10" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;align=left;strokeColor=inherit;top=0;left=0;bottom=0;right=0;spacingLeft=6;" value="CONSTRAINT fk_comp_est_lista FOREIGN KEY (id_lista) REFERENCES lista_electoral(id_lista)" vertex="1">
           <mxGeometry height="30" width="290" x="30" as="geometry"><mxRectangle height="30" width="290" as="alternateBounds" /></mxGeometry>
         </mxCell>
         <mxCell id="cest-op1-row" parent="tbl-computo-estudiantil" value="" vertex="1" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;strokeColor=inherit;top=1;left=0;right=0;bottom=0;">

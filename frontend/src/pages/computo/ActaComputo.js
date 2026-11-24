@@ -128,12 +128,15 @@ export function imprimirVerificacionPrevia(detalle) {
     <footer>Emitida el ${esc(fecha(new Date()))}.</footer>`);
 }
 
+// Aporte de cada estamento al resultado ponderado (Art. 66 Ley 30220).
+const apt = (p, factor) => (Number(p ?? 0) * factor).toFixed(2);
+
 function tablaCargo(c) {
   const tieneEst = (c.opciones ?? []).some((o) => (o.votos_estudiantes ?? 0) > 0);
   const filas = (c.opciones ?? []).map((o) => `<tr class="${c.id_lista_ganadora === o.id_lista && c.estado_resultado === 'ELEGIDO' ? 'gana' : ''}">
       <td>${o.orden != null ? `${esc(o.orden)}. ` : ''}${esc(o.lista)}</td>
       <td class="n">${esc(o.votos_docentes ?? o.votos)}</td>
-      ${tieneEst ? `<td class="n">${pct(o.pct_docente ?? o.porcentaje)}</td><td class="n">${esc(o.votos_estudiantes ?? 0)}</td><td class="n">${pct(o.pct_estudiante ?? 0)}</td>` : ''}
+      ${tieneEst ? `<td class="n">${pct(o.pct_docente ?? o.porcentaje)}</td><td class="n">${apt(o.pct_docente ?? o.porcentaje, 2 / 3)}</td><td class="n">${esc(o.votos_estudiantes ?? 0)}</td><td class="n">${pct(o.pct_estudiante ?? 0)}</td><td class="n">${apt(o.pct_estudiante, 1 / 3)}</td>` : ''}
       <td class="n"><strong>${pct(o.pct_ponderado ?? o.porcentaje)}</strong></td>
       <td class="n">${esc(o.posicion ?? '')}</td></tr>`).join('');
   return `<h2>${esc(c.cargo)} <small>· ${esc(ESTADO_RESULTADO[c.estado_resultado] ?? c.estado_resultado)}${c.lista_ganadora ? `: ${esc(c.lista_ganadora)}` : ''}</small></h2>
@@ -144,12 +147,13 @@ function tablaCargo(c) {
       <div><dt>Quórum docente</dt><dd>${c.alcanza_quorum ? 'Alcanzado' : 'No alcanzado'}</dd></div>
       <div><dt>Mínimo para ganar</dt><dd>más del ${pct(c.porcentaje_minimo)} de válidos</dd></div>
     </dl>
-    <table style="margin-top:2mm"><thead><tr><th>Lista</th><th class="n">Votos Doc.</th>${tieneEst ? '<th class="n">% Doc (2/3)</th><th class="n">Votos Est.</th><th class="n">% Est (1/3)</th>' : ''}<th class="n">% Ponderado</th><th class="n">Puesto</th></tr></thead>
+    <table style="margin-top:2mm"><thead><tr><th>Lista</th><th class="n">Votos Doc.</th>${tieneEst ? '<th class="n">% docentes</th><th class="n">Aporte ×2/3</th><th class="n">Votos est.</th><th class="n">% estudiantes</th><th class="n">Aporte ×1/3</th>' : ''}<th class="n">${tieneEst ? 'Resultado' : '% de válidos'}</th><th class="n">Puesto</th></tr></thead>
     <tbody>${filas}
-      <tr class="total"><td>Votos válidos docentes</td><td class="n">${esc(c.validos)}</td>${tieneEst ? '<td></td><td></td><td></td>' : ''}<td class="n">100.00 %</td><td></td></tr>
-      <tr><td>Votos en blanco</td><td class="n">${esc(c.blancos)}</td>${tieneEst ? '<td></td><td></td><td></td>' : ''}<td></td><td></td></tr>
-      <tr><td>Votos nulos</td><td class="n">${esc(c.nulos)}</td>${tieneEst ? '<td></td><td></td><td></td>' : ''}<td></td><td></td></tr>
-      <tr class="total"><td>Votos emitidos docentes</td><td class="n">${esc(c.emitidos)}</td>${tieneEst ? '<td></td><td></td><td></td>' : ''}<td></td><td></td></tr>
+      <tr class="total"><td>Votos válidos docentes</td><td class="n">${esc(c.validos)}</td>${tieneEst ? '<td></td><td></td><td></td><td></td><td></td>' : ''}<td class="n">100.00 %</td><td></td></tr>
+      ${tieneEst ? `<tr class="total"><td>Votos válidos estudiantes</td><td></td><td></td><td></td><td class="n">${esc(c.validos_estudiantes ?? (c.opciones ?? []).reduce((t, o) => t + Number(o.votos_estudiantes ?? 0), 0))}</td><td></td><td></td><td></td><td></td></tr>` : ''}
+      <tr><td>Votos en blanco</td><td class="n">${esc(c.blancos)}</td>${tieneEst ? '<td></td><td></td><td></td><td></td><td></td>' : ''}<td></td><td></td></tr>
+      <tr><td>Votos nulos</td><td class="n">${esc(c.nulos)}</td>${tieneEst ? '<td></td><td></td><td></td><td></td><td></td>' : ''}<td></td><td></td></tr>
+      <tr class="total"><td>Votos emitidos docentes</td><td class="n">${esc(c.emitidos)}</td>${tieneEst ? '<td></td><td></td><td></td><td></td><td></td>' : ''}<td></td><td></td></tr>
     </tbody></table>`;
 }
 

@@ -31,6 +31,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 TRUNCATE TABLE voto;
 TRUNCATE TABLE constancia_voto;
 TRUNCATE TABLE credencial_qr;          -- CUS07 (credenciales QR)
+TRUNCATE TABLE solicitud_regeneracion_qr; -- CUS07 (pedidos de nuevo QR)
+TRUNCATE TABLE constancia_pendiente;   -- CUS10 (constancias por entregar)
 TRUNCATE TABLE asistencia_personero_mesa;  -- CUS08 (instalación de mesa)
 TRUNCATE TABLE instalacion_mesa;           -- CUS08
 TRUNCATE TABLE reemplazo_mesa;             -- CUS08
@@ -46,6 +48,7 @@ TRUNCATE TABLE verificacion_acta;      -- CUS14
 TRUNCATE TABLE calificacion_mesa;      -- CUS14
 TRUNCATE TABLE proclamacion_cargo;     -- CUS14
 TRUNCATE TABLE computo_proceso;        -- CUS14
+TRUNCATE TABLE computo_estudiantil;    -- CUS14 (votos del estamento estudiantil, Ley 30220)
 TRUNCATE TABLE nulidad_comunicacion;   -- CUS15 (nulidades y segunda vuelta)
 TRUNCATE TABLE nulidad_electoral;      -- CUS15
 TRUNCATE TABLE dirimencia_empate;      -- CUS15
@@ -69,6 +72,7 @@ TRUNCATE TABLE padron_electoral;
 TRUNCATE TABLE miembro_mesa;
 TRUNCATE TABLE personero;
 TRUNCATE TABLE mesa_electoral;
+TRUNCATE TABLE sorteo_compromiso;      -- CUS06 (compromisos del sorteo)
 
 -- 5. Vaciar tachas, candidatos y listas inscritas
 TRUNCATE TABLE tacha;

@@ -399,7 +399,9 @@ export default function PantallaResultados({ session, publico = false, codigoIni
                       <MenuIcon name="trophy" size={20} />
                       <div>
                         <strong>{ganadora.lista}</strong>
-                        <span>{ganadora.votos} votos · {pct(ganadora.porcentajeValidos)} de los válidos{c.codigoCredencial ? ` · credencial ${c.codigoCredencial}` : ''}</span>
+                        <span>{c.ponderado
+                          ? `${ganadora.votosDocentes ?? ganadora.votos} votos docentes y ${ganadora.votosEstudiantes ?? 0} estudiantiles · resultado ponderado ${pct(ganadora.pctPonderado ?? ganadora.porcentajeValidos)}`
+                          : `${ganadora.votos} votos · ${pct(ganadora.porcentajeValidos)} de los válidos`}{c.codigoCredencial ? ` · credencial ${c.codigoCredencial}` : ''}</span>
                         {ganadora.formula && <small>{ganadora.formula.replaceAll('_', ' ').toLowerCase()}</small>}
                       </div>
                     </div>
@@ -411,17 +413,23 @@ export default function PantallaResultados({ session, publico = false, codigoIni
                         <i style={{ '--rs-umbral': `${c.porcentajeMinimoVictoria ?? 50}%` }}><b style={{ width: `${Math.min(100, Number(l.porcentajeValidos ?? 0))}%` }} /></i>
                         <strong>{pct(l.porcentajeValidos)}</strong>
                         <em>{l.votos}</em>
+                        {c.ponderado && (
+                          <small className="rs-ponderacion">
+                            Docentes {pct(l.pctDocente)} × 2/3 = {(Number(l.pctDocente ?? 0) * 2 / 3).toFixed(2)} · Estudiantes {pct(l.pctEstudiante)} ({l.votosEstudiantes ?? 0} votos) × 1/3 = {(Number(l.pctEstudiante ?? 0) / 3).toFixed(2)}
+                          </small>
+                        )}
                       </li>
                     ))}
                   </ul>
                   <dl className="rs-totales">
-                    <div><dt>Válidos</dt><dd>{c.validos}</dd></div>
+                    <div><dt>{c.ponderado ? 'Válidos docentes' : 'Válidos'}</dt><dd>{c.validos}</dd></div>
+                    {c.ponderado && <div><dt>Válidos estudiantes</dt><dd>{c.validosEstudiantes}</dd></div>}
                     <div><dt>En blanco</dt><dd>{c.blancos}</dd></div>
                     <div><dt>Nulos</dt><dd>{c.nulos}</dd></div>
-                    <div><dt>Emitidos</dt><dd>{c.emitidos}</dd></div>
+                    <div><dt>{c.ponderado ? 'Emitidos docentes' : 'Emitidos'}</dt><dd>{c.emitidos}</dd></div>
                     <div><dt>Participación</dt><dd>{pct(c.participacionPct)}</dd></div>
                   </dl>
-                  <p className="muted cp-nota">Para ganar en {p.tipo === 'SEGUNDA_VUELTA' ? 'segunda vuelta se requiere la mitad más uno' : `primera vuelta se requiere más del ${pct(c.porcentajeMinimoVictoria)}`} de los votos válidos (RF96, RF97). La línea marca ese mínimo.</p>
+                  <p className="muted cp-nota">Para ganar en {p.tipo === 'SEGUNDA_VUELTA' ? 'segunda vuelta se requiere la mitad más uno' : `primera vuelta se requiere más del ${pct(c.porcentajeMinimoVictoria)}`} de los votos válidos (RF96, RF97). La línea marca ese mínimo.{c.ponderado ? ' Resultado ponderado por estamentos (Art. 66 Ley 30220): votos docentes 2/3 y votos estudiantiles 1/3; el porcentaje de cada barra es la suma de ambos aportes.' : ''}</p>
                 </div>
               );
             })}

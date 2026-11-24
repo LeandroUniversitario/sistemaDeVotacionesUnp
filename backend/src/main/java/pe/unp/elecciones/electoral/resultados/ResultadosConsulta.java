@@ -134,6 +134,9 @@ public class ResultadosConsulta {
         List<Map<String, Object>> detalle = dao.consultar("""
                 SELECT r.id_cargo, r.id_lista, l.nombre AS lista, l.simbolo, l.orden_cedula, r.tipo_voto, r.total_votos AS votos,
                        r.porcentaje_validos, r.posicion,
+                       COALESCE(r.votos_docentes, r.total_votos) AS votos_docentes, COALESCE(r.votos_estudiantes, 0) AS votos_estudiantes,
+                       COALESCE(r.pct_docente, r.porcentaje_validos) AS pct_docente, COALESCE(r.pct_estudiante, 0) AS pct_estudiante,
+                       COALESCE(r.pct_ponderado, r.porcentaje_validos) AS pct_ponderado,
                        (SELECT GROUP_CONCAT(CONCAT(ca.rol_en_lista, ': ', d.nombres, ' ', d.apellidos)
                                             ORDER BY ca.id_candidato SEPARATOR ' | ')
                           FROM candidato ca JOIN docente d ON d.id_docente = ca.id_docente
@@ -141,13 +144,14 @@ public class ResultadosConsulta {
                   FROM resultado_electoral r
                   LEFT JOIN lista_electoral l ON l.id_lista = r.id_lista
                  WHERE r.id_proceso = ?
-                 ORDER BY r.id_cargo, (r.id_lista IS NULL), r.total_votos DESC, l.orden_cedula
+                 ORDER BY r.id_cargo, (r.id_lista IS NULL), r.posicion, r.total_votos DESC, l.orden_cedula
                 """, idProceso);
         for (Map<String, Object> c : cargos) {
             List<Map<String, Object>> listas = new ArrayList<>();
             long validos = 0;
             long blancos = 0;
             long nulos = 0;
+            long validosEstudiantes = 0;
             for (Map<String, Object> r : detalle) {
                 if (!c.get("idCargo").equals(r.get("idCargo"))) {
                     continue;
@@ -156,6 +160,7 @@ public class ResultadosConsulta {
                 switch (String.valueOf(r.get("tipoVoto"))) {
                     case "VALIDO" -> {
                         validos += votos;
+                        validosEstudiantes += r.get("votosEstudiantes") instanceof Number e ? e.longValue() : 0;
                         r.put("ganadora", r.get("idLista") != null && r.get("idLista").equals(c.get("idListaGanadora")));
                         listas.add(r);
                     }
@@ -168,6 +173,9 @@ public class ResultadosConsulta {
             c.put("blancos", blancos);
             c.put("nulos", nulos);
             c.put("emitidos", validos + blancos + nulos);
+            // Ley 30220, Art. 66: si hay votos estudiantiles el resultado se pondera 2/3 docentes y 1/3 estudiantes.
+            c.put("validosEstudiantes", validosEstudiantes);
+            c.put("ponderado", validosEstudiantes > 0);
         }
         return cargos;
     }

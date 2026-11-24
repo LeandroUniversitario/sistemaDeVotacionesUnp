@@ -54,12 +54,13 @@ public class ProcesoController {
         return procesoService.cambiarEstado(idProceso, request.estado(), usuarioActual.id(authentication));
     }
 
-    /** Cuerpo: {"admitir": true} o {"admitir": false, "motivo": "..."} */
+    /** Cuerpo: {"admitir": true, "antiguedadVerificada": true|false} o {"admitir": false, "motivo": "..."} */
     @PostMapping("/listas/{idLista}/validar")
     @PreAuthorize("hasRole('CEUNP')")
     public List<Map<String, Object>> validarLista(@PathVariable Integer idLista, @RequestBody ValidarListaRequest request,
             Authentication authentication) {
-        return procesoService.validarLista(idLista, request.admitir(), request.motivo(), usuarioActual.id(authentication));
+        return procesoService.validarLista(idLista, request.admitir(), request.motivo(),
+                Boolean.TRUE.equals(request.antiguedadVerificada()), usuarioActual.id(authentication));
     }
 
     /** Multas del docente que tiene la sesión abierta. */
@@ -71,6 +72,6 @@ public class ProcesoController {
     public record EstadoRequest(@NotBlank String estado) {
     }
 
-    public record ValidarListaRequest(boolean admitir, String motivo) {
+    public record ValidarListaRequest(boolean admitir, String motivo, Boolean antiguedadVerificada) {
     }
 }

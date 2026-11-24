@@ -88,6 +88,7 @@ public class PadronController {
         return consulta.padron(idProceso);
     }
 
+    @PreAuthorize("hasRole('CEUNP')")   // CUS02: el padrón definitivo lo aprueba solo el CEUNP
     @PostMapping("/procesos/{idProceso}/aprobar")
     public Map<String, Object> aprobar(@PathVariable Integer idProceso, Authentication authentication) {
         return aprobarPadron.generarDefinitivo(idProceso, usuarioActual.id(authentication));

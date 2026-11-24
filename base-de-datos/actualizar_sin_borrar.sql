@@ -3035,6 +3035,14 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El conteo de firmas de la lista física no puede ser negativo.';
   END IF;
   SET v_obs = NULLIF(TRIM(p_observaciones), '');
+  -- RF76 (cuadre): votantes + cédulas no utilizadas deben sumar las cédulas recibidas en la instalación;
+  -- si no cuadran, la diferencia se explica en las observaciones del acta.
+  IF v_cedulas IS NOT NULL AND v_votaron + p_cedulas_no_utilizadas <> v_cedulas AND v_obs IS NULL THEN
+    SET v_msg = CONCAT('RF76: ', v_votaron, ' votantes más ', p_cedulas_no_utilizadas, ' cédulas no utilizadas suman ',
+                       v_votaron + p_cedulas_no_utilizadas, ' y se recibieron ', v_cedulas,
+                       ' cédulas. Corrija la cantidad o explique la diferencia en las observaciones.');
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
+  END IF;
   -- A2: el total del sistema difiere del conteo de firmas en la lista física
   IF p_firmas_lista_fisica IS NOT NULL AND p_firmas_lista_fisica <> v_votaron AND v_obs IS NULL THEN
     SET v_msg = CONCAT('A2: la lista física tiene ', p_firmas_lista_fisica, ' firmas y el sistema registra ',
@@ -9180,6 +9188,10 @@ INSERT IGNORE INTO bitacora_accion (codigo, etiqueta, descripcion, modulo, caso_
   ('REVOCAR_CREDENCIAL',             'Credencial QR revocada',                'La credencial deja de ser válida.', 'PREPARACION', 'CUS07', 'ALTA', 250),
   ('VERIFICAR_CREDENCIAL',           'Credencial QR verificada',              'Lectura y comprobación de una credencial.', 'PREPARACION', 'CUS07', 'BAJA', 260),
   ('CONSULTA_PUBLICA_CREDENCIAL',    'Credencial QR consultada (pública)',    'Apertura de la página pública de una credencial al escanear su QR.', 'PREPARACION', 'CUS07', 'BAJA', 261),
+  ('SOLICITAR_REGENERACION_QR',      'Regeneración de QR solicitada',         'Un docente pidió al CEUNP un nuevo código QR para su credencial.', 'PREPARACION', 'CUS07', 'MEDIA', 262),
+  ('APROBAR_REGENERACION_QR',        'Regeneración de QR aprobada',           'El CEUNP aprobó la solicitud y emitió un nuevo QR.', 'PREPARACION', 'CUS07', 'ALTA', 263),
+  ('RECHAZAR_REGENERACION_QR',       'Regeneración de QR rechazada',          'El CEUNP rechazó la solicitud de un nuevo QR.', 'PREPARACION', 'CUS07', 'MEDIA', 264),
+  ('REGISTRAR_VOTOS_ESTUDIANTILES',  'Votos estudiantiles registrados',       'El CEUNP registró o cambió los votos del estamento estudiantil de una lista (Art. 66 Ley 30220).', 'RESULTADOS', 'CUS14', 'ALTA', 735),
   ('RECIBIR_CREDENCIAL_PERSONERO',   'Credencial de personero recibida',      'El personero recibió su credencial.', 'PREPARACION', 'CUS07', 'BAJA', 270),
   -- Jornada electoral (CUS08-CUS11)
   ('REGISTRAR_LLEGADA_MIEMBRO',      'Llegada de miembro de mesa',            'Registro de la hora de llegada del miembro.', 'JORNADA', 'CUS08', 'BAJA', 10),

@@ -24,6 +24,7 @@
 .rs-shell .rs-barras li { display: grid; grid-template-columns: minmax(160px, 1.3fr) 2fr 72px 52px; align-items: center; gap: 12px; font-size: .86rem; }
 .rs-shell .rs-barras li > span { color: var(--mx-ink, #0f172a); }
 .rs-shell .rs-barras li > span b { color: var(--mx-muted, #64748b); font-weight: 600; }
+.rs-shell .rs-barras li > .rs-ponderacion { grid-column: 1 / -1; color: var(--mx-muted, #64748b); font-size: .78rem; margin-top: -6px; }
 .rs-shell .rs-barras li > i {
   position: relative; height: 12px; border-radius: 999px; background: var(--mx-line-soft, #f1f5f9); overflow: visible;
 }

@@ -154,12 +154,14 @@ package "Capa de Entidades (Entity)" {
         - idCargo: int
         - idLista: int
         - votosEstudiantes: int
+        - fechaRegistro: LocalDateTime
+        - idUsuario: int
     }
     class ResultadoElectoral {
         - idProceso: int
         - idCargo: int
         - idLista: int
-        - totalVotos: int
+        - totalVotos: int  ' solo votos docentes de las mesas
         - votosDocentes: int
         - votosEstudiantes: int
         - pctDocente: BigDecimal

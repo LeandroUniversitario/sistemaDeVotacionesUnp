@@ -283,10 +283,11 @@ public class NulidadesConsulta {
         for (Map<String, Object> c : cargos) {
             int idCargo = numero(c.get("idCargo"));
             List<Map<String, Object>> listas = dao.consultar("""
-                    SELECT r.id_lista, l.nombre AS lista, l.orden_cedula, r.total_votos AS votos, r.porcentaje_validos, r.posicion
+                    SELECT r.id_lista, l.nombre AS lista, l.orden_cedula, r.total_votos AS votos, r.porcentaje_validos, r.posicion,
+                           COALESCE(r.votos_estudiantes, 0) AS votos_estudiantes, COALESCE(r.pct_ponderado, r.porcentaje_validos) AS pct_ponderado
                       FROM resultado_electoral r JOIN lista_electoral l ON l.id_lista = r.id_lista
                      WHERE r.id_cargo = ? AND r.tipo_voto = 'VALIDO'
-                     ORDER BY r.total_votos DESC, r.id_lista
+                     ORDER BY COALESCE(r.pct_ponderado, r.porcentaje_validos) DESC, r.total_votos DESC, r.id_lista
                     """, idCargo);
             Map<String, Object> dirimencia = dirimencias.stream().filter(d -> numero(d.get("idCargo")) == idCargo).findFirst().orElse(null);
             String estado = texto(c.get("estadoResultado"));

@@ -64,6 +64,10 @@ const PASOS = [
   { codigo: 'PUBLICACION', texto: 'Publicación', nota: 'Portal electoral · RF99', icono: 'external' },
 ];
 const pct = (v) => `${Number(v ?? 0).toFixed(2)} %`;
+// Ley 30220, Art. 66: aporte de cada estamento al resultado (docentes ×2/3, estudiantes ×1/3).
+// Sin votos estudiantiles la elección es solo docente y no hay aporte que mostrar.
+const aporte = (porcentaje, factor, votosEstudiantes) =>
+  Number(votosEstudiantes ?? 0) > 0 ? (Number(porcentaje ?? 0) * factor).toFixed(2) : '—';
 const si = (v) => v === true || v === 1;
 const claveTokens = (id) => `cus14-tokens-${id}`;
 
@@ -660,11 +664,13 @@ export default function PantallaComputo({ session, onSessionExpired }) {
                     <thead>
                       <tr>
                         <th>Lista</th>
-                        <th className="n">Votos Docentes</th>
-                        <th className="n">% Doc (2/3)</th>
-                        <th className="n">Votos Estudiantiles</th>
-                        <th className="n">% Est (1/3)</th>
-                        <th className="n">% Ponderado</th>
+                        <th className="n">Votos docentes</th>
+                        <th className="n">% docentes</th>
+                        <th className="n">Aporte docentes (×2/3)</th>
+                        <th className="n">Votos estudiantes</th>
+                        <th className="n">% estudiantes</th>
+                        <th className="n">Aporte estudiantes (×1/3)</th>
+                        <th className="n">Resultado ponderado</th>
                         <th className="n">Conteo digital</th>
                       </tr>
                     </thead>
@@ -674,6 +680,7 @@ export default function PantallaComputo({ session, onSessionExpired }) {
                           <td><strong>{l.ordenCedula != null ? `${l.ordenCedula}. ` : ''}{l.lista}</strong></td>
                           <td className="n"><strong>{l.votos}</strong></td>
                           <td className="n">{pct(l.porcentajeDocente ?? l.porcentaje)}</td>
+                          <td className="n">{aporte(l.porcentajeDocente ?? l.porcentaje, 2 / 3, c.validosEstudiantes)}</td>
                           <td className="n">
                             {!computado && esCeunp ? (
                               <input
@@ -690,6 +697,7 @@ export default function PantallaComputo({ session, onSessionExpired }) {
                             )}
                           </td>
                           <td className="n">{pct(l.porcentajeEstudiante ?? 0)}</td>
+                          <td className="n">{aporte(l.porcentajeEstudiante ?? 0, 1 / 3, c.validosEstudiantes)}</td>
                           <td className="n">
                             <strong>{pct(l.porcentajePonderado ?? l.porcentaje)}</strong>
                             <i className="cq-barra cp-barra" style={{ '--cp-umbral': `${c.porcentajeMinimoVictoria}%` }}><b style={{ width: `${Math.min(100, Number(l.porcentajePonderado ?? l.porcentaje))}%` }} /></i>
@@ -697,11 +705,11 @@ export default function PantallaComputo({ session, onSessionExpired }) {
                           <td className="n">{l.votosDigital}</td>
                         </tr>
                       ))}
-                      <tr className="cp-total"><td>Votos válidos</td><td className="n">{c.validos}</td><td className="n">100.00 %</td><td className="n">{c.validosEstudiantes ?? 0}</td><td className="n">100.00 %</td><td className="n">100.00 %</td><td /></tr>
-                      <tr><td>Votos en blanco (docentes)</td><td className="n">{c.blancos}</td><td /><td /><td /><td /><td /></tr>
-                      <tr><td>Votos nulos (docentes)</td><td className="n">{c.nulos}</td><td /><td /><td /><td /></tr>
-                      {c.impugnados > 0 && <tr className="cp-alerta"><td>Impugnados sin resolver (CUS13)</td><td className="n">{c.impugnados}</td><td /><td /><td /><td /><td /></tr>}
-                      <tr className="cp-total"><td>Votos emitidos docentes</td><td className="n">{c.emitidos}</td><td /><td /><td /><td /><td /></tr>
+                      <tr className="cp-total"><td>Votos válidos</td><td className="n">{c.validos}</td><td className="n">100.00 %</td><td className="n">{(c.validosEstudiantes ?? 0) > 0 ? '66.67' : '100.00'}</td><td className="n">{c.validosEstudiantes ?? 0}</td><td className="n">{(c.validosEstudiantes ?? 0) > 0 ? '100.00 %' : ''}</td><td className="n">{(c.validosEstudiantes ?? 0) > 0 ? '33.33' : ''}</td><td className="n">100.00 %</td><td /></tr>
+                      <tr><td>Votos en blanco (docentes)</td><td className="n">{c.blancos}</td><td /><td /><td /><td /><td /><td /><td /></tr>
+                      <tr><td>Votos nulos (docentes)</td><td className="n">{c.nulos}</td><td /><td /><td /><td /><td /><td /><td /></tr>
+                      {c.impugnados > 0 && <tr className="cp-alerta"><td>Impugnados sin resolver (CUS13)</td><td className="n">{c.impugnados}</td><td /><td /><td /><td /><td /><td /><td /></tr>}
+                      <tr className="cp-total"><td>Votos emitidos docentes</td><td className="n">{c.emitidos}</td><td /><td /><td /><td /><td /><td /><td /></tr>
                     </tbody>
                   </table>
                 </div>
@@ -846,12 +854,14 @@ export default function PantallaComputo({ session, onSessionExpired }) {
                         <th className="n">Votos Doc.</th>
                         {detalle.resultados.detalle.some((r) => (r.votosEstudiantes ?? 0) > 0) && (
                           <>
-                            <th className="n">% Doc (2/3)</th>
-                            <th className="n">Votos Est.</th>
-                            <th className="n">% Est (1/3)</th>
+                            <th className="n">% docentes</th>
+                            <th className="n">Aporte (×2/3)</th>
+                            <th className="n">Votos est.</th>
+                            <th className="n">% estudiantes</th>
+                            <th className="n">Aporte (×1/3)</th>
                           </>
                         )}
-                        <th className="n">% Ponderado</th>
+                        <th className="n">Resultado</th>
                         <th className="n">Participación</th>
                       </tr>
                     </thead>
@@ -866,8 +876,10 @@ export default function PantallaComputo({ session, onSessionExpired }) {
                             <td><strong>{r.posicion}.</strong> {r.lista}</td>
                             <td className="n">{r.votosDocentes ?? r.totalVotos}</td>
                             {tieneEst && <td className="n">{pct(r.pctDocente ?? r.porcentajeValidos)}</td>}
+                            {tieneEst && <td className="n">{aporte(r.pctDocente ?? r.porcentajeValidos, 2 / 3, 1)}</td>}
                             {tieneEst && <td className="n">{r.votosEstudiantes ?? 0}</td>}
                             {tieneEst && <td className="n">{pct(r.pctEstudiante ?? 0)}</td>}
+                            {tieneEst && <td className="n">{aporte(r.pctEstudiante ?? 0, 1 / 3, 1)}</td>}
                             <td className="n"><strong>{pct(r.pctPonderado ?? r.porcentajeValidos)}</strong></td>
                             {i === 0 && <td rowSpan={filas.length} className="n">{pct(c.participacionPct)}</td>}
                           </tr>

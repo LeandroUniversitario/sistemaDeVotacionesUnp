@@ -46,7 +46,7 @@ public class VerificarActas {
         String mensaje = autentica
                 ? "Acta auténtica: la huella SHA-256 coincide" + (fila.get("qrCoincide") == null ? "" : " y el QR del ejemplar físico corresponde al acta") + "."
                 : "Acta NO auténtica: " + (ComputoConsulta.numero(fila.get("huellaCoincide")) == 1 ? "el QR leído no corresponde al acta"
-                        : "su contenido no coincide con la huella SHA-256") + ". Solo procede declarar la nulidad de la mesa (RF94).";
+                        : "su contenido no coincide con la huella SHA-256") + ". Si se leyó el QR de otra hoja, vuelva a leer el del ejemplar correcto; si el acta no es auténtica, solo procede declarar la nulidad de la mesa (RF94).";
         Map<String, Object> respuesta = respuesta(mensaje, acta, usuario);
         respuesta.put("comprobacion", fila);
         return respuesta;

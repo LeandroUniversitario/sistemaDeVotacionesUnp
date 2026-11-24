@@ -48,6 +48,38 @@ public class ProcesoService {
 
     /** RN12: el CEUNP admite o excluye la fórmula completa. */
     public List<Map<String, Object>> validarLista(Integer idLista, boolean admitir, String motivo, Integer idUsuario) {
+        return validarLista(idLista, admitir, motivo, false, idUsuario);
+    }
+
+    /**
+     * RN09: si a un candidato le falta la fecha de ingreso a su categoría, la inscripción solo lo advirtió
+     * («el CEUNP lo verifica al calificar»). Para admitir la lista el CEUNP confirma que revisó la
+     * antigüedad en el expediente (antiguedadVerificada = true); si no, se rechaza indicando a quiénes.
+     */
+    public List<Map<String, Object>> validarLista(Integer idLista, boolean admitir, String motivo,
+            boolean antiguedadVerificada, Integer idUsuario) {
+        if (admitir && !antiguedadVerificada) {
+            List<String> sinFecha = new java.util.ArrayList<>();
+            for (Map<String, Object> c : dao.consultar("""
+                    SELECT ca.rol_en_lista, ce.nombre AS cargo, CONCAT(d.apellidos, ', ', d.nombres) AS docente
+                      FROM candidato ca
+                      JOIN docente d          ON d.id_docente = ca.id_docente
+                      JOIN lista_electoral l  ON l.id_lista = ca.id_lista
+                      JOIN cargo_electoral ce ON ce.id_cargo = l.id_cargo
+                     WHERE ca.id_lista = ? AND ca.estado_validacion <> 'EXCLUIDO' AND d.fecha_categoria IS NULL
+                    """, idLista)) {
+                pe.unp.elecciones.electoral.inscripcion.RolesCargo.Rol rol = pe.unp.elecciones.electoral.inscripcion.RolesCargo
+                        .buscar(String.valueOf(c.get("cargo")), String.valueOf(c.get("rolEnLista")));
+                if (rol != null && rol.aniosCategoria() > 0) {
+                    sinFecha.add(c.get("docente") + " (" + rol.etiqueta() + ", se exigen " + rol.aniosCategoria() + " años)");
+                }
+            }
+            if (!sinFecha.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "RN09: falta la fecha de ingreso a la categoría de " + String.join("; ", sinFecha)
+                        + ". Verifique la antigüedad en el expediente y confirme la verificación para admitir la lista.");
+            }
+        }
         dao.llamar("sp_validar_lista", ProcedimientoDao.SIN_SALIDA, idLista, admitir, motivo, idUsuario);
         return dao.consultar("""
                 SELECT id_lista AS id, id_cargo, nombre, simbolo, orden_cedula, estado,
@@ -166,11 +198,14 @@ public class ProcesoService {
                 """, idProceso));
         respuesta.put("detalle", dao.consultar("""
                 SELECT r.id_cargo, r.id_lista, COALESCE(l.nombre, CONCAT('VOTO ', r.tipo_voto)) AS lista,
-                       r.tipo_voto, r.total_votos, r.porcentaje_validos, r.posicion
+                       r.tipo_voto, r.total_votos, r.porcentaje_validos, r.posicion,
+                       COALESCE(r.votos_docentes, r.total_votos) AS votos_docentes, COALESCE(r.votos_estudiantes, 0) AS votos_estudiantes,
+                       COALESCE(r.pct_docente, r.porcentaje_validos) AS pct_docente, COALESCE(r.pct_estudiante, 0) AS pct_estudiante,
+                       COALESCE(r.pct_ponderado, r.porcentaje_validos) AS pct_ponderado
                   FROM resultado_electoral r
                   LEFT JOIN lista_electoral l ON l.id_lista = r.id_lista
                  WHERE r.id_proceso = ?
-                 ORDER BY r.id_cargo, (r.id_lista IS NULL), r.total_votos DESC
+                 ORDER BY r.id_cargo, (r.id_lista IS NULL), r.posicion, r.total_votos DESC
                 """, idProceso));
         return respuesta;
     }
