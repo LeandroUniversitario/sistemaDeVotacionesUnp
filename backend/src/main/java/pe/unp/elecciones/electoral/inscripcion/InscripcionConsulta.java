@@ -53,6 +53,19 @@ public class InscripcionConsulta {
         return filas.get(0);
     }
 
+    public List<Map<String, Object>> listas(Integer idProceso) {
+        return dao.consultar("""
+                SELECT l.id_lista AS id, l.id_cargo, l.nombre, l.simbolo, l.url_plan_gobierno, l.estado,
+                       l.fecha_inscripcion, l.motivo_exclusion,
+                       (SELECT COUNT(*) FROM tacha t JOIN candidato ca ON ca.id_candidato = t.id_candidato
+                         WHERE ca.id_lista = l.id_lista) AS total_tachas
+                  FROM lista_electoral l
+                  JOIN cargo_electoral c ON c.id_cargo = l.id_cargo
+                 WHERE c.id_proceso = ?
+                 ORDER BY l.fecha_inscripcion, l.id_lista
+                """, idProceso);
+    }
+
     /** Vista completa del proceso: cargos → listas → candidatos, con los roles que faltan (RN10). */
     public Map<String, Object> detalle(Integer idProceso) {
         Map<String, Object> proceso = proceso(idProceso);

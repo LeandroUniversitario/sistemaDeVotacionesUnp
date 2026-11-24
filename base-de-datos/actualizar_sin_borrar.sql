@@ -3537,9 +3537,9 @@ BEGIN
   -- 5: ingresarConteoManual(conteo_listas)
   SET v_n = JSON_LENGTH(p_conteo);
   WHILE v_i < v_n DO
-    SET v_cargo = JSON_EXTRACT(p_conteo, CONCAT('$[', v_i, '].id_cargo'));
+    SET v_cargo = CAST(JSON_UNQUOTE(JSON_EXTRACT(p_conteo, CONCAT('$[', v_i, '].id_cargo'))) AS UNSIGNED);
     SET v_opcion = UPPER(JSON_UNQUOTE(JSON_EXTRACT(p_conteo, CONCAT('$[', v_i, '].opcion'))));
-    SET v_lista = NULLIF(JSON_EXTRACT(p_conteo, CONCAT('$[', v_i, '].id_lista')), 'null');
+    SET v_lista = NULLIF(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(p_conteo, CONCAT('$[', v_i, '].id_lista'))), 'null'), '');
     SET v_votos_txt = JSON_UNQUOTE(JSON_EXTRACT(p_conteo, CONCAT('$[', v_i, '].votos')));
     IF v_votos_txt IS NULL OR v_votos_txt NOT REGEXP '^[0-9]{1,6}$' THEN
       SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'RF79: cada opción lleva una cantidad de votos entera y no negativa.';
