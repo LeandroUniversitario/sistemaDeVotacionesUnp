@@ -95,6 +95,26 @@ function App() {
     return () => clearInterval(timer);
   }, [session?.username]);
 
+  // A5: Prevenir que BFCache o la flecha de retroceso restaure un perfil cerrado
+  useEffect(() => {
+    const onPageShow = (event) => {
+      if (event.persisted && !sessionStorage.getItem('accessToken')) {
+        window.location.reload();
+      }
+    };
+    const onFocus = () => {
+      if (!sessionStorage.getItem('accessToken') && session) {
+        setSession(null);
+      }
+    };
+    window.addEventListener('pageshow', onPageShow);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('pageshow', onPageShow);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [session]);
+
   if (verificando) {
     // Pantalla de splash minima mientras se verifica el token
     return (
@@ -134,6 +154,22 @@ const credencialPublica = window.location.pathname.startsWith('/credencial/');
 const cabina = /^\/cabina\/?$/.test(window.location.pathname);
 
 function Cabina() {
+  useEffect(() => {
+    // Destruir tokens residuales
+    sessionStorage.clear();
+
+    // Reemplazar la entrada de historial actual para desconectar la sesión previa
+    window.history.replaceState(null, '', '/cabina');
+    window.history.pushState(null, '', '/cabina');
+
+    // Kiosco: atrapar cualquier intento de usar la flecha 'Atrás' del navegador
+    const onPop = () => {
+      window.history.pushState(null, '', '/cabina');
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
   return <main className="cabina-kiosco"><TerminalVotacion modo="cabina" /></main>;
 }
 
