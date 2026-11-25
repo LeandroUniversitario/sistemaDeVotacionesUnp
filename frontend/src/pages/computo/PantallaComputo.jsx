@@ -89,7 +89,7 @@ function pasoActual(d) {
   const etapa = d?.computo?.estado;
   if (!d || d.proceso.estado === 'VOTACION') return 'VERIFICACION';
   if (!etapa) return d.bloqueos.length ? 'VERIFICACION' : 'SESION';
-  if (etapa === 'SESION_INSTALADA') return d.bloqueos.length ? 'VERIFICACION' : 'COMPUTO';
+  if (etapa === 'SESION_INSTALADA') return d.bloqueos.length ? 'VERIFICACION' : 'CONSOLIDACION';
   if (etapa === 'COMPUTADO') return d.proceso.estado === 'ANULADO' ? 'PUBLICACION' : 'PROCLAMACION';
   return 'PUBLICACION';
 }
@@ -755,6 +755,13 @@ export default function PantallaComputo({ session, onSessionExpired }) {
                 </tbody>
               </table>
             </div>
+            {!computado && (
+              <div className="cv-actions" style={{ marginTop: '14px', justifyContent: 'flex-end' }}>
+                <button type="button" className="cv-btn cv-btn-primary" onClick={() => setPaso('COMPUTO')}>
+                  Continuar al cómputo oficial <MenuIcon name="arrow-right" size={15} />
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}

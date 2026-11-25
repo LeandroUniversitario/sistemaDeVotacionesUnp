@@ -109,6 +109,41 @@ public class ProcedimientoDao {
         return jdbc.update(sql, argumentos);
     }
 
+    /**
+     * Devuelve a DOCENTE las cuentas con rol MIEMBRO_MESA o PERSONERO que ya no tienen
+     * asignación vigente en ningún proceso activo (no FINALIZADO ni ANULADO).
+     */
+    public void restablecerRolesSinProcesoActivo() {
+        ejecutar("""
+                UPDATE usuario u
+                   SET u.rol = 'DOCENTE'
+                 WHERE u.rol = 'MIEMBRO_MESA'
+                   AND NOT EXISTS (
+                       SELECT 1
+                         FROM miembro_mesa mm
+                         JOIN mesa_electoral m ON m.id_mesa = mm.id_mesa
+                         JOIN proceso_electoral p ON p.id_proceso = m.id_proceso
+                        WHERE mm.id_docente = u.id_docente
+                          AND p.estado NOT IN ('FINALIZADO', 'ANULADO')
+                   )
+                """);
+        ejecutar("""
+                UPDATE usuario u
+                   SET u.rol = 'DOCENTE'
+                 WHERE u.rol = 'PERSONERO'
+                   AND NOT EXISTS (
+                       SELECT 1
+                         FROM personero pe
+                         JOIN lista_electoral l ON l.id_lista = pe.id_lista
+                         JOIN cargo_electoral c ON c.id_cargo = l.id_cargo
+                         JOIN proceso_electoral p ON p.id_proceso = c.id_proceso
+                        WHERE pe.id_docente = u.id_docente
+                          AND pe.estado_acreditacion = 'ACREDITADO'
+                          AND p.estado NOT IN ('FINALIZADO', 'ANULADO')
+                   )
+                """);
+    }
+
     /** SELECT COUNT(*) u otro entero. Devuelve 0 si el resultado es NULL. */
     public int entero(String sql, Object... argumentos) {
         Integer valor = jdbc.queryForObject(sql, Integer.class, argumentos);

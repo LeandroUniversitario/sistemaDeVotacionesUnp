@@ -7687,7 +7687,7 @@ SELECT m.id_proceso, mm.id_docente, _utf8mb4'OMISO_MESA' COLLATE utf8mb4_unicode
        CONVERT(CONCAT(mm.rol, '') USING utf8mb4) COLLATE utf8mb4_unicode_ci, 0
   FROM miembro_mesa mm
   JOIN mesa_electoral m ON m.id_mesa = mm.id_mesa
- WHERE mm.titular = 1 AND mm.asistio = 0;
+ WHERE mm.asistio = 0;
 
 -- RN35: multas con datos del docente. Conserva las columnas anteriores (ProcesoService) y agrega
 -- la mesa, la notificación, el pago, el último descargo y el plazo para justificar (CUS16).

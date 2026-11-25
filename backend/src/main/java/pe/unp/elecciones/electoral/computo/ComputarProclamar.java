@@ -50,6 +50,7 @@ public class ComputarProclamar {
     public Map<String, Object> ejecutarComputo(Integer idProceso, Usuario usuario) {
         consulta.proceso(idProceso);
         ProcedimientoDao.Resultado r = dao.llamar("sp_ejecutar_computo", ProcedimientoDao.SIN_SALIDA, idProceso, usuario.getId());
+        dao.restablecerRolesSinProcesoActivo();
         Map<String, Object> fila = primera(r);
         Map<String, Object> detalle = consulta.detalle(idProceso, usuario);
 
@@ -81,6 +82,7 @@ public class ComputarProclamar {
         ProcedimientoDao.Resultado r = dao.llamar("sp_proclamar_resultados", ProcedimientoDao.SIN_SALIDA, idProceso,
                 usuario.getId(), datos.numeroResolucion().trim(), datos.miembrosPleno(), datos.presidente().trim(),
                 SesionComputo.vacioANulo(datos.fundamento()));
+        dao.restablecerRolesSinProcesoActivo();
         Map<String, Object> fila = primera(r);
         int proclamados = ComputoConsulta.numero(fila.get("cargosProclamados"));
         Map<String, Object> respuesta = new LinkedHashMap<>();

@@ -73,8 +73,7 @@ public class NulidadesConsulta {
                  WHERE (p.estado IN ('VOTACION', 'CERRADO', 'FINALIZADO', 'ANULADO')
                         AND EXISTS (SELECT 1 FROM mesa_electoral m WHERE m.id_proceso = p.id_proceso))
                     OR p.tipo = 'SEGUNDA_VUELTA'
-                 ORDER BY FIELD(p.estado, 'CERRADO', 'FINALIZADO', 'VOTACION', 'INSCRIPCION', 'CREADO', 'ANULADO'),
-                          p.fecha_inicio DESC
+                 ORDER BY p.id_proceso DESC
                 """);
     }
 

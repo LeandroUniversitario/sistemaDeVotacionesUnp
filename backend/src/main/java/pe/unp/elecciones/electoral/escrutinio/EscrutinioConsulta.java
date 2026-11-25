@@ -86,7 +86,7 @@ public class EscrutinioConsulta {
                   LEFT JOIN escrutinio_mesa e ON e.id_mesa = m.id_mesa
                  WHERE p.estado <> 'ANULADO'
                  GROUP BY p.id_proceso, p.nombre, p.estado, p.fecha_inicio, p.fecha_fin
-                 ORDER BY (p.estado IN ('VOTACION', 'CERRADO')) DESC, p.fecha_inicio DESC
+                 ORDER BY (p.estado IN ('VOTACION', 'CERRADO')) DESC, p.id_proceso DESC
                 """);
     }
 

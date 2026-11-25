@@ -595,7 +595,8 @@ export default function PantallaAdministrador({ session, onSessionExpired, secci
                       <tr key={u.idUsuario} className={u.idUsuario === idUsuario ? 'ad-fila-on' : ''}>
                         <td><strong>{u.username}</strong>{u.idUsuario === detalle.idAdmin && <em className="ad-yo">usted</em>}
                           <small className="pd-sub">Creada {fecha(u.fechaCreacion)}{u.creadoPor ? ` por ${u.creadoPor}` : ''}</small></td>
-                        <td><span className="ad-rol-pill" style={{ '--ad-color': COLOR_ROL[u.rol] }}>{ROL_CORTO[u.rol] ?? u.rol}</span></td>
+                        <td><span className="ad-rol-pill" style={{ '--ad-color': COLOR_ROL[u.rol] }}>{ROL_CORTO[u.rol] ?? u.rol}</span>
+                          {u.cargoMesa && <small className="pd-sub" style={{ color: '#7c3aed', fontWeight: 600 }}>{u.cargoMesa}{u.numeroMesa ? ` · Mesa ${u.numeroMesa}` : ''}</small>}</td>
                         <td>{u.docente ? <>{u.docente}<small className="pd-sub">DNI {u.dni} · {u.facultad}{u.departamento ? ` · ${u.departamento}` : ''}</small></> : <span className="muted">Sin docente</span>}</td>
                         <td><span className={`cv-estado ${s.clase}`}>{s.texto}</span>
                           {si(u.activo) && Number(u.intentosFallidos) > 0 && !si(u.bloqueada) && <small className="pd-sub">{u.intentosFallidos} intento(s) fallido(s)</small>}</td>

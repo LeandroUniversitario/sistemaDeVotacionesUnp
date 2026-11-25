@@ -78,6 +78,7 @@ public class AcreditarPersonero {
         }
 
         insertar(idLista, datos.idDocente(), tipo, idMesa);
+        dao.restablecerRolesSinProcesoActivo();
         // Al acreditar, la cuenta del docente asume temporalmente el rol PERSONERO
         dao.ejecutar("UPDATE usuario SET rol = 'PERSONERO' WHERE id_docente = ? AND rol = 'DOCENTE'", datos.idDocente());
 

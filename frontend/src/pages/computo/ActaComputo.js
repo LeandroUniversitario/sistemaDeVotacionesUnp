@@ -75,10 +75,15 @@ export function imprimir(titulo, cuerpo) {
   doc.open();
   doc.write(html);
   doc.close();
+  const tituloOriginal = document.title;
+  if (titulo) document.title = titulo;
   setTimeout(() => {
     iframe.contentWindow.focus();
     iframe.contentWindow.print();
-    setTimeout(() => iframe.remove(), 1000);
+    setTimeout(() => {
+      document.title = tituloOriginal;
+      iframe.remove();
+    }, 1000);
   }, 250);
 }
 

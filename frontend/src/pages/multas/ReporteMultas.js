@@ -87,7 +87,7 @@ export function imprimirReporteOmisos(detalle) {
       <div><dt>Monto total</dt><dd>${soles(total)}</dd></div>
     </dl>
     ${detalle.participacion ? `<p class="texto" style="margin-top:4mm">Participación: ${esc(detalle.participacion.votaron)} de ${esc(detalle.participacion.electoresHabiles)} electores hábiles (${pct(detalle.participacion.participacionPct)}). No figuran los electores de las mesas que no se instalaron, porque no pudieron votar (RF58).</p>` : ''}
-    <h2>Miembros titulares de mesa que no asistieron (Art. 67 · RF104)</h2>${tabla(mesa)}
+    <h2>Miembros de mesa que no asistieron (Art. 67 · RF104)</h2>${tabla(mesa)}
     <h2>Docentes que no votaron (Art. 68 · RF103)</h2>${tabla(votacion)}
     <p class="texto">El sistema determina las multas; no las cobra. Todo lo no previsto lo resuelve el CEUNP (RN40).</p>
     ${firmasPleno()}
@@ -115,7 +115,7 @@ export function imprimirResolucionMultas(r, token) {
     <p class="texto" style="margin-top:4mm"><strong>VISTO</strong> el reporte de omisos del proceso «${esc(d.proceso)}»${d.participacion ? `, en el que votaron ${esc(d.participacion.votaron)} de ${esc(d.participacion.electores)} electores hábiles (${pct(d.participacion.porcentaje)})` : ''}.</p>
     <p class="texto"><strong>CONSIDERANDO:</strong> ${esc(d.fundamento)} El artículo 67 sanciona al miembro de mesa que no asiste con el ${esc(d.porcentaje_miembro)} % de la UIT (${soles(d.monto_miembro)}) y el artículo 68 al docente que no vota con el ${esc(d.porcentaje_elector)} % de la UIT (${soles(d.monto_elector)}).</p>
     <p class="texto"><strong>SE RESUELVE:</strong> determinar ${esc(d.omisos_mesa)} multa(s) por inasistencia a la mesa y ${esc(d.omisos_votacion)} por omisión al sufragio, por un total de ${soles(d.monto_total)}, según la relación siguiente, y notificarlas a los docentes. El docente puede presentar su justificación al CEUNP (Disp. Final 2.ª y 5.ª).</p>
-    <h2>Miembros titulares de mesa que no asistieron</h2>${tabla(mesa)}
+    <h2>Miembros de mesa que no asistieron</h2>${tabla(mesa)}
     <h2>Docentes que no votaron</h2>${tabla(votacion)}
     <p class="texto">${esc(d.nota ?? '')}</p>
     ${firmasPleno()}

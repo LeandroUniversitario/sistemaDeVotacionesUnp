@@ -40,7 +40,8 @@ export function imprimirActaInstalacion(acta, mesa, token) {
       <div class="linea"></div><strong>${esc(f.nombre)}</strong><span>${esc(f.rol)} · DNI ${esc(f.dni)}</span>
       <code>${esc(f.firmaDigital?.slice(0, 24))}…</code></div>`).join('');
 
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Acta de Instalación · Mesa ${esc(c.mesa)}</title>
+  const tituloDoc = `Acta de Instalación - Mesa ${c.mesa || mesa?.numero || '001'}`;
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(tituloDoc)}</title>
     <style>
       @page { size: A4; margin: 14mm; }
       * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -95,9 +96,14 @@ export function imprimirActaInstalacion(acta, mesa, token) {
   doc.open();
   doc.write(html);
   doc.close();
+  const tituloOriginal = document.title;
+  document.title = tituloDoc;
   setTimeout(() => {
     iframe.contentWindow.focus();
     iframe.contentWindow.print();
-    setTimeout(() => iframe.remove(), 1000);
+    setTimeout(() => {
+      document.title = tituloOriginal;
+      iframe.remove();
+    }, 1000);
   }, 250);
 }

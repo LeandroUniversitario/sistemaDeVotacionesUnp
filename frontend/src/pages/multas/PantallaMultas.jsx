@@ -79,11 +79,9 @@ function guardarToken(id, token) {
   } catch { /* almacenamiento no disponible */ }
 }
 
-/** Pestaña con la que conviene abrir el proceso. */
-function pasoInicial(d) {
-  if (!d?.reporte || d.desactualizado) return 'OMISOS';
-  if (d.reporte.estado === 'GENERADO' || d.acciones.notificar) return 'RESOLUCION';
-  return 'DESCARGOS';
+/** Pestaña por defecto: siempre abre en el primer panel (Reporte de omisos). */
+function pasoInicial() {
+  return 'OMISOS';
 }
 
 function cuenta(codigo, d) {
@@ -459,7 +457,7 @@ export default function PantallaMultas({ onSessionExpired }) {
             <div className="cv-section-head">
               <div>
                 <h3>Omisos: docentes que no votaron y miembros de mesa que no asistieron</h3>
-                <p className="muted">Con el sufragio cerrado, el sistema cruza el padrón y los miembros titulares de mesa y calcula la multa con la UIT vigente. No figuran los electores de mesas que no se instalaron, porque no pudieron votar. Puede volver a generar las multas hasta que el Pleno emita la resolución.</p>
+                <p className="muted">Con el sufragio cerrado, el sistema cruza el padrón y los miembros de mesa (titulares y suplentes) y calcula la multa con la UIT vigente. No figuran los electores de mesas que no se instalaron, porque no pudieron votar. Puede volver a generar las multas hasta que el Pleno emita la resolución.</p>
               </div>
               <div className="cs-acciones-head">
                 <button type="button" className="cv-btn cv-btn-ghost" onClick={() => imprimirReporteOmisos(detalle)}>

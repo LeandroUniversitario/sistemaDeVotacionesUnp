@@ -80,7 +80,7 @@ public class ComputoConsulta {
                  WHERE p.estado IN ('VOTACION', 'CERRADO', 'FINALIZADO', 'ANULADO')
                  GROUP BY p.id_proceso, p.nombre, p.estado, p.tipo, cp.estado, cp.participacion_pct, cp.resultado,
                           cp.fecha_computo, cp.fecha_publicacion, p.fecha_inicio
-                 ORDER BY FIELD(p.estado, 'CERRADO', 'VOTACION', 'FINALIZADO', 'ANULADO'), p.fecha_inicio DESC
+                 ORDER BY p.id_proceso DESC
                 """);
     }
 

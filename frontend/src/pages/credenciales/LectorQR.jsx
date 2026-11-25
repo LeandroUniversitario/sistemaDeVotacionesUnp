@@ -106,7 +106,11 @@ export function imprimirCredenciales(credenciales, proceso) {
       <footer><span>${esc(proceso?.nombre)}</span><span>${numeroCredencial(c.idCredencial)} · vence ${esc(fecha(c.fechaExpiracion))}</span></footer>
     </article>`;
   }).join('');
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Credenciales QR · ${esc(proceso?.nombre)}</title>
+  const primerDoc = credenciales[0];
+  const tituloDoc = credenciales.length === 1 && primerDoc
+    ? `${TIPOS_CREDENCIAL[primerDoc.tipo]?.titulo || 'Credencial QR'} - ${primerDoc.nombre}`
+    : `Credenciales QR - ${proceso?.nombre || 'UNP'}`;
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(tituloDoc)}</title>
     <style>
       @page { size: A4; margin: 10mm; }
       * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -128,10 +132,15 @@ export function imprimirCredenciales(credenciales, proceso) {
   doc.open();
   doc.write(html);
   doc.close();
+  const tituloOriginal = document.title;
+  document.title = tituloDoc;
   setTimeout(() => {
     iframe.contentWindow.focus();
     iframe.contentWindow.print();
-    setTimeout(() => iframe.remove(), 1000);
+    setTimeout(() => {
+      document.title = tituloOriginal;
+      iframe.remove();
+    }, 1000);
   }, 250);
 }
 
@@ -287,6 +296,7 @@ function realzarContraste(d) {
 export function EscanerQR({ onCodigo, deshabilitado }) {
   const [codigo, setCodigo] = useState('');
   const [camara, setCamara] = useState(false);
+  const [espejo, setEspejo] = useState(true);
   const [errorCamara, setErrorCamara] = useState('');
   const [dispositivos, setDispositivos] = useState([]);
   const [dispositivoActual, setDispositivoActual] = useState('');
@@ -308,7 +318,7 @@ export function EscanerQR({ onCodigo, deshabilitado }) {
     navigator.mediaDevices.enumerateDevices().then((devs) => {
       const cams = devs.filter((d) => d.kind === 'videoinput');
       setDispositivos(cams);
-    }).catch(() => {});
+    }).catch(() => { });
   }, [camara]);
 
   // Transmisión de video y escaneo por cuadros
@@ -358,7 +368,7 @@ export function EscanerQR({ onCodigo, deshabilitado }) {
           video.srcObject = stream;
           video.setAttribute('playsinline', 'true');
           video.setAttribute('muted', 'true');
-          await video.play().catch(() => {});
+          await video.play().catch(() => { });
         }
 
         // Detector nativo por hardware si el navegador lo soporta (Chrome, Edge, Android)
@@ -546,7 +556,7 @@ export function EscanerQR({ onCodigo, deshabilitado }) {
     <div className="cq-escaner">
       <form className="in-search-row" onSubmit={enviar}>
         <input ref={inputRef} value={codigo} autoComplete="off" spellCheck={false} maxLength={300}
-          placeholder="Escanee con cámara, pistola lectora o pegue el contenido del QR"
+          placeholder="Buscar por DNI"
           aria-label="Contenido del código QR" onChange={(e) => setCodigo(e.target.value)} />
         <button type="submit" className="cv-btn cv-btn-primary" disabled={deshabilitado || !codigo.trim()}>
           <MenuIcon name="check" size={15} /> Verificar
@@ -569,11 +579,15 @@ export function EscanerQR({ onCodigo, deshabilitado }) {
       {camara && (
         <div className="cq-video-wrap">
           <div className="cq-video">
-            <video ref={videoRef} muted playsInline autoPlay />
+            <video ref={videoRef} muted playsInline autoPlay style={{ transform: espejo ? 'scaleX(-1)' : 'none', transition: 'transform .2s ease' }} />
             <span className="cq-mira" aria-hidden="true" />
           </div>
           <div className="cq-video-controls">
             <p className="cq-hint">Apunte la cámara de su laptop o teléfono al código QR</p>
+            <button type="button" className={`cv-btn cq-mini ${espejo ? 'cv-btn-soft' : 'cv-btn-ghost'}`}
+              onClick={() => setEspejo((v) => !v)} title="Invertir orientación horizontal del video">
+              <MenuIcon name="refresh" size={13} /> {espejo ? 'Invertir cámara' : 'Vista espejo'}
+            </button>
             {dispositivos.length > 1 && (
               <button type="button" className="cv-btn cv-btn-soft cq-mini" onClick={alternarCamara}>
                 <MenuIcon name="refresh" size={13} /> Cambiar cámara

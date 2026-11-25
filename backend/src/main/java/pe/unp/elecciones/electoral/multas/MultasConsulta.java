@@ -56,6 +56,28 @@ public class MultasConsulta {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Faltan los cambios del CUS16: ejecute base-de-datos/15_omisos_multas.sql en la base de datos.");
         }
+        // Asegurar que v_omisos_proceso incluya a los miembros suplentes inasistentes
+        try {
+            dao.ejecutar("""
+                    CREATE OR REPLACE VIEW v_omisos_proceso AS
+                    SELECT x.id_proceso, x.id_docente, _utf8mb4'OMISO_VOTACION' COLLATE utf8mb4_unicode_ci AS motivo, x.id_mesa,
+                           CAST(NULL AS CHAR(12) CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS rol_mesa,
+                           IF(EXISTS (SELECT 1 FROM asistencia_elector a WHERE a.id_proceso = x.id_proceso AND a.id_docente = x.id_docente), 1, 0) AS asistio_sin_votar
+                      FROM (SELECT pe.id_proceso, pe.id_docente, MIN(pe.id_mesa) AS id_mesa
+                              FROM padron_electoral pe
+                              JOIN mesa_electoral m ON m.id_mesa = pe.id_mesa
+                             WHERE pe.habilitado_para_votar = 1
+                             GROUP BY pe.id_proceso, pe.id_docente
+                            HAVING MAX(pe.ya_voto) = 0 AND MAX(m.hora_instalacion IS NOT NULL) = 1) x
+                    UNION ALL
+                    SELECT m.id_proceso, mm.id_docente, _utf8mb4'OMISO_MESA' COLLATE utf8mb4_unicode_ci, m.id_mesa,
+                           CONVERT(CONCAT(mm.rol, '') USING utf8mb4) COLLATE utf8mb4_unicode_ci, 0
+                      FROM miembro_mesa mm
+                      JOIN mesa_electoral m ON m.id_mesa = mm.id_mesa
+                     WHERE mm.asistio = 0
+                    """);
+        } catch (Exception ignored) {
+        }
         instalada = true;
     }
 
@@ -72,7 +94,7 @@ public class MultasConsulta {
                   LEFT JOIN reporte_multas r ON r.id_proceso = p.id_proceso
                  WHERE p.estado IN ('VOTACION', 'CERRADO', 'FINALIZADO', 'ANULADO')
                    AND EXISTS (SELECT 1 FROM mesa_electoral m WHERE m.id_proceso = p.id_proceso)
-                 ORDER BY FIELD(p.estado, 'CERRADO', 'FINALIZADO', 'VOTACION', 'ANULADO'), p.fecha_inicio DESC
+                 ORDER BY p.id_proceso DESC
                 """);
     }
 

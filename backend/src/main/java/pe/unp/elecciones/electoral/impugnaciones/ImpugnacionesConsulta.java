@@ -111,7 +111,7 @@ public class ImpugnacionesConsulta {
                   LEFT JOIN impugnacion_electoral i ON i.id_proceso = p.id_proceso
                  WHERE p.estado <> 'ANULADO'
                  GROUP BY p.id_proceso, p.nombre, p.estado, p.fecha_inicio
-                 ORDER BY (p.estado IN ('VOTACION', 'CERRADO')) DESC, p.fecha_inicio DESC
+                 ORDER BY (p.estado IN ('VOTACION', 'CERRADO')) DESC, p.id_proceso DESC
                 """);
     }
 

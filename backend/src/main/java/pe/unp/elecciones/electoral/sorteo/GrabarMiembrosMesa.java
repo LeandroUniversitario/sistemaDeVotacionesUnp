@@ -41,6 +41,7 @@ public class GrabarMiembrosMesa {
     public Map<String, Object> guardarResultados(Integer idProceso, String semillaBase,
             List<Map<String, Object>> listaSorteados, Integer idUsuario) {
         dao.llamar("sp_sortear_todas_las_mesas", ProcedimientoDao.SIN_SALIDA, idProceso, semillaBase, idUsuario);
+        dao.restablecerRolesSinProcesoActivo();
         // Elevar automáticamente la cuenta de los docentes sorteados a MIEMBRO_MESA
         dao.ejecutar("""
             UPDATE usuario u

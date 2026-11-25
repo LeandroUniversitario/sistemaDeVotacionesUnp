@@ -300,28 +300,10 @@ export default function PantallaVerificacion({ onSessionExpired }) {
             <div className="cv-section-head">
               <div>
                 <h3>1. Identificar elector</h3>
-                <p className="muted">Escanee el QR del pase de votación. Si no se puede leer, busque por DNI.</p>
+                <p className="muted">Escanee el código QR del pase de votación del elector para verificar su habilitación.</p>
               </div>
             </div>
-            <div className="pd-tabs" role="tablist">
-              {['QR', 'DNI'].map((m) => (
-                <button key={m} type="button" role="tab" aria-selected={modo === m} className={`pd-tab${modo === m ? ' on' : ''}`}
-                  onClick={() => { setModo(m); setFicha(null); setAccion(null); }}>
-                  {m === 'QR' ? 'Escanear QR' : 'Buscar por DNI'}
-                </button>
-              ))}
-            </div>
-            {modo === 'QR' ? (
-              <EscanerQR onCodigo={(codigo) => verificar({ codigo })} deshabilitado={ocupado || !mesa.atiende} />
-            ) : (
-              <form className="vt-dni" onSubmit={verificarDni}>
-                <input value={dni} inputMode="numeric" maxLength={8} placeholder="DNI del elector (8 dígitos)"
-                  aria-label="DNI del elector" onChange={(e) => setDni(e.target.value.replace(/\D/g, ''))} />
-                <button type="submit" className="cv-btn cv-btn-primary" disabled={ocupado || !dni || !mesa.atiende}>
-                  <MenuIcon name="check" size={15} /> Buscar
-                </button>
-              </form>
-            )}
+            <EscanerQR onCodigo={(codigo) => verificar({ codigo })} deshabilitado={ocupado || !mesa.atiende} />
           </div>
 
           <div className="panel cv-form">
@@ -372,8 +354,8 @@ export default function PantallaVerificacion({ onSessionExpired }) {
                     </button>
                   )}
                   {ficha.resultado === 'QR_INVALIDO' && (
-                    <button type="button" className="cv-btn cv-btn-primary" onClick={() => { setModo('DNI'); setFicha(null); }}>
-                      Verificar por DNI
+                    <button type="button" className="cv-btn cv-btn-primary" onClick={() => setFicha(null)}>
+                      Escanear de nuevo
                     </button>
                   )}
                   <button type="button" className="cv-btn cv-btn-ghost" onClick={() => { setFicha(null); setDni(''); setAccion(null); }}>

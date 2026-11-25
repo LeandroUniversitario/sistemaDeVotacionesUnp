@@ -63,6 +63,7 @@ public class DeclararNulidadTotal {
         Integer idNulidad = NulidadesConsulta.numero(recurso.get("idNulidad"));
         Integer idProceso = NulidadesConsulta.numero(recurso.get("idProceso"));
         Map<String, Object> fila = consulta.resolver(idNulidad, datos, usuario);
+        dao.restablecerRolesSinProcesoActivo();
         String decision = NulidadesConsulta.texto(fila.get("decision"));
         // El efecto lo redacta sp_resolver_nulidad: anulación del proceso (y de su segunda vuelta) o formalización de A1
         String mensaje = "Resolución " + fila.get("numeroResolucion") + ": nulidad total " + decision.toLowerCase() + ". "

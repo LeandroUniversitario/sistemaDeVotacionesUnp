@@ -93,7 +93,7 @@ public class InstalacionConsulta {
                   LEFT JOIN instalacion_mesa im ON im.id_mesa = m.id_mesa
                  WHERE p.estado <> 'ANULADO'
                  GROUP BY p.id_proceso, p.nombre, p.estado, p.fecha_inicio, p.fecha_fin
-                 ORDER BY (p.estado = 'VOTACION') DESC, p.fecha_inicio DESC
+                 ORDER BY (p.estado = 'VOTACION') DESC, p.id_proceso DESC
                 """);
     }
 
@@ -105,12 +105,24 @@ public class InstalacionConsulta {
         return dao.consultar(SELECT_MESA + " WHERE m.id_proceso = ?" + ORDEN_MESAS, idProceso);
     }
 
-    /** Mesas en las que el docente fue sorteado (rol MIEMBRO_MESA). */
+    /** Mesas en las que el docente fue sorteado (rol MIEMBRO_MESA), incluyendo su cargo en la mesa. */
     public List<Map<String, Object>> mesasDeMiembro(Integer idDocente) {
         aplicarPlazo();
-        return dao.consultar(SELECT_MESA + """
+        return dao.consultar("""
+                SELECT m.id_mesa AS id, m.numero_mesa AS numero, m.ubicacion, m.estado, m.total_electores,
+                       m.hora_instalacion, m.id_proceso, p.nombre AS proceso, p.estado AS estado_proceso,
+                       p.fecha_inicio, p.fecha_fin,
+                       (SELECT COUNT(*) FROM miembro_mesa mm WHERE mm.id_mesa = m.id_mesa) AS miembros,
+                       (SELECT COUNT(*) FROM miembro_mesa mm WHERE mm.id_mesa = m.id_mesa AND mm.asistio = 1) AS presentes,
+                       (SELECT COUNT(*) FROM asistencia_personero_mesa ap WHERE ap.id_mesa = m.id_mesa) AS personeros_presentes,
+                       COALESCE(im.material_completo, 0) AS material_completo,
+                       im.evaluacion_nulidad,
+                       mm_propio.rol, mm_propio.titular
+                  FROM mesa_electoral m
+                  JOIN proceso_electoral p ON p.id_proceso = m.id_proceso
+                  LEFT JOIN instalacion_mesa im ON im.id_mesa = m.id_mesa
+                  JOIN miembro_mesa mm_propio ON mm_propio.id_mesa = m.id_mesa AND mm_propio.id_docente = ?
                  WHERE p.estado <> 'ANULADO'
-                   AND EXISTS (SELECT 1 FROM miembro_mesa x WHERE x.id_mesa = m.id_mesa AND x.id_docente = ?)
                 """ + ORDEN_MESAS, idDocente);
     }
 

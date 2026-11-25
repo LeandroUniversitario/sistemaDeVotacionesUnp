@@ -1495,8 +1495,13 @@ export default function DashboardPage({ session, onLogout }) {
                           {session.username} · {pase?.nombreCompleto || 'Miembro de Mesa'}
                         </h2>
                         <span style={{ fontSize: '.75rem', fontWeight: 700, padding: '3px 10px', borderRadius: '999px', background: '#ede9fe', color: '#7c3aed', textTransform: 'uppercase' }}>
-                          {mesa?.rol || 'Miembro Titular'}
+                          {mesa?.rol || 'Miembro de Mesa'}
                         </span>
+                        {mesa?.titular != null && (
+                          <span style={{ fontSize: '.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: '999px', background: mesa.titular ? '#dcfce7' : '#fef9c3', color: mesa.titular ? '#166534' : '#854d0e' }}>
+                            {mesa.titular ? 'MIEMBRO TITULAR' : 'MIEMBRO SUPLENTE'}
+                          </span>
+                        )}
                       </div>
                       <p style={{ margin: '4px 0 0', fontSize: '.88rem', color: 'var(--text-muted)' }}>
                         DNI: <strong>{pase?.dni ?? '—'}</strong> · {pase?.facultad ?? 'Universidad Nacional de Piura'}

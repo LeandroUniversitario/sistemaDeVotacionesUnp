@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest, cabinaRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
-import { imprimirCedula } from './ImpresoraCedula';
 import '../convocatoria/convocatoria.css';
 import '../padron/padron.css';
 import './votacion.css';
@@ -48,12 +47,20 @@ export default function TerminalVotacion({ onSessionExpired, modo = 'conexion' }
   const [estado, setEstado] = useState(null);
   const [habilitacion, setHabilitacion] = useState(null);   // memoria temporal: token y cédula
   const [marcas, setMarcas] = useState({});
-  const [paso, setPaso] = useState('ESPERA');                 // ESPERA, ELEGIR, CONFIRMAR, IMPRESION
-  const [impresion, setImpresion] = useState(null);           // cédula a imprimir (sin datos del elector)
+  const [paso, setPaso] = useState('ESPERA');                 // ESPERA, ELEGIR, CONFIRMAR, EXITO
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
   const pasoRef = useRef(paso);
   pasoRef.current = paso;
+
+  // Al completar el voto, tras 5 segundos vuelve a ESPERA para el siguiente elector
+  useEffect(() => {
+    if (paso !== 'EXITO') return undefined;
+    const timer = setTimeout(() => {
+      setPaso('ESPERA');
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [paso]);
 
   const fallo = useCallback((e) => {
     if (e.message === 'SESSION_EXPIRED') onSessionExpired?.();
@@ -142,18 +149,19 @@ export default function TerminalVotacion({ onSessionExpired, modo = 'conexion' }
       const votos = cargos.map((c) => (marcas[c.idCargo] === BLANCO
         ? { cargoId: c.idCargo, tipo: 'BLANCO', listaId: null }
         : { cargoId: c.idCargo, tipo: 'VALIDO', listaId: marcas[c.idCargo] }));
-      const r = await cabina('/voto', {
+      await cabina('/voto', {
         method: 'POST', body: JSON.stringify({ idHabilitacion: habilitacion.idHabilitacion, token: habilitacion.token, votos }),
       });
       setHabilitacion(null);       // la habilitación ya se consumió
       setMarcas({});
-      setImpresion(r);             // memoria temporal hasta confirmar la impresión (A2)
-      setPaso('IMPRESION');
-      imprimirCedula(r);           // 11 imprimirCedula(opción)
+      try {
+        await cabina('/liberar', { method: 'POST' });
+      } catch { /* terminal liberado */ }
+      setPaso('EXITO');
     } catch (e) {
       if (e.message === 'TERMINAL_DESCONECTADO') { fallo(e); return; }
       // A5: se revirtió todo; si la habilitación ya no vale, el terminal vuelve a esperar
-      setError(`${e.message} No se registró ningún voto ni se imprimió cédula. Avise al Presidente de mesa.`);
+      setError(`${e.message} No se registró ningún voto. Avise al Presidente de mesa.`);
       if (/habilitaci/i.test(e.message)) {
         setHabilitacion(null);
         setMarcas({});
@@ -163,20 +171,6 @@ export default function TerminalVotacion({ onSessionExpired, modo = 'conexion' }
       }
     } finally {
       setOcupado(false);
-    }
-  }
-
-  /** 12 confirmarImpresion() → 13 liberarTerminal(): borra la elección de la memoria. */
-  async function confirmarImpresion() {
-    setOcupado(true);
-    setImpresion(null);
-    try {
-      await cabina('/liberar', { method: 'POST' });
-    } catch (e) {
-      fallo(e);
-    } finally {
-      setOcupado(false);
-      setPaso('ESPERA');
     }
   }
 
@@ -253,25 +247,34 @@ export default function TerminalVotacion({ onSessionExpired, modo = 'conexion' }
     </div>
   );
 
-  // ─── 11-13 Impresión de la cédula ───────────────────────────────────────
-  if (paso === 'IMPRESION' && impresion) {
+  // ─── Confirmación de voto exitoso (sin impresión) ───────────────────────
+  if (paso === 'EXITO') {
     return (
       <div className="pd-shell vt-cabina mx">
         {cabecera}
-        <div className="panel cv-form vt-kiosco">
-          <div className="vt-aviso ok"><MenuIcon name="check" size={20} /><div><strong>Su voto fue registrado.</strong>{impresion.mensaje}</div></div>
-          <ul className="vt-resumen">
-            {impresion.cedula.map((l) => <li key={l.cargo}><span>{l.cargo}</span><strong>{l.orden ? `${l.orden}. ` : ''}{l.opcion}</strong></li>)}
-          </ul>
-          <p className="muted">¿Salió bien impresa su cédula y coincide con su elección?</p>
-          <div className="vt-pie">
-            <button type="button" className="cv-btn cv-btn-ghost" onClick={() => imprimirCedula(impresion)} disabled={ocupado}>
-              <MenuIcon name="file" size={15} /> Reimprimir cédula
-            </button>
-            <button type="button" className="cv-btn cv-btn-success" onClick={confirmarImpresion} disabled={ocupado}>
-              <MenuIcon name="check" size={16} /> Sí, retiré mi cédula
+        <div className="panel cv-form vt-kiosco" style={{ textAlign: 'center', padding: '36px 24px' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <MenuIcon name="check" size={36} />
+          </div>
+          <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#15803d', margin: '0 0 10px' }}>
+            ¡Su voto fue registrado exitosamente!
+          </h2>
+          <p style={{ fontSize: '.95rem', color: '#475569', margin: '0 auto 24px', maxWidth: '480px', lineHeight: 1.5 }}>
+            Su elección ha sido guardada en el sistema electoral. Por favor, deposite su cédula física en el ánfora y acérquese a los miembros de mesa para firmar el padrón y recoger su DNI.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <button
+              type="button"
+              className="cv-btn cv-btn-primary"
+              onClick={() => setPaso('ESPERA')}
+              style={{ padding: '10px 28px', fontSize: '.95rem', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              <MenuIcon name="check" size={16} /> Finalizar
             </button>
           </div>
+          <small className="muted" style={{ display: 'block', marginTop: '16px', fontSize: '.8rem' }}>
+            Esta pantalla se reiniciará automáticamente en unos segundos…
+          </small>
         </div>
       </div>
     );
@@ -358,7 +361,7 @@ export default function TerminalVotacion({ onSessionExpired, modo = 'conexion' }
           <div className="cv-section-head">
             <div>
               <h3>Confirme su elección</h3>
-              <p className="muted">Puede corregirla ahora (A1). Una vez confirmada, es definitiva y se imprimirá su cédula.</p>
+              <p className="muted">Puede corregirla ahora. Una vez confirmada, su voto quedará registrado de forma definitiva.</p>
             </div>
           </div>
           <ul className="vt-resumen">

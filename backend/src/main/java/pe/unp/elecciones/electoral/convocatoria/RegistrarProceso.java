@@ -47,6 +47,7 @@ public class RegistrarProceso {
                             + enCurso.get("estado") + "). Debe cerrarse antes de convocar uno nuevo.");
         }
         Integer idProceso = insertar(datos, idUsuario);
+        dao.restablecerRolesSinProcesoActivo();
         return mostrarConfirmacion(idProceso, "Proceso electoral registrado. Ahora agregue los cargos a elegir.");
     }
 
