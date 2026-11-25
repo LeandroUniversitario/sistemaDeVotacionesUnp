@@ -21,9 +21,12 @@ import pe.unp.elecciones.auth.Usuario;
 import pe.unp.elecciones.electoral.service.ProcedimientoDao;
 
 /**
- * CUS16 · Lecturas compartidas por GenerarMultas y RegistrarJustificacion: omisos del proceso
- * (v_omisos_proceso: 1 solicitarReporteOmisos, 4 consultarNoVotaron, 5 consultarInasistentes),
- * parámetros (3 obtenerUIT, RF105), multas y su reporte (7 mostrarReporteMultas), descargos
+ * CUS16 · Lecturas compartidas por GenerarMultas y RegistrarJustificacion:
+ * omisos del proceso
+ * (v_omisos_proceso: 1 solicitarReporteOmisos, 4 consultarNoVotaron, 5
+ * consultarInasistentes),
+ * parámetros (3 obtenerUIT, RF105), multas y su reporte (7
+ * mostrarReporteMultas), descargos
  * (RF106) y el reporte de gestión por mesa (RF107).
  */
 @Service
@@ -32,7 +35,8 @@ public class MultasConsulta {
     static final List<String> MEDIOS = List.of("CORREO_INSTITUCIONAL", "CEDULA_PERSONAL", "PORTAL_ELECTORAL");
     static final List<String> TIPOS = List.of("JUSTIFICACION", "EXONERACION");
     static final List<String> CAUSALES = List.of(
-            "SALUD", "DUELO", "COMISION_SERVICIO", "LICENCIA", "CASO_FORTUITO", "FALLECIMIENTO", "ERROR_PADRON", "OTRA");
+            "SALUD", "DUELO", "COMISION_SERVICIO", "LICENCIA", "CASO_FORTUITO", "FALLECIMIENTO", "ERROR_PADRON",
+            "OTRA");
     static final List<String> DECISIONES = List.of("ADMITIDA", "DENEGADA");
 
     private final ProcedimientoDao dao;
@@ -58,24 +62,25 @@ public class MultasConsulta {
         }
         // Asegurar que v_omisos_proceso incluya a los miembros suplentes inasistentes
         try {
-            dao.ejecutar("""
-                    CREATE OR REPLACE VIEW v_omisos_proceso AS
-                    SELECT x.id_proceso, x.id_docente, _utf8mb4'OMISO_VOTACION' COLLATE utf8mb4_unicode_ci AS motivo, x.id_mesa,
-                           CAST(NULL AS CHAR(12) CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS rol_mesa,
-                           IF(EXISTS (SELECT 1 FROM asistencia_elector a WHERE a.id_proceso = x.id_proceso AND a.id_docente = x.id_docente), 1, 0) AS asistio_sin_votar
-                      FROM (SELECT pe.id_proceso, pe.id_docente, MIN(pe.id_mesa) AS id_mesa
-                              FROM padron_electoral pe
-                              JOIN mesa_electoral m ON m.id_mesa = pe.id_mesa
-                             WHERE pe.habilitado_para_votar = 1
-                             GROUP BY pe.id_proceso, pe.id_docente
-                            HAVING MAX(pe.ya_voto) = 0 AND MAX(m.hora_instalacion IS NOT NULL) = 1) x
-                    UNION ALL
-                    SELECT m.id_proceso, mm.id_docente, _utf8mb4'OMISO_MESA' COLLATE utf8mb4_unicode_ci, m.id_mesa,
-                           CONVERT(CONCAT(mm.rol, '') USING utf8mb4) COLLATE utf8mb4_unicode_ci, 0
-                      FROM miembro_mesa mm
-                      JOIN mesa_electoral m ON m.id_mesa = mm.id_mesa
-                     WHERE mm.asistio = 0
-                    """);
+            dao.ejecutar(
+                    """
+                            CREATE OR REPLACE VIEW v_omisos_proceso AS
+                            SELECT x.id_proceso, x.id_docente, _utf8mb4'OMISO_VOTACION' COLLATE utf8mb4_unicode_ci AS motivo, x.id_mesa,
+                                   CAST(NULL AS CHAR(12) CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS rol_mesa,
+                                   IF(EXISTS (SELECT 1 FROM asistencia_elector a WHERE a.id_proceso = x.id_proceso AND a.id_docente = x.id_docente), 1, 0) AS asistio_sin_votar
+                              FROM (SELECT pe.id_proceso, pe.id_docente, MIN(pe.id_mesa) AS id_mesa
+                                      FROM padron_electoral pe
+                                      JOIN mesa_electoral m ON m.id_mesa = pe.id_mesa
+                                     WHERE pe.habilitado_para_votar = 1
+                                     GROUP BY pe.id_proceso, pe.id_docente
+                                    HAVING MAX(pe.ya_voto) = 0 AND MAX(m.hora_instalacion IS NOT NULL) = 1) x
+                            UNION ALL
+                            SELECT m.id_proceso, mm.id_docente, _utf8mb4'OMISO_MESA' COLLATE utf8mb4_unicode_ci, m.id_mesa,
+                                   CONVERT(CONCAT(mm.rol, '') USING utf8mb4) COLLATE utf8mb4_unicode_ci, 0
+                              FROM miembro_mesa mm
+                              JOIN mesa_electoral m ON m.id_mesa = mm.id_mesa
+                             WHERE mm.asistio = 0
+                            """);
         } catch (Exception ignored) {
         }
         instalada = true;
@@ -83,19 +88,22 @@ public class MultasConsulta {
 
     // ─── Procesos ────────────────────────────────────────────────────────────
 
-    /** Procesos que ya tuvieron mesas en la jornada, con el avance de sus multas. */
+    /**
+     * Procesos que ya tuvieron mesas en la jornada, con el avance de sus multas.
+     */
     public List<Map<String, Object>> procesos() {
         verificarInstalacion();
-        return dao.consultar("""
-                SELECT p.id_proceso AS id, p.nombre, p.estado, p.tipo, r.estado AS estado_reporte, r.numero_resolucion,
-                       (SELECT COUNT(*) FROM multa mu WHERE mu.id_proceso = p.id_proceso) AS multas,
-                       (SELECT COUNT(*) FROM multa mu WHERE mu.id_proceso = p.id_proceso AND mu.estado_pago = 'PENDIENTE') AS pendientes
-                  FROM proceso_electoral p
-                  LEFT JOIN reporte_multas r ON r.id_proceso = p.id_proceso
-                 WHERE p.estado IN ('VOTACION', 'CERRADO', 'FINALIZADO', 'ANULADO')
-                   AND EXISTS (SELECT 1 FROM mesa_electoral m WHERE m.id_proceso = p.id_proceso)
-                 ORDER BY p.id_proceso DESC
-                """);
+        return dao.consultar(
+                """
+                        SELECT p.id_proceso AS id, p.nombre, p.estado, p.tipo, r.estado AS estado_reporte, r.numero_resolucion,
+                               (SELECT COUNT(*) FROM multa mu WHERE mu.id_proceso = p.id_proceso) AS multas,
+                               (SELECT COUNT(*) FROM multa mu WHERE mu.id_proceso = p.id_proceso AND mu.estado_pago = 'PENDIENTE') AS pendientes
+                          FROM proceso_electoral p
+                          LEFT JOIN reporte_multas r ON r.id_proceso = p.id_proceso
+                         WHERE p.estado IN ('VOTACION', 'CERRADO', 'FINALIZADO', 'ANULADO')
+                           AND EXISTS (SELECT 1 FROM mesa_electoral m WHERE m.id_proceso = p.id_proceso)
+                         ORDER BY p.id_proceso DESC
+                        """);
     }
 
     public Map<String, Object> proceso(Integer idProceso) {
@@ -134,14 +142,17 @@ public class MultasConsulta {
         respuesta.put("parametros", parametros);
 
         // Mesas: el reporte exige el sufragio cerrado en todas (CUS11)
-        List<Map<String, Object>> mesas = dao.consultar("""
-                SELECT id_mesa, numero_mesa, ubicacion, estado, hora_instalacion, hora_cierre, electores, votaron, asistieron,
-                       titulares_presentes, titulares_ausentes, suplentes_en_funcion, incidencias, atencion_promedio_seg,
-                       actas_emitidas, estado_escrutinio, fecha_entrega, recibido_por
-                  FROM v_reporte_gestion_mesas WHERE id_proceso = ?
-                 ORDER BY LENGTH(numero_mesa), numero_mesa
-                """, idProceso);
-        long abiertas = mesas.stream().filter(m -> List.of("PENDIENTE", "INSTALADA").contains(texto(m.get("estado")))).count();
+        List<Map<String, Object>> mesas = dao.consultar(
+                """
+                        SELECT id_mesa, numero_mesa, ubicacion, estado, hora_instalacion, hora_cierre, electores, votaron, asistieron,
+                               titulares_presentes, titulares_ausentes, suplentes_en_funcion, incidencias, atencion_promedio_seg,
+                               actas_emitidas, estado_escrutinio, fecha_entrega, recibido_por
+                          FROM v_reporte_gestion_mesas WHERE id_proceso = ?
+                         ORDER BY LENGTH(numero_mesa), numero_mesa
+                        """,
+                idProceso);
+        long abiertas = mesas.stream().filter(m -> List.of("PENDIENTE", "INSTALADA").contains(texto(m.get("estado"))))
+                .count();
         long instaladas = mesas.stream().filter(m -> m.get("horaInstalacion") != null).count();
         Map<String, Object> rm = new LinkedHashMap<>();
         rm.put("total", mesas.size());
@@ -151,7 +162,8 @@ public class MultasConsulta {
         rm.put("actasEntregadas", mesas.stream().filter(m -> m.get("fechaEntrega") != null).count());
         respuesta.put("resumenMesas", rm);
 
-        // 1 solicitarReporteOmisos(): omisos según el padrón y las mesas, con el monto vigente
+        // 1 solicitarReporteOmisos(): omisos según el padrón y las mesas, con el monto
+        // vigente
         List<Map<String, Object>> omisos = omisos(idProceso, parametros);
         respuesta.put("omisos", omisos);
 
@@ -174,18 +186,21 @@ public class MultasConsulta {
         respuesta.put("desactualizado", desactualizado);
 
         respuesta.put("resumen", resumen(multas));
-        respuesta.put("descargos", dao.consultar("""
-                SELECT j.id_justificacion, j.id_multa, CONCAT(j.tipo, '') AS tipo, CONCAT(j.causal, '') AS causal, j.sustento,
-                       j.documento, j.fecha_presentacion, j.decision, j.fundamento, j.numero_resolucion, j.miembros_pleno,
-                       j.fecha_resolucion, u.username AS registrado_por, d.dni, CONCAT(d.apellidos, ', ', d.nombres) AS docente,
-                       mu.motivo, mu.monto, mu.estado_pago
-                  FROM multa_justificacion j
-                  JOIN multa mu  ON mu.id_multa = j.id_multa
-                  JOIN docente d ON d.id_docente = mu.id_docente
-                  LEFT JOIN usuario u ON u.id_usuario = j.id_usuario
-                 WHERE mu.id_proceso = ?
-                 ORDER BY j.id_justificacion DESC
-                """, idProceso));
+        respuesta.put("descargos",
+                dao.consultar(
+                        """
+                                SELECT j.id_justificacion, j.id_multa, CONCAT(j.tipo, '') AS tipo, CONCAT(j.causal, '') AS causal, j.sustento,
+                                       j.documento, j.fecha_presentacion, j.decision, j.fundamento, j.numero_resolucion, j.miembros_pleno,
+                                       j.fecha_resolucion, u.username AS registrado_por, d.dni, CONCAT(d.apellidos, ', ', d.nombres) AS docente,
+                                       mu.motivo, mu.monto, mu.estado_pago
+                                  FROM multa_justificacion j
+                                  JOIN multa mu  ON mu.id_multa = j.id_multa
+                                  JOIN docente d ON d.id_docente = mu.id_docente
+                                  LEFT JOIN usuario u ON u.id_usuario = j.id_usuario
+                                 WHERE mu.id_proceso = ?
+                                 ORDER BY j.id_justificacion DESC
+                                """,
+                        idProceso));
 
         // RF107: reporte de gestión
         respuesta.put("gestion", mesas);
@@ -200,10 +215,11 @@ public class MultasConsulta {
         boolean puedeGenerar = concluido && abiertas == 0 && instaladas > 0 && !resuelto;
         acciones.put("generar", ceunp && puedeGenerar);
         acciones.put("motivoNoGenerar", puedeGenerar ? null
-                : resuelto ? "Las multas ya fueron determinadas por la Resolución " + reporte.get("numeroResolucion") + "."
-                : !concluido ? "Las multas se generan con la votación concluida (CUS14, «Concluir votación»)."
-                : instaladas == 0 ? "Ninguna mesa del proceso se instaló: no hubo sufragio que omitir."
-                : abiertas + " mesa(s) aún no cierran su sufragio (CUS11).");
+                : resuelto
+                        ? "Las multas ya fueron determinadas por la Resolución " + reporte.get("numeroResolucion") + "."
+                        : !concluido ? "Las multas se generan con la votación concluida (CUS14, «Concluir votación»)."
+                                : instaladas == 0 ? "Ninguna mesa del proceso se instaló: no hubo sufragio que omitir."
+                                        : abiertas + " mesa(s) aún no cierran su sufragio (CUS11).");
         acciones.put("emitirResolucion", ceunp && "GENERADO".equals(estadoReporte) && !desactualizado);
         long sinNotificar = multas.stream().filter(m -> m.get("fechaNotificacion") == null).count();
         acciones.put("notificar", ceunp && resuelto && sinNotificar > 0);
@@ -213,10 +229,12 @@ public class MultasConsulta {
 
         List<String> avisos = new ArrayList<>();
         if (reporte == null && puedeGenerar) {
-            avisos.add("El reporte de omisos está listo: genere las multas para que el Pleno las determine (RF103, RF104).");
+            avisos.add(
+                    "El reporte de omisos está listo: genere las multas para que el Pleno las determine (RF103, RF104).");
         }
         if (desactualizado) {
-            avisos.add(otraUit ? "La UIT o los porcentajes cambiaron desde que se generaron las multas: vuelva a generarlas antes de la resolución (RF105)."
+            avisos.add(otraUit
+                    ? "La UIT o los porcentajes cambiaron desde que se generaron las multas: vuelva a generarlas antes de la resolución (RF105)."
                     : "El reporte generado no coincide con los omisos actuales: vuelva a generar las multas.");
         } else if ("GENERADO".equals(estadoReporte)) {
             avisos.add("Multas generadas sin resolución: el Pleno debe emitir la resolución que las determina (RN36).");
@@ -224,9 +242,12 @@ public class MultasConsulta {
         if (resuelto && sinNotificar > 0) {
             avisos.add(sinNotificar + " multa(s) sin notificar al docente.");
         }
-        long asistieron = multas.stream().filter(m -> numero(m.get("asistioSinVotar")) == 1 && "PENDIENTE".equals(texto(m.get("estadoPago")))).count();
+        long asistieron = multas.stream()
+                .filter(m -> numero(m.get("asistioSinVotar")) == 1 && "PENDIENTE".equals(texto(m.get("estadoPago"))))
+                .count();
         if (asistieron > 0) {
-            avisos.add(asistieron + " omiso(s) asistieron a la mesa y no votaron (CUS10 A3): el CEUNP resuelve si los justifica (Disp. Final 5.ª).");
+            avisos.add(asistieron
+                    + " omiso(s) asistieron a la mesa y no votaron (CUS10 A3): el CEUNP resuelve si los justifica (Disp. Final 5.ª).");
         }
         respuesta.put("avisos", avisos);
         respuesta.put("soloLectura", !ceunp);
@@ -248,7 +269,10 @@ public class MultasConsulta {
         return p;
     }
 
-    /** 4 consultarNoVotaron() y 5 consultarInasistentes(), con el monto que tendría la multa hoy. */
+    /**
+     * 4 consultarNoVotaron() y 5 consultarInasistentes(), con el monto que tendría
+     * la multa hoy.
+     */
     List<Map<String, Object>> omisos(Integer idProceso, Map<String, Object> parametros) {
         List<Map<String, Object>> filas = dao.consultar("""
                 SELECT o.id_docente, o.motivo, o.id_mesa, m.numero_mesa, o.rol_mesa, o.asistio_sin_votar, d.dni,
@@ -263,34 +287,41 @@ public class MultasConsulta {
                  ORDER BY FIELD(o.motivo, 'OMISO_MESA', 'OMISO_VOTACION'), d.apellidos, d.nombres
                 """, idProceso);
         for (Map<String, Object> o : filas) {
-            o.put("montoEstimado", "OMISO_MESA".equals(texto(o.get("motivo"))) ? parametros.get("montoMiembro") : parametros.get("montoElector"));
+            o.put("montoEstimado", "OMISO_MESA".equals(texto(o.get("motivo"))) ? parametros.get("montoMiembro")
+                    : parametros.get("montoElector"));
         }
         return filas;
     }
 
     List<Map<String, Object>> multas(Integer idProceso) {
-        return dao.consultar("""
-                SELECT id_multa, id_docente, dni, docente, facultad, departamento, categoria, email, motivo, id_mesa, numero_mesa,
-                       rol_mesa, asistio_sin_votar, uit_referencia, porcentaje_uit, monto, estado_pago, fecha_generacion,
-                       fecha_notificacion, medio_notificacion, documento_notificacion, fecha_pago, numero_recibo, observacion,
-                       descargos, tipo_descargo, decision_descargo, resolucion_descargo, limite_justificacion
-                  FROM v_multas_detalle WHERE id_proceso = ?
-                 ORDER BY FIELD(motivo, 'OMISO_MESA', 'OMISO_VOTACION'), docente
-                """, idProceso);
+        return dao.consultar(
+                """
+                        SELECT id_multa, id_docente, dni, docente, facultad, departamento, categoria, email, motivo, id_mesa, numero_mesa,
+                               rol_mesa, asistio_sin_votar, uit_referencia, porcentaje_uit, monto, estado_pago, fecha_generacion,
+                               fecha_notificacion, medio_notificacion, documento_notificacion, fecha_pago, numero_recibo, observacion,
+                               descargos, tipo_descargo, decision_descargo, resolucion_descargo, limite_justificacion
+                          FROM v_multas_detalle WHERE id_proceso = ?
+                         ORDER BY FIELD(motivo, 'OMISO_MESA', 'OMISO_VOTACION'), docente
+                        """,
+                idProceso);
     }
 
-    /** Reporte del proceso sin el contenido (la resolución completa se pide aparte). */
+    /**
+     * Reporte del proceso sin el contenido (la resolución completa se pide aparte).
+     */
     Map<String, Object> reporte(Integer idProceso) {
-        List<Map<String, Object>> filas = dao.consultar("""
-                SELECT r.id_reporte, r.estado, r.uit_referencia, r.pct_elector, r.pct_miembro, r.omisos_votacion, r.omisos_mesa,
-                       r.monto_total, r.veces_generado, r.fecha_generacion, ug.username AS generado_por, r.numero_resolucion,
-                       r.fundamento, r.miembros_pleno, r.fecha_resolucion, ur.username AS resuelto_por, r.hash_integridad,
-                       IF(r.contenido_json IS NULL, NULL, IF(SHA2(r.contenido_json, 256) = r.hash_integridad, 1, 0)) AS resolucion_integra
-                  FROM reporte_multas r
-                  LEFT JOIN usuario ug ON ug.id_usuario = r.id_usuario_generacion
-                  LEFT JOIN usuario ur ON ur.id_usuario = r.id_usuario_resolucion
-                 WHERE r.id_proceso = ?
-                """, idProceso);
+        List<Map<String, Object>> filas = dao.consultar(
+                """
+                        SELECT r.id_reporte, r.estado, r.uit_referencia, r.pct_elector, r.pct_miembro, r.omisos_votacion, r.omisos_mesa,
+                               r.monto_total, r.veces_generado, r.fecha_generacion, ug.username AS generado_por, r.numero_resolucion,
+                               r.fundamento, r.miembros_pleno, r.fecha_resolucion, ur.username AS resuelto_por, r.hash_integridad,
+                               IF(r.contenido_json IS NULL, NULL, IF(SHA2(r.contenido_json, 256) = r.hash_integridad, 1, 0)) AS resolucion_integra
+                          FROM reporte_multas r
+                          LEFT JOIN usuario ug ON ug.id_usuario = r.id_usuario_generacion
+                          LEFT JOIN usuario ur ON ur.id_usuario = r.id_usuario_resolucion
+                         WHERE r.id_proceso = ?
+                        """,
+                idProceso);
         return filas.isEmpty() ? null : filas.get(0);
     }
 
@@ -300,7 +331,8 @@ public class MultasConsulta {
         r.put("omisosVotacion", multas.stream().filter(m -> "OMISO_VOTACION".equals(texto(m.get("motivo")))).count());
         r.put("omisosMesa", multas.stream().filter(m -> "OMISO_MESA".equals(texto(m.get("motivo")))).count());
         for (String estado : List.of("PENDIENTE", "PAGADA", "JUSTIFICADA", "EXONERADA")) {
-            List<Map<String, Object>> grupo = multas.stream().filter(m -> estado.equals(texto(m.get("estadoPago")))).toList();
+            List<Map<String, Object>> grupo = multas.stream().filter(m -> estado.equals(texto(m.get("estadoPago"))))
+                    .toList();
             String clave = estado.toLowerCase();
             r.put(clave, grupo.size());
             r.put("monto" + Character.toUpperCase(clave.charAt(0)) + clave.substring(1), suma(grupo));
@@ -320,24 +352,31 @@ public class MultasConsulta {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Multa no encontrada.");
         }
         Map<String, Object> m = filas.get(0);
-        m.put("descargosLista", dao.consultar("""
-                SELECT j.id_justificacion, CONCAT(j.tipo, '') AS tipo, CONCAT(j.causal, '') AS causal, j.sustento, j.documento,
-                       j.fecha_presentacion, j.decision, j.fundamento, j.numero_resolucion, j.miembros_pleno, j.fecha_resolucion,
-                       u.username AS registrado_por
-                  FROM multa_justificacion j LEFT JOIN usuario u ON u.id_usuario = j.id_usuario
-                 WHERE j.id_multa = ? ORDER BY j.id_justificacion
-                """, idMulta));
+        m.put("descargosLista",
+                dao.consultar(
+                        """
+                                SELECT j.id_justificacion, CONCAT(j.tipo, '') AS tipo, CONCAT(j.causal, '') AS causal, j.sustento, j.documento,
+                                       j.fecha_presentacion, j.decision, j.fundamento, j.numero_resolucion, j.miembros_pleno, j.fecha_resolucion,
+                                       u.username AS registrado_por
+                                  FROM multa_justificacion j LEFT JOIN usuario u ON u.id_usuario = j.id_usuario
+                                 WHERE j.id_multa = ? ORDER BY j.id_justificacion
+                                """,
+                        idMulta));
         return m;
     }
 
-    /** 7 mostrarReporteMultas(): la resolución con su contenido (huella SHA-256) para imprimir. */
+    /**
+     * 7 mostrarReporteMultas(): la resolución con su contenido (huella SHA-256)
+     * para imprimir.
+     */
     public Map<String, Object> resolucion(Integer idProceso) {
         verificarInstalacion();
         Map<String, Object> r = reporte(idProceso);
         if (r == null || !"RESUELTO".equals(texto(r.get("estado")))) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "El proceso aún no tiene resolución de multas.");
         }
-        List<Map<String, Object>> contenido = dao.consultar("SELECT contenido_json FROM reporte_multas WHERE id_proceso = ?", idProceso);
+        List<Map<String, Object>> contenido = dao
+                .consultar("SELECT contenido_json FROM reporte_multas WHERE id_proceso = ?", idProceso);
         r.put("documento", contenido.isEmpty() ? null : leerJson(contenido.get(0).get("contenidoJson")));
         return r;
     }
@@ -369,11 +408,13 @@ public class MultasConsulta {
     }
 
     private static BigDecimal monto(BigDecimal uit, BigDecimal pct) {
-        return uit == null || pct == null ? null : uit.multiply(pct).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        return uit == null || pct == null ? null
+                : uit.multiply(pct).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
     }
 
     private static BigDecimal suma(List<Map<String, Object>> filas) {
-        return filas.stream().map(f -> decimal(f.get("monto"))).filter(v -> v != null).reduce(BigDecimal.ZERO, BigDecimal::add);
+        return filas.stream().map(f -> decimal(f.get("monto"))).filter(v -> v != null).reduce(BigDecimal.ZERO,
+                BigDecimal::add);
     }
 
     private static BigDecimal decimal(Object valor) {
@@ -391,7 +432,8 @@ public class MultasConsulta {
             return null;
         }
         try {
-            return json.readValue(String.valueOf(contenido), new TypeReference<Object>() { });
+            return json.readValue(String.valueOf(contenido), new TypeReference<Object>() {
+            });
         } catch (Exception e) {
             return null;
         }
