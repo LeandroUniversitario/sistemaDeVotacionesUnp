@@ -110,6 +110,20 @@ public class PadronConsulta {
                    (SELECT COUNT(*) FROM padron_electoral pe WHERE pe.id_proceso = p.id_proceso) AS registros_padron,
                    (SELECT COUNT(DISTINCT pe.id_docente) FROM padron_electoral pe
                      WHERE pe.id_proceso = p.id_proceso) AS electores_padron,
+                   (SELECT COUNT(DISTINCT pe.id_docente) FROM padron_electoral pe
+                     WHERE pe.id_proceso = p.id_proceso AND pe.habilitado_para_votar = 1) AS habilitados_padron,
+                   (SELECT COUNT(DISTINCT pe.id_docente) FROM padron_electoral pe
+                     WHERE pe.id_proceso = p.id_proceso AND pe.habilitado_para_votar = 0) AS inhabilitados_padron,
+                   COALESCE(
+                     NULLIF((SELECT COUNT(DISTINCT d.id_docente)
+                               FROM cargo_electoral c
+                               JOIN docente d ON (c.nivel_jurisdiccion = 'UNIVERSIDAD'
+                                               OR (c.nivel_jurisdiccion = 'FACULTAD'     AND d.id_facultad     = c.id_jurisdiccion)
+                                               OR (c.nivel_jurisdiccion = 'DEPARTAMENTO' AND d.id_departamento = c.id_jurisdiccion))
+                              WHERE c.id_proceso = p.id_proceso), 0),
+                     (SELECT COUNT(DISTINCT pe.id_docente) FROM padron_electoral pe WHERE pe.id_proceso = p.id_proceso),
+                     (SELECT COUNT(*) FROM docente)
+                   ) AS universo_docentes,
                    (SELECT MAX(pe.fecha_generacion) FROM padron_electoral pe
                      WHERE pe.id_proceso = p.id_proceso) AS fecha_padron,
                    (SELECT COUNT(*) FROM mesa_electoral m WHERE m.id_proceso = p.id_proceso) AS total_mesas

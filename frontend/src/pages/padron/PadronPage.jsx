@@ -71,7 +71,7 @@ function descargarCsv(nombre, filas) {
 function descargarCredenciales(credenciales) {
   const celda = (v) => `"${String(v ?? '').replaceAll('"', '""')}"`;
   const filas = [['Docente', 'Correo', 'Usuario', 'Clave provisional'],
-    ...credenciales.map((c) => [c.docente, c.email, c.username, c.claveProvisional])];
+  ...credenciales.map((c) => [c.docente, c.email, c.username, c.claveProvisional])];
   const csv = '\ufeff' + filas.map((f) => f.map(celda).join(';')).join('\r\n');
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   const a = document.createElement('a');
@@ -132,6 +132,9 @@ export default function PadronPage({ session, onChange, onSessionExpired }) {
 
   useEffect(() => {
     cargarResumen();
+    if (!esAdmin) {
+      cargarProcesos();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -294,15 +297,35 @@ export default function PadronPage({ session, onChange, onSessionExpired }) {
   const aprobable = requisitos.length > 0 && requisitos.every((r) => r.cumple);
   const yaAprobado = num(detalle?.proceso?.registrosPadron) > 0;
 
+  const procesoActivo = detalle?.proceso;
+  const tienePadronProceso = procesoActivo && (num(procesoActivo.registrosPadron) > 0 || num(procesoActivo.electoresPadron) > 0);
+  const totalDocentesMostrar = tienePadronProceso ? (procesoActivo.universoDocentes ?? procesoActivo.electoresPadron) : resumen?.total;
+  const habilitadosMostrar = tienePadronProceso ? (procesoActivo.habilitadosPadron ?? procesoActivo.electoresPadron) : resumen?.habilitados;
+  const inhabilitadosMostrar = tienePadronProceso ? (procesoActivo.inhabilitadosPadron ?? 0) : resumen?.inhabilitados;
+
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="pd-shell">
       {/* En ADMIN no se muestran las tarjetas métricas superiores para centrar la vista en la carga masiva */}
       {!esAdmin && (
         <section className="pd-stats" aria-label="Resumen de docentes">
-          <Stat label="Docentes registrados" value={resumen?.total} />
-          <Stat label="Habilitados para votar" value={resumen?.habilitados} tone="green" />
-          <Stat label="Inhabilitados" value={resumen?.inhabilitados} tone="red" />
+          <Stat
+            label={tienePadronProceso ? "Docentes del proceso" : "Docentes registrados"}
+            value={totalDocentesMostrar}
+            sub={tienePadronProceso ? procesoActivo.nombre : undefined}
+          />
+          <Stat
+            label="Habilitados para votar"
+            value={habilitadosMostrar}
+            tone="green"
+            sub={tienePadronProceso ? "En padrón del proceso" : undefined}
+          />
+          <Stat
+            label="Inhabilitados"
+            value={inhabilitadosMostrar}
+            tone={num(inhabilitadosMostrar) > 0 ? "red" : undefined}
+            sub={tienePadronProceso ? "Para este proceso" : undefined}
+          />
           <Stat
             label="Última depuración"
             value={resumen?.ultimaDepuracion ? formatFechaHora(resumen.ultimaDepuracion) : 'Pendiente'}
