@@ -108,9 +108,9 @@ export default function TerminalVotacion({ onSessionExpired, modo = 'conexion' }
       });
       const nuevo = { idTerminal: r.terminal.id, nombre: r.terminal.nombre, mesa: r.mesa.numero, secreto: r.secreto };
       guardarTerminal(nuevo);
-      // M1: el equipo de la cabina no conserva la sesión del miembro de mesa.
-      sessionStorage.removeItem('accessToken');
-      window.location.assign('/cabina');
+      // M1: el equipo de la cabina no conserva la sesión del miembro de mesa y destruye el historial.
+      sessionStorage.clear();
+      window.location.replace('/cabina');
     } catch (e) {
       fallo(e);
     } finally {
@@ -207,9 +207,16 @@ export default function TerminalVotacion({ onSessionExpired, modo = 'conexion' }
           </div>
           <div className="vt-pie">
             <button type="button" className="cv-btn cv-btn-ghost" onClick={desconectar}>Desconectar este equipo</button>
-            <a className="cv-btn cv-btn-primary" href="/cabina" onClick={() => sessionStorage.removeItem('accessToken')}>
+            <button
+              type="button"
+              className="cv-btn cv-btn-primary"
+              onClick={() => {
+                sessionStorage.clear();
+                window.location.replace('/cabina');
+              }}
+            >
               <MenuIcon name="vote" size={15} /> Abrir cabina
-            </a>
+            </button>
           </div>
         </div>
       </div>
