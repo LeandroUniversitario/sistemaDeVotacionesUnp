@@ -1,18 +1,20 @@
 # ===================================================
-# Etapa 1: Compilación de la aplicación con Maven y JDK 21
+# Etapa 1: Compilación con Maven (usa caché de repo local si existe)
+# Para modo OFFLINE: copiamos el repositorio Maven local al build
 # ===================================================
 FROM maven:3.9-eclipse-temurin-21-alpine AS build
 WORKDIR /app
 
-# Copiar descriptor de dependencias
+# Copiar el repositorio Maven local cacheado (generado por exportar-usb.ps1)
+# Si no existe la carpeta .m2, Maven descargará dependencias normalmente (requiere internet)
+COPY .m2 /root/.m2
+
+# Copiar descriptor de dependencias y código fuente
 COPY pom.xml .
-
-# Descargar dependencias para aprovechar la capa en caché
-RUN mvn dependency:go-offline -B || true
-
-# Copiar el código fuente y compilar
 COPY src ./src
-RUN mvn clean package -DskipTests
+
+# Compilar usando el caché local (-o = offline si el caché existe)
+RUN mvn clean package -DskipTests -o 2>/dev/null || mvn clean package -DskipTests
 
 # ===================================================
 # Etapa 2: Imagen final de ejecución ligera con JRE 21
@@ -30,10 +32,10 @@ COPY --from=build /app/target/*.jar app.jar
 RUN chown -R appuser:appgroup /app
 USER appuser:appgroup
 
-# Render asigna el puerto en la variable PORT (por defecto 8080)
+# Puerto configurado por variable de entorno (por defecto 8080)
 ENV PORT=8080
 EXPOSE 8080
 
-# Comando de inicio con soporte de puerto dinámico
+# Comando de inicio
 ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT} -Djava.security.egd=file:/dev/./urandom -jar app.jar"]
 

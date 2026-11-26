@@ -19,3 +19,8 @@ dist/
 # CUS18 · respaldos de la base (contienen datos personales y contraseñas cifradas)
 respaldos/
 **/respaldos/
+
+# Docker USB offline (archivos pesados generados localmente)
+imagenes_sistema.tar
+*.tar
+backend/.m2/

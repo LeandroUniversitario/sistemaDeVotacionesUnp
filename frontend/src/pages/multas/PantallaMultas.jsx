@@ -190,7 +190,7 @@ export default function PantallaMultas({ onSessionExpired }) {
   async function cambiarProceso(id) {
     setIdProceso(id);
     setIdMulta(null);
-    setFiltro({ motivo: 'TODOS', estado: 'TODOS', texto: '' });
+    setFiltro({ motivo: 'TODOS', estado: 'TODOS', departamento: 'TODOS', texto: '' });
     limpiarAccion();
     setFeedback(null);
     try {
@@ -299,17 +299,19 @@ export default function PantallaMultas({ onSessionExpired }) {
   }, [detalle]);
 
   const multasFiltradas = useMemo(() => {
-    const texto = filtro.texto.trim().toLowerCase();
+    const texto = (filtro.texto ?? '').trim().toLowerCase();
+    const depto = filtro.departamento ?? 'TODOS';
     return (detalle?.multas ?? []).filter((m) => (filtro.motivo === 'TODOS' || m.motivo === filtro.motivo)
       && (filtro.estado === 'TODOS' || m.estadoPago === filtro.estado)
-      && (filtro.departamento === 'TODOS' || m.departamento === filtro.departamento)
+      && (depto === 'TODOS' || m.departamento === depto)
       && (!texto || `${m.dni} ${m.docente} ${m.facultad} ${m.departamento ?? ''}`.toLowerCase().includes(texto)));
   }, [detalle, filtro]);
 
   const omisosFiltrados = useMemo(() => {
-    const texto = filtro.texto.trim().toLowerCase();
+    const texto = (filtro.texto ?? '').trim().toLowerCase();
+    const depto = filtro.departamento ?? 'TODOS';
     return (detalle?.omisos ?? []).filter((o) => (filtro.motivo === 'TODOS' || o.motivo === filtro.motivo)
-      && (filtro.departamento === 'TODOS' || o.departamento === filtro.departamento)
+      && (depto === 'TODOS' || o.departamento === depto)
       && (!texto || `${o.dni} ${o.docente} ${o.facultad} ${o.departamento ?? ''}`.toLowerCase().includes(texto)));
   }, [detalle, filtro]);
 

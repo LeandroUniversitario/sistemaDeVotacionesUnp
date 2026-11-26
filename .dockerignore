@@ -1,0 +1,42 @@
+# .dockerignore - Excluye archivos innecesarios del build de Docker
+# Esto hace el build más rápido y la imagen más pequeña
+
+# Dependencias instaladas localmente (se instalan dentro del contenedor)
+node_modules
+frontend/node_modules
+
+# Archivos de build previos
+target
+frontend/dist
+frontend/build
+
+# Control de versiones
+.git
+.gitignore
+
+# Archivos del IDE
+.idea
+*.iml
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Logs
+*.log
+logs/
+respaldos/
+
+# Archivo de imágenes USB (muy pesado, no debe ir en ningún build)
+imagenes_sistema.tar
+
+# Variables de entorno locales
+.env
+.env.local
+.env.*.local
+
+# Docs y diagramas (no necesarios en la imagen)
+documentacion/
+diagramas/
+README.md

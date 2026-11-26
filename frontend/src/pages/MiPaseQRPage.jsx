@@ -14,11 +14,11 @@ import './credenciales/credenciales.css';
  * - Si fue sorteado como miembro de mesa
  */
 export default function MiPaseQRPage({ onSessionExpired }) {
-  const [estado, setEstado]   = useState(null);
+  const [estado, setEstado] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(null);
+  const [error, setError] = useState(null);
   const [generando, setGenerando] = useState(null); // idProceso generando
-  const [feedback, setFeedback]   = useState(null);
+  const [feedback, setFeedback] = useState(null);
   const [credencialesGeneradas, setCredencialesGeneradas] = useState({}); // idProceso -> data
   const [solicitudes, setSolicitudes] = useState({}); // idProceso -> solicitud info
   const [modalSolicitud, setModalSolicitud] = useState(null); // { idProceso, tipo }
@@ -251,10 +251,9 @@ export default function MiPaseQRPage({ onSessionExpired }) {
                     {fechaIni && ` · ${new Date(fechaIni).toLocaleDateString('es-PE')}`}
                   </p>
                 </div>
-                <span className={`badge ${
-                  estadoProc === 'VOTACION' ? 'badge-green' :
-                  estadoProc === 'INSCRIPCION' ? 'badge-blue' : 'badge-gray'
-                }`}>
+                <span className={`badge ${estadoProc === 'VOTACION' ? 'badge-green' :
+                    estadoProc === 'INSCRIPCION' ? 'badge-blue' : 'badge-gray'
+                  }`}>
                   {estadoProc}
                 </span>
               </div>
@@ -473,11 +472,11 @@ export default function MiPaseQRPage({ onSessionExpired }) {
         </div>
         <div style={{ padding: '0 1.5rem 1.5rem', display: 'grid', gap: '0.75rem' }}>
           {[
-            { n: 1, icon: 'qr',     text: 'Genera tu Pase QR haciendo clic en "Obtener mi QR" cuando el proceso esté en estado VOTACION.' },
-            { n: 2, icon: 'person', text: 'El día de las elecciones, presenta el QR en tu mesa de sufragio (en pantalla o impreso).' },
-            { n: 3, icon: 'scan',   text: 'El Miembro de Mesa escaneará tu código para registrar tu asistencia.' },
-            { n: 4, icon: 'vote',   text: 'Pasa a la cabina de votación y ejerce tu voto de forma secreta.' },
-          ].map(({ n, icon, text }) => (
+            { n: 1, text: 'Genera tu Pase QR haciendo clic en "Obtener mi pase QR" cuando el proceso electoral esté activo.' },
+            { n: 2, text: 'El día de la jornada electoral, acércate a tu mesa de sufragio y presenta tu DNI físico junto con tu código QR (en tu celular o impreso).' },
+            { n: 3, text: 'Los miembros de mesa escanearán tu código QR, verificarán tu identidad con tu DNI físico y recibirás tu cédula de sufragio física para ingresar a la cabina de votación.' },
+            { n: 4, text: 'Ejerce tu voto en el terminal de votación, deposita tu cédula física firmada en el ánfora y firma el padrón de la mesa para recoger tu DNI.' },
+          ].map(({ n, text }) => (
             <div key={n} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
               <div style={{
                 minWidth: 28, height: 28, borderRadius: '50%',
