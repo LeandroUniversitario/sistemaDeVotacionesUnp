@@ -3,7 +3,7 @@
 # Ejecutar en la PC del DOCENTE (o laboratorio) desde la USB.
 # ============================================================
 # Requisito: Docker Desktop instalado y corriendo en esa PC.
-# Uso: Abre PowerShell en la RAÍZ del proyecto (desde la USB) y ejecuta:
+# Uso: Abre PowerShell en la RAIZ del proyecto (desde la USB) y ejecuta:
 #      .\cargar-en-otra-pc.ps1
 # ============================================================
 
@@ -14,7 +14,7 @@ Write-Host "============================================" -ForegroundColor Cyan
 Write-Host " SISTEMA DE VOTACIONES UNP - Cargar en PC" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 
-# ── Verificar que Docker esté corriendo ─────────────────────────────────────
+# -- Verificar que Docker este corriendo --------------------------------------
 Write-Host "`n[1/4] Verificando que Docker Desktop este corriendo ..." -ForegroundColor Yellow
 try {
     docker info | Out-Null
@@ -29,7 +29,7 @@ try {
     exit 1
 }
 
-# ── Cargar las imágenes desde el .tar ───────────────────────────────────────
+# -- Cargar las imagenes desde el .tar ----------------------------------------
 Write-Host "`n[2/4] Cargando imagenes Docker desde USB (puede tardar 1-3 min) ..." -ForegroundColor Yellow
 $tarFile = "$PROYECTO\imagenes_sistema.tar"
 if (-not (Test-Path $tarFile)) {
@@ -42,13 +42,13 @@ if (-not (Test-Path $tarFile)) {
 docker load -i $tarFile
 Write-Host "    OK - imagenes cargadas en Docker" -ForegroundColor Green
 
-# ── Levantar el sistema completo ─────────────────────────────────────────────
+# -- Levantar el sistema completo ---------------------------------------------
 Write-Host "`n[3/4] Levantando el sistema (BD + Backend + Frontend) ..." -ForegroundColor Yellow
 Set-Location $PROYECTO
 docker compose up -d --no-build
 Write-Host "    OK - contenedores iniciando..." -ForegroundColor Green
 
-# ── Esperar y mostrar estado ─────────────────────────────────────────────────
+# -- Esperar y mostrar estado -------------------------------------------------
 Write-Host "`n[4/4] Esperando que todos los servicios esten listos (30 seg) ..." -ForegroundColor Yellow
 Start-Sleep -Seconds 30
 docker compose ps

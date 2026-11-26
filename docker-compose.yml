@@ -11,10 +11,10 @@ services:
       MYSQL_USER:          elecciones_user
       MYSQL_PASSWORD:      elecciones2026
     ports:
-      - "3306:3306"               # Acceso desde DBeaver / phpMyAdmin externo
+      - "3307:3306"               # Puerto 3307 externo para no chocar con XAMPP/MySQL local (3306)
     volumes:
       - datos_mariadb:/var/lib/mysql          # Datos persistentes
-      - ./base-de-datos/00_script_unico_elecciones_unp.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ./base-de-datos/backup_completo_docker.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
@@ -40,7 +40,7 @@ services:
       JWT_SECRET:   "s3cr3t0-para-presentacion-unp-2026-no-cambiar"
       JWT_EXPIRATION: PT8H
     ports:
-      - "8080:8080"               # API disponible en localhost:8080
+      - "8081:8080"               # Puerto 8081 externo para no chocar con Spring Boot local (8080)
     depends_on:
       db:
         condition: service_healthy   # Espera a que MariaDB esté lista
