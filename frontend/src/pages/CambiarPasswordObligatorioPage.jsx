@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import MenuIcon from '../components/MenuIcon';
-import { apiUrl } from '../api/apiClient';
+import { mensajePorEstado, pedir } from '../api/apiClient';
 
 /**
  * Pantalla de cambio de contraseña OBLIGATORIO para docentes importados masivamente y para las
@@ -43,7 +43,7 @@ export default function CambiarPasswordObligatorioPage({ token, username, onCamb
 
     setSaving(true);
     try {
-      const resp = await fetch(apiUrl('/api/auth/password'), {
+      const resp = await pedir('/api/auth/password', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -56,7 +56,7 @@ export default function CambiarPasswordObligatorioPage({ token, username, onCamb
       });
 
       if (!resp.ok) {
-        let msg = 'Error al cambiar la contraseña.';
+        let msg = resp.status === 401 ? 'La contraseña provisional (actual) es incorrecta o la sesión venció.' : mensajePorEstado(resp.status);
         try { const d = await resp.json(); msg = d.detail || d.message || msg; } catch(_) {}
         throw new Error(msg);
       }

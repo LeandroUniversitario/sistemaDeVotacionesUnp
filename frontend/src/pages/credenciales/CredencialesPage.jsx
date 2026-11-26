@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import Motivo from '../../components/Motivo';
+import { Modal } from '../../components/Ventana';
 import { ListaCredencialesQR, TIPOS_CREDENCIAL, fecha, numeroCredencial } from './LectorQR';
 import VerificarCredencialPanel from './VerificarCredencialPanel';
 import '../convocatoria/convocatoria.css';
@@ -450,26 +452,27 @@ export default function CredencialesPage({ onSessionExpired }) {
                 <button type="button" className="cv-btn cv-btn-primary" disabled={saving || pendientes.length === 0} onClick={() => solicitarCredencial(pendientes.map((t) => t.idTitular))}>
                   <MenuIcon name="qr" size={15} /> Emitir pendientes ({pendientes.length})
                 </button>
+                <Motivo>{pendientes.length === 0 && seleccion.size === 0
+                  ? (detalle.titulares.length === 0 ? null : 'Todos los titulares aptos ya tienen credencial vigente. Para reemitir una, use «Reemitir» en su fila o márquela en la tabla.') : null}</Motivo>
               </div>
             )}
           </div>
 
+          {/* Emitir / Reemitir (fila o selección): confirmación en ventana centrada */}
           {confirmando && (
-            <div className="cq-confirmar-emision" role="alert">
-              <div>
-                <strong>¿Emitir {confirmando.ids.length} credencial(es)?</strong>
-                <span>
-                  Los códigos QR se mostrarán una sola vez para imprimirlos o descargarlos.
-                  {confirmando.reemplazos > 0 && ` ${confirmando.reemplazos} titular(es) ya tienen credencial vigente: la anterior quedará revocada.`}
-                </span>
-              </div>
+            <Modal onCerrar={() => setConfirmando(null)} ancho={560} titulo={`¿Emitir ${confirmando.ids.length} credencial(es)?`}>
+              {feedback && <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>}
+              <p className="muted">
+                Los códigos QR se mostrarán una sola vez para imprimirlos o descargarlos.
+                {confirmando.reemplazos > 0 && ` ${confirmando.reemplazos} titular(es) ya tienen credencial vigente: la anterior quedará revocada.`}
+              </p>
               <div className="cv-actions">
                 <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setConfirmando(null)}>Cancelar</button>
                 <button type="button" className="cv-btn cv-btn-success" disabled={saving} onClick={confirmarEmision}>
                   <MenuIcon name="check" size={15} /> {saving ? 'Emitiendo…' : 'Emitir'}
                 </button>
               </div>
-            </div>
+            </Modal>
           )}
 
           <div className="cq-filtros">
@@ -550,19 +553,24 @@ export default function CredencialesPage({ onSessionExpired }) {
             </button>
           )}
 
+          {/* Revocar (fila): formulario en ventana centrada */}
           {revocando && (
-            <div className="ps-revocar">
-              <label className="cv-field">
-                <span className="cv-label">Motivo para revocar la credencial de {revocando.nombre}</span>
-                <input value={motivo} maxLength={255} placeholder="Ej.: el titular reportó la pérdida del fotocheck" onChange={(e) => setMotivo(e.target.value)} />
-              </label>
-              <div className="cv-actions">
-                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setRevocando(null)}>Cancelar</button>
-                <button type="button" className="cv-btn tc-btn-danger ps-danger" disabled={saving || motivo.trim().length < 10} onClick={revocar}>
-                  Revocar credencial
-                </button>
+            <Modal onCerrar={() => setRevocando(null)} ancho={560} titulo="Revocar credencial"
+              subtitulo={`${revocando.nombre} · DNI ${revocando.dni}${revocando.credencial ? ` · ${numeroCredencial(revocando.credencial.id)}` : ''}`}>
+              {feedback && <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>}
+              <div className="ps-revocar">
+                <label className="cv-field">
+                  <span className="cv-label">Motivo para revocar la credencial de {revocando.nombre}</span>
+                  <input autoFocus value={motivo} maxLength={255} placeholder="Ej.: el titular reportó la pérdida del fotocheck" onChange={(e) => setMotivo(e.target.value)} />
+                </label>
+                <div className="cv-actions">
+                  <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setRevocando(null)}>Cancelar</button>
+                  <button type="button" className="cv-btn tc-btn-danger ps-danger" disabled={saving || motivo.trim().length < 10} onClick={revocar}>
+                    Revocar credencial
+                  </button>
+                </div>
               </div>
-            </div>
+            </Modal>
           )}
         </div>
       )}

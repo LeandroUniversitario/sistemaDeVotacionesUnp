@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import { Drawer, useMantenerEnVista } from '../../components/Ventana';
+import Motivo, { primerMotivo } from '../../components/Motivo';
 import { CodigoQR, fecha } from '../credenciales/LectorQR';
 import { urlVerificacionActa } from '../instalacion/ActaInstalacion';
 import { EJEMPLARES, imprimirActaEscrutinio, imprimirCargoEntrega, imprimirCopiaPersonero } from './ActaEscrutinio';
@@ -87,6 +89,8 @@ export default function PantallaEscrutinio({ session, onSessionExpired, onIrImpu
   const [idMesa, setIdMesa] = useState(null);
   const [detalle, setDetalle] = useState(null);
   const [paso, setPaso] = useState('CEDULAS');
+  const pasosRef = useMantenerEnVista(paso);        // la pestaña nueva se ve desde su inicio
+  const [verMesa, setVerMesa] = useState(false);              // panel lateral de la mesa abierto
   const [cargando, setCargando] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -168,6 +172,17 @@ export default function PantallaEscrutinio({ session, onSessionExpired, onIrImpu
     } catch (e) {
       manejarError(e);
     }
+  }
+
+  /** Tarjeta de mesa: abre su detalle en el panel lateral (conserva el avance si es la misma mesa). */
+  function abrirMesa(id) {
+    if (id !== idMesa) elegirMesa(id);
+    setVerMesa(true);
+  }
+
+  function cerrarMesa() {
+    setVerMesa(false);
+    setConfirmando(null);
   }
 
   function elegirMesa(id) {
@@ -309,6 +324,24 @@ export default function PantallaEscrutinio({ session, onSessionExpired, onIrImpu
   const entregaLista = entrega.recibidoPor.trim() && entrega.ejemplares.length === 3
     && ((entrega.entregaPadron && entrega.entregaMaterial) || entrega.observacion.trim());
 
+  // Motivo exacto de cada botón bloqueado
+  const motivoCedulas = primerMotivo([
+    [totalCedulas == null, 'Ingrese la cantidad de cédulas que hay en el ánfora.'],
+    [totalCedulas != null && totalCedulas < 0, 'La cantidad de cédulas no puede ser negativa.'],
+    [sobran > 0 && !cedulas.destruidas, `Sobran ${sobran} cédula(s): marque que se retiraron al azar y se destruyeron sin abrir (A1).`],
+    [difiereCedulas && !cedulas.observacion.trim(), 'El total no coincide con los votantes: escriba la observación (obligatoria).'],
+  ]);
+  const motivoActa = primerMotivo([
+    [necesitaRecuento, 'El conteo no cuadra con los votos digitales: recuente las cédulas y registre el recuento en el paso anterior antes de confirmar.'],
+    [exigePrevalencia && !datosActa.prevaleceFisica, 'Tras el recuento sigue sin cuadrar: marque que prevalece la cédula física (RF84).'],
+    [obsObligatoria && !datosActa.observaciones.trim(), 'Escriba las observaciones del escrutinio: son obligatorias porque el conteo o el total no cuadran.'],
+  ]);
+  const motivoEntrega = primerMotivo([
+    [entrega.ejemplares.length < 3, `Marque los tres ejemplares del acta que se entregan (lleva ${entrega.ejemplares.length} de 3).`],
+    [!entrega.recibidoPor.trim(), 'Escriba el nombre de quien recibe en el CEUNP.'],
+    [!(entrega.entregaPadron && entrega.entregaMaterial) && !entrega.observacion.trim(), 'No se entrega el padrón o el material: explique el motivo en la observación.'],
+  ]);
+
   return (
     <div className="pd-shell cq-shell im-shell cs-shell es-shell mx">
       <section className="in-head">
@@ -371,7 +404,7 @@ export default function PantallaEscrutinio({ session, onSessionExpired, onIrImpu
           {mesas.map((m) => {
             const est = estadoDeMesa(m);
             return (
-              <button key={m.id} type="button" className={`im-mesa${m.id === idMesa ? ' on' : ''}`} onClick={() => elegirMesa(m.id)}>
+              <button key={m.id} type="button" className={`im-mesa${m.id === idMesa ? ' on' : ''}`} onClick={() => abrirMesa(m.id)}>
                 <span className="im-mesa-num">Mesa {m.numero}</span>
                 <span className={`cv-estado ${est.clase}`}>{est.texto}</span>
                 <small>{m.ubicacion}</small>
@@ -387,18 +420,19 @@ export default function PantallaEscrutinio({ session, onSessionExpired, onIrImpu
         <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>
       )}
 
+      {/* ── Detalle de la mesa seleccionada: panel lateral sobre el listado de mesas ── */}
       {detalle && (
-        <>
+        <Drawer abierto={verMesa} onCerrar={cerrarMesa} ancho={1040}
+          titulo={`Mesa ${mesa.numero} · escrutinio`} subtitulo={mesa.ubicacion}
+          extra={(
+            <span className={`cv-estado ${estadoDeMesa({ ...mesa, estadoEscrutinio: registro?.estado }).clase}`}>
+              {estadoDeMesa({ ...mesa, estadoEscrutinio: registro?.estado }).texto}
+            </span>
+          )}>
+          {feedback && (
+            <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>
+          )}
           <div className="panel mx-ficha">
-            <div className="mx-ficha-top">
-              <div>
-                <h3>Mesa {mesa.numero}</h3>
-                <p>{mesa.ubicacion}</p>
-              </div>
-              <span className={`cv-estado ${estadoDeMesa({ ...mesa, estadoEscrutinio: registro?.estado }).clase}`}>
-                {estadoDeMesa({ ...mesa, estadoEscrutinio: registro?.estado }).texto}
-              </span>
-            </div>
             <dl className="mx-datos">
               <div><dt>Proceso</dt><dd>{mesa.proceso}</dd></div>
               <div><dt>Cierre del sufragio</dt><dd>{hora(cierre?.horaCierre ?? mesa.horaCierre)}</dd></div>
@@ -442,12 +476,12 @@ export default function PantallaEscrutinio({ session, onSessionExpired, onIrImpu
             </div>
           </section>
 
-          <div className="pd-tabs cq-tabs mx-pasos" role="tablist" aria-label="Pasos del escrutinio">
+          <div className="pd-tabs cq-tabs mx-pasos" ref={pasosRef} role="tablist" aria-label="Pasos del escrutinio">
             {PASOS.map((p, i) => {
               const hecho = i < avance;
               return (
                 <button key={p.codigo} type="button" role="tab" aria-selected={paso === p.codigo}
-                  className={`pd-tab mx-paso${paso === p.codigo ? ' on' : ''}${hecho ? ' hecho' : ''}`} disabled={i > avance} onClick={() => setPaso(p.codigo)}>
+                  className={`pd-tab mx-paso${paso === p.codigo ? ' on' : ''}${hecho ? ' hecho' : ''}`} disabled={i > avance} title={i > avance ? `Complete primero «${PASOS[avance]?.texto}»` : undefined} onClick={() => setPaso(p.codigo)}>
                   <span className="mx-paso-num">{hecho ? <MenuIcon name="check" size={14} /> : i + 1}</span>
                   <span className="mx-paso-texto">
                     <b>{p.texto}</b>
@@ -534,6 +568,7 @@ export default function PantallaEscrutinio({ session, onSessionExpired, onIrImpu
                           <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || !cedulasListas}>
                             <MenuIcon name="check" size={15} /> Verificar total e iniciar escrutinio
                           </button>
+                          <Motivo>{motivoCedulas}</Motivo>
                         </div>
                       )}
                       {confirmando === 'CEDULAS' && (
@@ -573,6 +608,7 @@ export default function PantallaEscrutinio({ session, onSessionExpired, onIrImpu
                   </div>
                   {detalle.puedeConciliar && puedeOperar && soySecretario && !impugnacion && (
                     <button type="button" className="cv-btn cv-btn-ghost cq-mini" disabled={saving || detalle.personeros.length === 0}
+                      title={detalle.personeros.length === 0 ? 'No hay personeros presentes en la mesa: nadie puede impugnar votos (RN24).' : undefined}
                       onClick={() => setImpugnacion({ idPersonero: detalle.personeros[0]?.idPersonero ?? '', idCargo: cargos[0]?.idCargo ?? '', motivo: '' })}>
                       <MenuIcon name="alert" size={13} /> Registrar impugnación
                     </button>
@@ -801,6 +837,7 @@ export default function PantallaEscrutinio({ session, onSessionExpired, onIrImpu
                   <button type="submit" className="cv-btn cv-btn-success" disabled={saving || !actaLista}>
                     <MenuIcon name="file" size={15} /> Confirmar escrutinio y generar acta
                   </button>
+                  <Motivo>{motivoActa}</Motivo>
                 </div>
               )}
               {confirmando === 'ACTA' && (
@@ -883,6 +920,7 @@ export default function PantallaEscrutinio({ session, onSessionExpired, onIrImpu
                     <button type="submit" className="cv-btn cv-btn-success" disabled={saving || !entregaLista}>
                       <MenuIcon name="upload" size={15} /> Registrar entrega al CEUNP
                     </button>
+                    <Motivo>{motivoEntrega}</Motivo>
                   </div>
                 )}
                 {confirmando === 'ENTREGA' && (
@@ -923,7 +961,7 @@ export default function PantallaEscrutinio({ session, onSessionExpired, onIrImpu
               </div>
             )
           )}
-        </>
+        </Drawer>
       )}
     </div>
   );

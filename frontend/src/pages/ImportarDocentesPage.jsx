@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import MenuIcon from '../components/MenuIcon';
-import { apiUrl } from '../api/apiClient';
+import { mensajePorEstado, pedir } from '../api/apiClient';
 
 /**
  * Página de importación masiva de docentes.
@@ -35,15 +35,15 @@ export default function ImportarDocentesPage({ onImportSuccess }) {
 
     try {
       const token = sessionStorage.getItem('accessToken');
-      const resp = await fetch(apiUrl('/api/docentes/importar'), {
+      const resp = await pedir('/api/docentes/importar', {
         method: 'POST',
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: form,
       });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || data.detail || data.message || 'Error en la importación');
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.detail || data.message || (data.error && data.error !== 'Forbidden' ? data.error : null) || mensajePorEstado(resp.status));
       setResultado(data);
       if (onImportSuccess) onImportSuccess();
     } catch (err) {

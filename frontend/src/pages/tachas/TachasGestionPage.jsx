@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import { useMantenerEnVista } from '../../components/Ventana';
+import Motivo, { primerMotivo } from '../../components/Motivo';
 import '../convocatoria/convocatoria.css';
 import '../padron/padron.css';
 import '../inscripcion/inscripcion.css';
@@ -49,6 +51,8 @@ export default function TachasGestionPage({ session, onSessionExpired }) {
   const [registrando, setRegistrando] = useState(false);
   const [fallo, setFallo] = useState({ estado: '', resolucion: '' });
   const [confirmando, setConfirmando] = useState(false);
+  // Maestro-detalle: si el detalle queda fuera de la vista (pantallas angostas o listas largas), se trae a la vista
+  const detalleRef = useMantenerEnVista(registrando ? 'NUEVA' : idTacha, { tambienAbajo: true });
 
   function manejarError(error) {
     if (error.message === 'SESSION_EXPIRED') onSessionExpired?.();
@@ -247,7 +251,7 @@ export default function TachasGestionPage({ session, onSessionExpired }) {
               </ul>
             </aside>
 
-            <section className="tc-detalle">
+            <section className="tc-detalle" ref={detalleRef}>
               {registrando && (
                 <FormularioTacha candidatos={candidatos} admite={admite} saving={saving} onEnviar={ingresarTacha} conDni
                   onCancelar={() => setRegistrando(false)} />
@@ -312,6 +316,10 @@ export default function TachasGestionPage({ session, onSessionExpired }) {
                           onClick={() => (fallo.estado === 'FUNDADA' ? setConfirmando(true) : registrarResolucion())}>
                           <MenuIcon name="scale" size={15} /> {saving ? 'Registrando…' : 'Registrar resolución'}
                         </button>
+                        <Motivo>{primerMotivo([
+                          [!fallo.estado, 'Elija el fallo: Infundada o Fundada.'],
+                          [fallo.resolucion.trim().length < MIN, `Escriba el fundamento de la resolución (mínimo ${MIN} caracteres; lleva ${fallo.resolucion.trim().length}).`],
+                        ])}</Motivo>
                       </div>
                     </div>
                   ) : (

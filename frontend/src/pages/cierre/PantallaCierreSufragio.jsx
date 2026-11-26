@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import { Drawer, useMantenerEnVista } from '../../components/Ventana';
+import Motivo from '../../components/Motivo';
 import { CodigoQR, fecha } from '../credenciales/LectorQR';
 import { urlVerificacionActa } from '../instalacion/ActaInstalacion';
 import { imprimirActaSufragio, imprimirListaNoVoto } from './ActaSufragio';
@@ -55,6 +57,8 @@ export default function PantallaCierreSufragio({ session, onSessionExpired, onIr
   const [idMesa, setIdMesa] = useState(null);
   const [detalle, setDetalle] = useState(null);
   const [paso, setPaso] = useState('CERRAR');
+  const pasosRef = useMantenerEnVista(paso);        // la pestaña nueva se ve desde su inicio
+  const [verMesa, setVerMesa] = useState(false);              // panel lateral de la mesa abierto
   const [cargando, setCargando] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -129,6 +133,17 @@ export default function PantallaCierreSufragio({ session, onSessionExpired, onIr
     } catch (e) {
       manejarError(e);
     }
+  }
+
+  /** Tarjeta de mesa: abre su detalle en el panel lateral (conserva el avance si es la misma mesa). */
+  function abrirMesa(id) {
+    if (id !== idMesa) elegirMesa(id);
+    setVerMesa(true);
+  }
+
+  function cerrarMesa() {
+    setVerMesa(false);
+    setConfirmando(null);
   }
 
   function elegirMesa(id) {
@@ -265,7 +280,7 @@ export default function PantallaCierreSufragio({ session, onSessionExpired, onIr
           {mesas.map((m) => {
             const est = ESTADO_MESA[m.estado] ?? ESTADO_MESA.PENDIENTE;
             return (
-              <button key={m.id} type="button" className={`im-mesa${m.id === idMesa ? ' on' : ''}`} onClick={() => elegirMesa(m.id)}>
+              <button key={m.id} type="button" className={`im-mesa${m.id === idMesa ? ' on' : ''}`} onClick={() => abrirMesa(m.id)}>
                 <span className="im-mesa-num">Mesa {m.numero}</span>
                 <span className={`cv-estado ${est.clase}`}>{est.texto}</span>
                 <small>{m.ubicacion}</small>
@@ -281,18 +296,19 @@ export default function PantallaCierreSufragio({ session, onSessionExpired, onIr
         <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>
       )}
 
+      {/* ── Detalle de la mesa seleccionada: panel lateral sobre el listado de mesas ── */}
       {detalle && (
-        <>
+        <Drawer abierto={verMesa} onCerrar={cerrarMesa} ancho={980}
+          titulo={`Mesa ${mesa.numero} · cierre del sufragio`} subtitulo={mesa.ubicacion}
+          extra={(
+            <span className={`cv-estado ${(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).clase}`}>
+              {(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).texto}
+            </span>
+          )}>
+          {feedback && (
+            <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>
+          )}
           <div className="panel mx-ficha">
-            <div className="mx-ficha-top">
-              <div>
-                <h3>Mesa {mesa.numero}</h3>
-                <p>{mesa.ubicacion}</p>
-              </div>
-              <span className={`cv-estado ${(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).clase}`}>
-                {(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).texto}
-              </span>
-            </div>
             <dl className="mx-datos">
               <div><dt>Proceso</dt><dd>{mesa.proceso}</dd></div>
               <div><dt>Instalada</dt><dd>{hora(mesa.horaInstalacion)}</dd></div>
@@ -325,12 +341,12 @@ export default function PantallaCierreSufragio({ session, onSessionExpired, onIr
             </div>
           </section>
 
-          <div className="pd-tabs cq-tabs mx-pasos" role="tablist" aria-label="Pasos del cierre">
+          <div className="pd-tabs cq-tabs mx-pasos" ref={pasosRef} role="tablist" aria-label="Pasos del cierre">
             {PASOS.map((p, i) => {
               const hecho = i < avance || (p.codigo === 'ACTA' && detalle.paso === 'EMITIDA');
               return (
                 <button key={p.codigo} type="button" role="tab" aria-selected={paso === p.codigo}
-                  className={`pd-tab mx-paso${paso === p.codigo ? ' on' : ''}${hecho ? ' hecho' : ''}`} disabled={i > avance} onClick={() => setPaso(p.codigo)}>
+                  className={`pd-tab mx-paso${paso === p.codigo ? ' on' : ''}${hecho ? ' hecho' : ''}`} disabled={i > avance} title={i > avance ? `Complete primero «${PASOS[avance]?.texto}»` : undefined} onClick={() => setPaso(p.codigo)}>
                   <span className="mx-paso-num">{hecho ? <MenuIcon name="check" size={14} /> : i + 1}</span>
                   <span className="mx-paso-texto">
                     <b>{p.texto}</b>
@@ -372,6 +388,11 @@ export default function PantallaCierreSufragio({ session, onSessionExpired, onIr
                       <button type="button" className="cv-btn im-btn-peligro-solido" disabled={saving || !detalle.puedeCerrar} onClick={() => setConfirmando('CERRAR')}>
                         <MenuIcon name="lock" size={15} /> Cerrar el sufragio
                       </button>
+                      <Motivo>{!detalle.puedeCerrar ? (
+                        detalle.requisitos.some((r) => !r.cumplido)
+                          ? `Aún no se puede cerrar: ${detalle.requisitos.filter((r) => !r.cumplido).map((r) => r.detalle || r.texto).join(' · ')}.`
+                          : 'El servidor aún no permite cerrar esta mesa: pulse «Actualizar» para ver el estado actual.'
+                      ) : null}</Motivo>
                     </div>
                   )}
                   {confirmando === 'CERRAR' && (
@@ -518,6 +539,8 @@ export default function PantallaCierreSufragio({ session, onSessionExpired, onIr
                   <button type="submit" className="cv-btn cv-btn-success" disabled={saving || datosActa.cedulasNoUtilizadas === '' || (difiere && !datosActa.observaciones.trim())}>
                     <MenuIcon name="file" size={15} /> Generar acta de sufragio
                   </button>
+                  <Motivo>{datosActa.cedulasNoUtilizadas === '' ? 'Ingrese la cantidad de cédulas no utilizadas.'
+                    : difiere && !datosActa.observaciones.trim() ? 'Las firmas de la lista física no coinciden con los votantes del sistema: escriba la observación (obligatoria).' : null}</Motivo>
                 </div>
               )}
               {confirmando === 'ACTA' && (
@@ -538,7 +561,7 @@ export default function PantallaCierreSufragio({ session, onSessionExpired, onIr
           )}
 
           {paso === 'ACTA' && detalle.acta && <ActaVista acta={detalle.acta} emitida={emitida} onIrEscrutinio={onIrEscrutinio} />}
-        </>
+        </Drawer>
       )}
     </div>
   );

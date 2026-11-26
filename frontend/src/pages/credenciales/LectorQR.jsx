@@ -293,7 +293,7 @@ function realzarContraste(d) {
   }
 }
 
-export function EscanerQR({ onCodigo, deshabilitado }) {
+export function EscanerQR({ onCodigo, deshabilitado, placeholder = 'Pegue el enlace o el código del QR' }) {
   const [codigo, setCodigo] = useState('');
   const [camara, setCamara] = useState(false);
   const [espejo, setEspejo] = useState(true);
@@ -556,7 +556,7 @@ export function EscanerQR({ onCodigo, deshabilitado }) {
     <div className="cq-escaner">
       <form className="in-search-row" onSubmit={enviar}>
         <input ref={inputRef} value={codigo} autoComplete="off" spellCheck={false} maxLength={300}
-          placeholder="Buscar por DNI"
+          placeholder={placeholder}
           aria-label="Contenido del código QR" onChange={(e) => setCodigo(e.target.value)} />
         <button type="submit" className="cv-btn cv-btn-primary" disabled={deshabilitado || !codigo.trim()}>
           <MenuIcon name="check" size={15} /> Verificar

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import Motivo from '../../components/Motivo';
 import { EscanerQR, fecha } from '../credenciales/LectorQR';
 import { imprimirConstancia } from './ImpresoraCedula';
 import '../convocatoria/convocatoria.css';
@@ -220,6 +221,18 @@ export default function PantallaVerificacion({ onSessionExpired }) {
   const puedeRehabilitar = tablero?.puedeRehabilitar;
   const info = ficha ? RESULTADOS[ficha.resultado] ?? RESULTADOS.NO_FIGURA : null;
   const elector = ficha?.elector;
+  // Motivo exacto cuando no se puede habilitar un terminal
+  const terminales = tablero?.terminales ?? [];
+  const ocupados = terminales.filter((t) => t.estadoTerminal === 'HABILITADO' || t.estadoTerminal === 'EN_USO').length;
+  const fueraServicio = terminales.filter((t) => t.estadoTerminal === 'FUERA_DE_SERVICIO').length;
+  const motivoTerminal = terminalesLibres.length ? null
+    : terminales.length === 0
+      ? `La mesa ${mesa?.numero ?? ''} no tiene ningún terminal de votación conectado. Abra «Terminal de votación» en el equipo de la cabina, inicie sesión con la cuenta de la mesa y conéctelo a esta mesa; luego pulse «Actualizar».`
+      : ocupados === terminales.length
+        ? `Todos los terminales (${ocupados}) están ocupados por electores que aún votan. Espere a que uno termine o, si un elector abandonó la cabina, use «Anular habilitación» en el padrón.`
+        : fueraServicio === terminales.length
+          ? 'Todos los terminales están fuera de servicio. Reactive uno en «Terminales de votación» (más abajo).'
+          : `No hay terminales libres: ${ocupados} ocupado(s) y ${fueraServicio} fuera de servicio. Espere a que se libere uno o reactive uno en «Terminales de votación».`;
   const selectorTerminal = (
     <label className="vt-terminal-select">
       Terminal
@@ -285,6 +298,7 @@ export default function PantallaVerificacion({ onSessionExpired }) {
                   <span>{ESTADOS_TERMINAL[t.estadoTerminal]}{t.estadoTerminal !== 'LIBRE' && t.fechaHabilitacion ? ` desde ${hora(t.fechaHabilitacion)}` : ''}</span>
                 </div>
                 <button type="button" className="cv-btn cv-btn-ghost vt-mini" disabled={ocupado || t.estadoTerminal === 'HABILITADO' || t.estadoTerminal === 'EN_USO'}
+                  title={t.estadoTerminal === 'HABILITADO' || t.estadoTerminal === 'EN_USO' ? 'No se puede poner fuera de servicio mientras un elector lo usa: espere a que termine o anule su habilitación.' : undefined}
                   onClick={() => cambiarTerminal(t)}>
                   {t.activo ? 'Fuera de servicio' : 'Reactivar'}
                 </button>
@@ -300,10 +314,33 @@ export default function PantallaVerificacion({ onSessionExpired }) {
             <div className="cv-section-head">
               <div>
                 <h3>1. Identificar elector</h3>
-                <p className="muted">Escanee el código QR del pase de votación del elector para verificar su habilitación.</p>
+                <p className="muted">Escanee el QR del pase de votación. Si no se puede leer, busque por DNI (A1).</p>
               </div>
             </div>
-            <EscanerQR onCodigo={(codigo) => verificar({ codigo })} deshabilitado={ocupado || !mesa.atiende} />
+            <div className="pd-tabs" role="tablist">
+              {['QR', 'DNI'].map((m) => (
+                <button key={m} type="button" role="tab" aria-selected={modo === m} className={`pd-tab${modo === m ? ' on' : ''}`}
+                  onClick={() => { setModo(m); setFicha(null); setAccion(null); }}>
+                  {m === 'QR' ? 'Escanear QR' : 'Buscar por DNI'}
+                </button>
+              ))}
+            </div>
+            {modo === 'QR' ? (
+              <EscanerQR
+                placeholder="Código del QR (o DNI de 8 dígitos)"
+                // Si se escribe un DNI de 8 dígitos en este campo, se busca por DNI (A1)
+                onCodigo={(codigo) => (/^\d{8}$/.test(codigo) ? verificar({ dni: codigo }) : verificar({ codigo }))}
+                deshabilitado={ocupado || !mesa.atiende}
+              />
+            ) : (
+              <form className="vt-dni" onSubmit={verificarDni}>
+                <input value={dni} inputMode="numeric" maxLength={8} placeholder="DNI del elector (8 dígitos)" autoFocus
+                  aria-label="DNI del elector" onChange={(e) => setDni(e.target.value.replace(/\D/g, ''))} />
+                <button type="submit" className="cv-btn cv-btn-primary" disabled={ocupado || !dni || !mesa.atiende}>
+                  <MenuIcon name="check" size={15} /> Buscar
+                </button>
+              </form>
+            )}
           </div>
 
           <div className="panel cv-form">
@@ -341,6 +378,7 @@ export default function PantallaVerificacion({ onSessionExpired }) {
                       <button type="button" className="cv-btn cv-btn-ghost" onClick={() => abrirAccion('RECHAZO', elector)} disabled={ocupado}>
                         <MenuIcon name="close" size={15} /> El DNI no corresponde
                       </button>
+                      <Motivo>{motivoTerminal}</Motivo>
                     </>
                   )}
                   {ficha.resultado === 'HABILITADO' && (
@@ -354,9 +392,14 @@ export default function PantallaVerificacion({ onSessionExpired }) {
                     </button>
                   )}
                   {ficha.resultado === 'QR_INVALIDO' && (
-                    <button type="button" className="cv-btn cv-btn-primary" onClick={() => setFicha(null)}>
-                      Escanear de nuevo
-                    </button>
+                    <>
+                      <button type="button" className="cv-btn cv-btn-primary" onClick={() => { setModo('DNI'); setFicha(null); }}>
+                        Verificar por DNI
+                      </button>
+                      <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setFicha(null)}>
+                        Escanear de nuevo
+                      </button>
+                    </>
                   )}
                   <button type="button" className="cv-btn cv-btn-ghost" onClick={() => { setFicha(null); setDni(''); setAccion(null); }}>
                     Siguiente elector
@@ -376,6 +419,8 @@ export default function PantallaVerificacion({ onSessionExpired }) {
                     {ACCIONES[accion.tipo].boton}
                   </button>
                   <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAccion(null)}>Cancelar</button>
+                  <Motivo>{accion.tipo === 'REHABILITAR' && motivoTerminal ? motivoTerminal
+                    : motivo.trim().length < 5 ? `Escriba el motivo (mínimo 5 caracteres; lleva ${motivo.trim().length}).` : null}</Motivo>
                 </div>
               </form>
             )}

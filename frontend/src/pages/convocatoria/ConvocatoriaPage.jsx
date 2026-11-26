@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import Motivo, { primerMotivo } from '../../components/Motivo';
 import CronogramaTimeline from './CronogramaTimeline';
 import {
   CATEGORIAS, EMPTY_FORM, ESTADO_LABEL, NIVELES, addDays, formToPayload, formatFecha,
@@ -560,6 +561,12 @@ export default function ConvocatoriaPage({ onChange, onSessionExpired }) {
                         <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || !cargoValido}>
                           <MenuIcon name="plus" size={15} /> {saving ? 'Agregando…' : 'Agregar cargo'}
                         </button>
+                        <Motivo>{primerMotivo([
+                          [!cargoForm.nombre.trim(), 'Elija o escriba el nombre del cargo.'],
+                          [cargoForm.nivel !== 'UNIVERSIDAD' && !cargoForm.idJurisdiccion, `Elija ${cargoForm.nivel === 'FACULTAD' ? 'la facultad' : 'el departamento académico'} del cargo.`],
+                          [cargoForm.votan.length === 0, 'Marque al menos una categoría de docentes que vota.'],
+                          [cargoForm.postulan.length === 0, 'Marque al menos una categoría de docentes que puede postular.'],
+                        ])}</Motivo>
                       </div>
                     </form>
 
@@ -584,9 +591,9 @@ export default function ConvocatoriaPage({ onChange, onSessionExpired }) {
                               <button
                                 type="button"
                                 className="cv-icon-btn"
-                                title="Quitar cargo"
                                 aria-label={`Quitar ${c.nombre}`}
                                 disabled={saving || Number(c.totalListas) > 0}
+                                title={Number(c.totalListas) > 0 ? `No se puede quitar: el cargo ya tiene ${c.totalListas} lista(s) inscrita(s).` : 'Quitar cargo'}
                                 onClick={() => quitarCargo(c)}
                               >
                                 <MenuIcon name="trash" size={16} />
@@ -600,6 +607,7 @@ export default function ConvocatoriaPage({ onChange, onSessionExpired }) {
                         <button type="button" className="cv-btn cv-btn-primary" disabled={cargos.length === 0} onClick={() => irAPaso(3)}>
                           Continuar a publicar
                         </button>
+                        <Motivo>{cargos.length === 0 ? 'Agregue al menos un cargo a elegir para continuar.' : null}</Motivo>
                       </div>
                     </div>
                   </div>
@@ -637,6 +645,9 @@ export default function ConvocatoriaPage({ onChange, onSessionExpired }) {
                       <button type="button" className="cv-btn cv-btn-success" disabled={!publicable || saving} onClick={() => setConfirmando(true)}>
                         <MenuIcon name="check" size={15} /> Publicar convocatoria
                       </button>
+                      <Motivo>{!publicable ? (requisitos.length
+                        ? `Falta: ${requisitos.filter((r) => !r.cumple).map((r) => r.descripcion).join(' · ')}.`
+                        : 'Guarde el cronograma y agregue los cargos para poder publicar.') : null}</Motivo>
                     </div>
                   </div>
                 )}

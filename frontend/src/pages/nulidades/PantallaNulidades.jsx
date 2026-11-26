@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import { Drawer, Modal, useMantenerEnVista } from '../../components/Ventana';
+import Motivo, { primerMotivo } from '../../components/Motivo';
 import { fecha } from '../credenciales/LectorQR';
 import { ESTADO_RESULTADO, SITUACION_MESA } from '../computo/ActaComputo';
 import {
@@ -116,9 +118,11 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
   const [idProceso, setIdProceso] = useState(null);
   const [detalle, setDetalle] = useState(null);
   const [paso, setPaso] = useState('PARCIAL');
+  const pasosRef = useMantenerEnVista(paso);        // la pestaña nueva se ve desde su inicio
   const [idMesa, setIdMesa] = useState(null);
   const [mesa, setMesa] = useState(null);
   const [idNulidad, setIdNulidad] = useState(null);
+  const [verNulidad, setVerNulidad] = useState(false);   // expediente abierto en el panel lateral
   const [nulidad, setNulidad] = useState(null);
   const [accion, setAccion] = useState(null);   // PARCIAL | TOTAL | PARTICIPACION | RESOLVER | COMUNICAR:<dest> | DIRIMIR:<cargo> | SEGUNDA
   const [confirmando, setConfirmando] = useState(false);
@@ -198,6 +202,19 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
     setConfirmando(false);
   }
 
+  /** Abre el expediente del recurso en el panel lateral, sin salir de la pestaña actual. */
+  function abrirNulidad(id) {
+    setIdNulidad(id);
+    setVerNulidad(true);
+    limpiarAccion();
+  }
+
+  function cerrarNulidad() {
+    setVerNulidad(false);
+    setIdNulidad(null);
+    limpiarAccion();
+  }
+
   function irA(codigo) {
     setPaso(codigo);
     setIdMesa(null);
@@ -265,6 +282,7 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
   const registrarParcial = () => ejecutar(`/api/nulidades/procesos/${idProceso}/parcial`, { ...cuerpoRecurso(recurso), idMesa: recurso.idMesa }, (d) => {
     setRecurso(recursoVacio);
     setIdNulidad(d.idNulidad);
+    setVerNulidad(true);
     setPaso('RESOLUCION');
   });
 
@@ -272,6 +290,7 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
   const registrarTotal = () => ejecutar(`/api/nulidades/procesos/${idProceso}/total`, cuerpoRecurso(recurso), (d) => {
     setRecurso(recursoVacio);
     setIdNulidad(d.idNulidad);
+    setVerNulidad(true);
     setPaso('RESOLUCION');
   });
 
@@ -282,6 +301,7 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
     sustento: `El cómputo oficial registró una participación de ${pct(detalle.proceso.participacionPct)} (${detalle.proceso.votaron} de ${detalle.proceso.electoresHabiles} electores hábiles), que no supera el mínimo de ${pct(detalle.proceso.quorumMinimo)} (RN31).`,
   }, (d) => {
     setIdNulidad(d.idNulidad);
+    setVerNulidad(true);
     setPaso('RESOLUCION');
   });
 
@@ -360,6 +380,8 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
   const seleccionada = nulidades.find((n) => n.idNulidad === idNulidad) ?? null;
   const fundadas = nulidades.filter((n) => n.estado === 'FUNDADA');
   const cargosSegunda = detalle.cargos.filter((c) => ['SEGUNDA_VUELTA', 'EMPATE'].includes(c.estadoResultado) || c.dirimencia);
+  // El resultado de una acción se muestra también dentro de la ventana abierta
+  const aviso = feedback && <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>;
 
   return (
     <div className="pd-shell cq-shell cs-shell ig-shell cp-shell nl-shell mx">
@@ -386,7 +408,7 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
         </button>
       </section>
 
-      <div className="pd-tabs cq-tabs mx-pasos cp-pasos nl-pasos" role="tablist" aria-label="Gestión de nulidades y segunda vuelta">
+      <div className="pd-tabs cq-tabs mx-pasos cp-pasos nl-pasos" ref={pasosRef} role="tablist" aria-label="Gestión de nulidades y segunda vuelta">
         {PASOS.map((p) => {
           const n = cuenta(p.codigo, detalle);
           const alerta = (p.codigo === 'RESOLUCION' && n > 0) || (p.codigo === 'SEGUNDA' && detalle.cargos.some((c) => c.empateSinDirimir));
@@ -498,66 +520,64 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
             </div>
           </div>
 
+          {/* ── Ver mesa / Plantear nulidad: panel lateral sobre la tabla de mesas ── */}
           {mesa && (
-            <div className="panel mx-ficha ig-expediente">
-              <div className="mx-ficha-top">
-                <div>
-                  <h3>Mesa {mesa.mesa.numeroMesa}</h3>
-                  <p>{mesa.mesa.ubicacion}</p>
+            <Drawer onCerrar={() => { setIdMesa(null); limpiarAccion(); }} ancho={820}
+              titulo={`Mesa ${mesa.mesa.numeroMesa}`} subtitulo={mesa.mesa.ubicacion}
+              extra={<span className={`cv-estado ${CLASE_SITUACION[mesa.mesa.situacion] ?? 'creado'}`}>{SITUACION_MESA[mesa.mesa.situacion] ?? mesa.mesa.situacion}</span>}>
+              {accion !== 'PARCIAL' && !verNulidad && aviso}
+              <div className="panel mx-ficha ig-expediente">
+                <dl className="mx-datos">
+                  <div><dt>Votaron</dt><dd>{mesa.mesa.totalVotantes ?? 0} de {mesa.mesa.totalElectores}</dd></div>
+                  <div><dt>Escrutinio</dt><dd>{mesa.mesa.estadoEscrutinio ? mesa.mesa.estadoEscrutinio.replaceAll('_', ' ').toLowerCase() : '—'}</dd></div>
+                  <div><dt>Actas entregadas</dt><dd>{mesa.mesa.fechaEntrega ? fecha(mesa.mesa.fechaEntrega) : '—'}</dd></div>
+                  <div><dt>Recursos</dt><dd>{mesa.recursos.length}</dd></div>
+                </dl>
+                <h4 className="cp-sub">{mesa.mesa.estado === 'ANULADA' ? 'Votos excluidos del cómputo' : 'Votos de la mesa (se excluirían si se declara la nulidad)'}</h4>
+                <div className="table-wrap">
+                  <table>
+                    <thead><tr><th>Cargo</th><th>Opción</th><th className="n">Votos</th></tr></thead>
+                    <tbody>
+                      {mesa.conteo.map((c) => (
+                        <tr key={`${c.idCargo}-${c.opcion}-${c.idLista ?? ''}`} className={mesa.mesa.estado === 'ANULADA' ? 'nl-excluido' : ''}>
+                          <td>{c.cargo}</td><td>{c.lista}</td><td className="n">{c.votos}</td>
+                        </tr>
+                      ))}
+                      {mesa.conteo.length === 0 && <tr><td colSpan={3} className="muted">Sin acta de escrutinio.</td></tr>}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="cs-acciones-head">
-                  <span className={`cv-estado ${CLASE_SITUACION[mesa.mesa.situacion] ?? 'creado'}`}>{SITUACION_MESA[mesa.mesa.situacion] ?? mesa.mesa.situacion}</span>
-                  <button type="button" className="cv-btn cv-btn-ghost cq-mini" onClick={() => { setIdMesa(null); limpiarAccion(); }}><MenuIcon name="close" size={13} /> Cerrar</button>
-                </div>
+                {mesa.recursos.length > 0 && (
+                  <>
+                    <h4 className="cp-sub">Recursos de nulidad de la mesa</h4>
+                    <ul className="nl-recursos">
+                      {mesa.recursos.map((r) => (
+                        <li key={r.idNulidad}>
+                          <span className={`cv-estado ${ESTADO_RECURSO[r.estado]?.clase}`}>{ESTADO_RECURSO[r.estado]?.texto}</span>
+                          <span>N.º {r.idNulidad} · {CAUSAL[r.causal] ?? r.causal}<small>{r.origen === 'PERSONERO' ? r.personero : 'De oficio'} · {fecha(r.fechaPresentacion)}{r.numeroResolucion ? ` · ${r.numeroResolucion}` : ''}</small></span>
+                          <button type="button" className="cv-btn cv-btn-ghost cq-mini" onClick={() => abrirNulidad(r.idNulidad)}>
+                            <MenuIcon name="file" size={13} /> Expediente
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
               </div>
-              <dl className="mx-datos">
-                <div><dt>Votaron</dt><dd>{mesa.mesa.totalVotantes ?? 0} de {mesa.mesa.totalElectores}</dd></div>
-                <div><dt>Escrutinio</dt><dd>{mesa.mesa.estadoEscrutinio ? mesa.mesa.estadoEscrutinio.replaceAll('_', ' ').toLowerCase() : '—'}</dd></div>
-                <div><dt>Actas entregadas</dt><dd>{mesa.mesa.fechaEntrega ? fecha(mesa.mesa.fechaEntrega) : '—'}</dd></div>
-                <div><dt>Recursos</dt><dd>{mesa.recursos.length}</dd></div>
-              </dl>
-              <h4 className="cp-sub">{mesa.mesa.estado === 'ANULADA' ? 'Votos excluidos del cómputo' : 'Votos de la mesa (se excluirían si se declara la nulidad)'}</h4>
-              <div className="table-wrap">
-                <table>
-                  <thead><tr><th>Cargo</th><th>Opción</th><th className="n">Votos</th></tr></thead>
-                  <tbody>
-                    {mesa.conteo.map((c) => (
-                      <tr key={`${c.idCargo}-${c.opcion}-${c.idLista ?? ''}`} className={mesa.mesa.estado === 'ANULADA' ? 'nl-excluido' : ''}>
-                        <td>{c.cargo}</td><td>{c.lista}</td><td className="n">{c.votos}</td>
-                      </tr>
-                    ))}
-                    {mesa.conteo.length === 0 && <tr><td colSpan={3} className="muted">Sin acta de escrutinio.</td></tr>}
-                  </tbody>
-                </table>
-              </div>
-              {mesa.recursos.length > 0 && (
-                <>
-                  <h4 className="cp-sub">Recursos de nulidad de la mesa</h4>
-                  <ul className="nl-recursos">
-                    {mesa.recursos.map((r) => (
-                      <li key={r.idNulidad}>
-                        <span className={`cv-estado ${ESTADO_RECURSO[r.estado]?.clase}`}>{ESTADO_RECURSO[r.estado]?.texto}</span>
-                        <span>N.º {r.idNulidad} · {CAUSAL[r.causal] ?? r.causal}<small>{r.origen === 'PERSONERO' ? r.personero : 'De oficio'} · {fecha(r.fechaPresentacion)}{r.numeroResolucion ? ` · ${r.numeroResolucion}` : ''}</small></span>
-                        <button type="button" className="cv-btn cv-btn-ghost cq-mini" onClick={() => { setIdNulidad(r.idNulidad); irA('RESOLUCION'); }}>
-                          <MenuIcon name="file" size={13} /> Expediente
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-              {accion === 'PARCIAL' && recurso.idMesa === mesa.mesa.idMesa && (
+              <Modal abierto={accion === 'PARCIAL' && recurso.idMesa === mesa.mesa.idMesa} onCerrar={limpiarAccion} ancho={760}
+                titulo={`Plantear nulidad parcial · mesa ${mesa.mesa.numeroMesa}`} subtitulo="Nulidad de la votación de una mesa (Art. 64)">
+                {aviso}
                 <FormRecurso
                   alcance="PARCIAL" mesa={mesa.mesa} recurso={recurso} setRecurso={setRecurso} personeros={detalle.personeros}
                   saving={saving} confirmando={confirmando} setConfirmando={setConfirmando}
                   onCancelar={limpiarAccion} onConfirmar={registrarParcial}
                 />
-              )}
-            </div>
+              </Modal>
+            </Drawer>
           )}
 
           <TablaRecursos titulo="Recursos de nulidad parcial" filas={nulidades.filter((n) => n.alcance === 'PARCIAL')}
-            onAbrir={(id) => { setIdNulidad(id); irA('RESOLUCION'); }} />
+            onAbrir={abrirNulidad} />
         </>
       )}
 
@@ -611,24 +631,27 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
             {!acciones.registrarTotal && acciones.motivoNoTotal && !acciones.formalizarParticipacion && (
               <div className="mx-mensaje info" role="note"><MenuIcon name="info" size={18} /><div><p>{acciones.motivoNoTotal}</p></div></div>
             )}
-            {acciones.registrarTotal && (accion !== 'TOTAL' ? (
+            {acciones.registrarTotal && (
               <div className="cv-actions cp-izq">
                 <button type="button" className="cv-btn cv-btn-primary im-btn-peligro" disabled={saving}
                   onClick={() => { setRecurso(recursoVacio); setAccion('TOTAL'); setConfirmando(false); }}>
                   <MenuIcon name="scale" size={15} /> Plantear nulidad total
                 </button>
               </div>
-            ) : (
+            )}
+            <Modal abierto={acciones.registrarTotal && accion === 'TOTAL'} onCerrar={limpiarAccion} ancho={760}
+              titulo="Plantear nulidad total · toda la elección" subtitulo="Nulidad total de la elección (Art. 65)">
+              {aviso}
               <FormRecurso
                 alcance="TOTAL" proceso={proceso} recurso={recurso} setRecurso={setRecurso} personeros={detalle.personeros}
                 saving={saving} confirmando={confirmando} setConfirmando={setConfirmando}
                 onCancelar={limpiarAccion} onConfirmar={registrarTotal}
               />
-            ))}
+            </Modal>
           </div>
 
           <TablaRecursos titulo="Recursos de nulidad total" filas={nulidades.filter((n) => n.alcance === 'TOTAL')}
-            onAbrir={(id) => { setIdNulidad(id); irA('RESOLUCION'); }} />
+            onAbrir={abrirNulidad} />
         </>
       )}
 
@@ -637,18 +660,20 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
         <>
           <TablaRecursos titulo="Recursos de nulidad del proceso" filas={nulidades} activo={idNulidad}
             nota={`El Pleno resuelve cada recurso con quórum de ${quorum} de sus 9 miembros y mayoría simple; en empate decide el voto dirimente del Presidente (RN36). La decisión es inapelable.`}
-            onAbrir={(id) => { setIdNulidad(id === idNulidad ? null : id); limpiarAccion(); }} />
-          {seleccionada && (
-            <Expediente
-              n={seleccionada} documento={nulidad?.idNulidad === seleccionada.idNulidad ? nulidad : null} proceso={proceso}
-              acciones={acciones} quorum={quorum} token={tokens[seleccionada.idNulidad]}
-              resolucion={resolucion} setResolucion={setResolucion} accion={accion} setAccion={setAccion}
-              confirmando={confirmando} setConfirmando={setConfirmando} saving={saving}
-              onResolver={resolver} onCancelar={limpiarAccion} onCerrar={() => { setIdNulidad(null); limpiarAccion(); }}
-              onComunicar={() => irA('COMUNICACION')}
-            />
-          )}
+            onAbrir={(id) => (id === idNulidad && verNulidad ? cerrarNulidad() : abrirNulidad(id))} />
         </>
+      )}
+
+      {/* ── Expediente del recurso: panel lateral sobre la pestaña actual ── */}
+      {seleccionada && verNulidad && (
+        <Expediente
+          n={seleccionada} documento={nulidad?.idNulidad === seleccionada.idNulidad ? nulidad : null} proceso={proceso}
+          acciones={acciones} quorum={quorum} token={tokens[seleccionada.idNulidad]}
+          resolucion={resolucion} setResolucion={setResolucion} accion={accion} setAccion={setAccion}
+          confirmando={confirmando} setConfirmando={setConfirmando} saving={saving}
+          onResolver={resolver} onCancelar={limpiarAccion} onCerrar={cerrarNulidad} aviso={aviso}
+          onComunicar={() => { setVerNulidad(false); irA('COMUNICACION'); }}
+        />
       )}
 
       {/* ── 8-9 Comunicación y publicación (RF102) ── */}
@@ -704,6 +729,10 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
                   const dst = accion.split(':')[1];
                   const portal = dst === 'PORTAL';
                   return (
+                    <Modal onCerrar={limpiarAccion} ancho={720}
+                      titulo={portal ? 'Publicar en el portal electoral' : `Registrar el envío a ${DESTINATARIO[dst]}`}
+                      subtitulo={`Resolución ${n.numeroResolucion} · ${n.alcance === 'PARCIAL' ? `nulidad de la mesa ${n.numeroMesa}` : 'nulidad total'}`}>
+                    {aviso}
                     <form className="nl-form-com" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
                       <div className="ig-grid">
                         <label className="cv-field">
@@ -743,6 +772,7 @@ export default function PantallaNulidades({ session, onSessionExpired }) {
                         </div>
                       )}
                     </form>
+                    </Modal>
                   );
                 })()}
               </div>
@@ -877,7 +907,6 @@ function FormRecurso({ alcance, mesa, recurso, setRecurso, personeros, saving, c
 
   return (
     <form className="ig-form nl-recurso" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
-      <h4>{parcial ? `Nulidad parcial · mesa ${mesa.numeroMesa}` : 'Nulidad total · toda la elección'}</h4>
       <div className="cv-field">
         <span className="cv-label">Causal ({parcial ? 'Art. 64' : 'Art. 65'})</span>
         <div className="cq-chips" role="group" aria-label="Causal">
@@ -928,6 +957,11 @@ function FormRecurso({ alcance, mesa, recurso, setRecurso, personeros, saving, c
           <button type="submit" className="cv-btn cv-btn-primary im-btn-peligro" disabled={saving || !listo}>
             <MenuIcon name="scale" size={15} /> Registrar recurso
           </button>
+          <Motivo>{primerMotivo([
+            [!recurso.causal, 'Elija la causal del recurso.'],
+            [recurso.origen === 'PERSONERO' && !recurso.idPersonero, 'Elija el personero acreditado que presenta el recurso.'],
+            [recurso.sustento.trim().length < 10, 'Escriba el sustento del recurso (mínimo 10 caracteres).'],
+          ])}</Motivo>
         </div>
       ) : (
         <div className="cq-confirmar-emision" role="alert">
@@ -991,7 +1025,7 @@ function TablaRecursos({ titulo, nota, filas, activo, onAbrir }) {
 /** Expediente del recurso y resolución del Pleno (2 anularMesa · 6 anularProceso · 9 mostrarResolucionNulidad). */
 function Expediente({
   n, documento, proceso, acciones, quorum, token, resolucion, setResolucion, accion, setAccion, confirmando, setConfirmando,
-  saving, onResolver, onCancelar, onCerrar, onComunicar,
+  saving, aviso, onResolver, onCancelar, onCerrar, onComunicar,
 }) {
   const parcial = n.alcance === 'PARCIAL';
   const participacion = n.causal === 'PARTICIPACION_INSUFICIENTE';
@@ -1013,13 +1047,11 @@ function Expediente({
   const doc = documento?.documento;
 
   return (
-    <div className="panel mx-ficha ig-expediente">
-      <div className="mx-ficha-top">
-        <div>
-          <h3>Recurso de nulidad N.º {n.idNulidad}</h3>
-          <p>{parcial ? `Nulidad parcial · mesa ${n.numeroMesa} (${n.ubicacion})` : 'Nulidad total de la elección'} · {CAUSAL[n.causal] ?? n.causal}</p>
-        </div>
-        <div className="cs-acciones-head">
+    <Drawer onCerrar={onCerrar} ancho={860}
+      titulo={`Recurso de nulidad N.º ${n.idNulidad}`}
+      subtitulo={`${parcial ? `Nulidad parcial · mesa ${n.numeroMesa} (${n.ubicacion})` : 'Nulidad total de la elección'} · ${CAUSAL[n.causal] ?? n.causal}`}
+      extra={(
+        <>
           <span className={`cv-estado ${ESTADO_RECURSO[n.estado]?.clase}`}>{ESTADO_RECURSO[n.estado]?.texto}</span>
           <button type="button" className="cv-btn cv-btn-ghost cq-mini" onClick={() => imprimirRecurso({ ...n, proceso: proceso.nombre })}>
             <MenuIcon name="file" size={13} /> Cargo del recurso
@@ -1029,62 +1061,68 @@ function Expediente({
               <MenuIcon name="qr" size={13} /> Imprimir resolución{token ? ' con QR' : ''}
             </button>
           )}
-          <button type="button" className="cv-btn cv-btn-ghost cq-mini" onClick={onCerrar}><MenuIcon name="close" size={13} /> Cerrar</button>
-        </div>
-      </div>
-      <dl className="mx-datos">
-        <div><dt>Presentado</dt><dd>{fecha(n.fechaPresentacion)}</dd></div>
-        <div><dt>Etapa</dt><dd>{n.etapa === 'ANTES_COMPUTO' ? 'Antes del cómputo' : 'Después del cómputo'}</dd></div>
-        <div><dt>Origen</dt><dd>{n.origen === 'PERSONERO' ? `${n.personero} (${n.listaPersonero})` : 'De oficio (CEUNP)'}</dd></div>
-        <div><dt>Registrado por</dt><dd>{n.registradoPor ?? '—'}</dd></div>
-      </dl>
-      <h4 className="cp-sub">Sustento</h4>
-      <p className="ig-texto">{n.sustento}</p>
-      {n.pruebas && <><h4 className="cp-sub">Pruebas ofrecidas</h4><p className="ig-texto">{n.pruebas}</p></>}
-
-      {n.estado !== 'PRESENTADA' && (
-        <>
-          <h4 className="cp-sub">Resolución de nulidad</h4>
-          <dl className="mx-datos cp-meta">
-            <div><dt>Resolución</dt><dd>{n.numeroResolucion}</dd></div>
-            <div><dt>Fecha</dt><dd>{fecha(n.fechaResolucion)}</dd></div>
-            <div><dt>Votación del Pleno</dt><dd>{n.votosFavor} a favor · {n.votosContra} en contra de {n.miembrosPleno}{si(n.votoDirimente) ? ' · dirimente' : ''}</dd></div>
-            <div><dt>Integridad</dt><dd><span className={`cv-estado ${si(n.resolucionIntegra) ? 'votacion' : 'anulado'}`}>{si(n.resolucionIntegra) ? 'Huella coincide' : 'Alterada'}</span></dd></div>
-          </dl>
-          <dl className="nl-texto">
-            <div><dt>Fundamento</dt><dd>{n.fundamentoResolucion}</dd></div>
-            {doc?.efecto && <div><dt>Efecto</dt><dd>{doc.efecto}</dd></div>}
-            <div><dt>Huella SHA-256</dt><dd className="cp-hash">{n.hashIntegridad}</dd></div>
-          </dl>
-          {(doc?.votos_excluidos ?? []).length > 0 && (
-            <div className="table-wrap">
-              <table>
-                <thead><tr><th>Cargo</th><th>Opción excluida del cómputo</th><th className="n">Votos</th></tr></thead>
-                <tbody>{doc.votos_excluidos.map((v) => <tr key={`${v.cargo}-${v.lista}`} className="nl-excluido"><td>{v.cargo}</td><td>{OPCION[v.opcion] ?? v.lista}</td><td className="n">{v.votos}</td></tr>)}</tbody>
-              </table>
-            </div>
-          )}
-          {!token && <p className="muted cp-nota">El QR de la resolución solo se entrega al emitirla; la reimpresión lleva la huella SHA-256.</p>}
-          {n.estado === 'FUNDADA' && (
-            <div className="cv-actions cp-izq">
-              <button type="button" className="cv-btn cv-btn-primary" onClick={onComunicar}>
-                <MenuIcon name="external" size={15} /> Comunicar y publicar ({n.comunicaciones} de 5)
-              </button>
-            </div>
-          )}
         </>
-      )}
+      )}>
+      {!resolviendo && aviso}
+      <div className="panel mx-ficha ig-expediente">
+        <dl className="mx-datos">
+          <div><dt>Presentado</dt><dd>{fecha(n.fechaPresentacion)}</dd></div>
+          <div><dt>Etapa</dt><dd>{n.etapa === 'ANTES_COMPUTO' ? 'Antes del cómputo' : 'Después del cómputo'}</dd></div>
+          <div><dt>Origen</dt><dd>{n.origen === 'PERSONERO' ? `${n.personero} (${n.listaPersonero})` : 'De oficio (CEUNP)'}</dd></div>
+          <div><dt>Registrado por</dt><dd>{n.registradoPor ?? '—'}</dd></div>
+        </dl>
+        <h4 className="cp-sub">Sustento</h4>
+        <p className="ig-texto">{n.sustento}</p>
+        {n.pruebas && <><h4 className="cp-sub">Pruebas ofrecidas</h4><p className="ig-texto">{n.pruebas}</p></>}
 
-      {n.estado === 'PRESENTADA' && acciones.resolver && (!resolviendo ? (
-        <div className="cv-actions cp-izq">
-          <button type="button" className="cv-btn cv-btn-primary" disabled={saving}
-            onClick={() => { setAccion('RESOLVER'); setConfirmando(false); setResolucion((r) => ({ ...r, decision: opciones.length === 1 ? opciones[0] : '' })); }}>
-            <MenuIcon name="scale" size={15} /> Resolver en el Pleno
-          </button>
-        </div>
-      ) : (
+        {n.estado !== 'PRESENTADA' && (
+          <>
+            <h4 className="cp-sub">Resolución de nulidad</h4>
+            <dl className="mx-datos cp-meta">
+              <div><dt>Resolución</dt><dd>{n.numeroResolucion}</dd></div>
+              <div><dt>Fecha</dt><dd>{fecha(n.fechaResolucion)}</dd></div>
+              <div><dt>Votación del Pleno</dt><dd>{n.votosFavor} a favor · {n.votosContra} en contra de {n.miembrosPleno}{si(n.votoDirimente) ? ' · dirimente' : ''}</dd></div>
+              <div><dt>Integridad</dt><dd><span className={`cv-estado ${si(n.resolucionIntegra) ? 'votacion' : 'anulado'}`}>{si(n.resolucionIntegra) ? 'Huella coincide' : 'Alterada'}</span></dd></div>
+            </dl>
+            <dl className="nl-texto">
+              <div><dt>Fundamento</dt><dd>{n.fundamentoResolucion}</dd></div>
+              {doc?.efecto && <div><dt>Efecto</dt><dd>{doc.efecto}</dd></div>}
+              <div><dt>Huella SHA-256</dt><dd className="cp-hash">{n.hashIntegridad}</dd></div>
+            </dl>
+            {(doc?.votos_excluidos ?? []).length > 0 && (
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>Cargo</th><th>Opción excluida del cómputo</th><th className="n">Votos</th></tr></thead>
+                  <tbody>{doc.votos_excluidos.map((v) => <tr key={`${v.cargo}-${v.lista}`} className="nl-excluido"><td>{v.cargo}</td><td>{OPCION[v.opcion] ?? v.lista}</td><td className="n">{v.votos}</td></tr>)}</tbody>
+                </table>
+              </div>
+            )}
+            {!token && <p className="muted cp-nota">El QR de la resolución solo se entrega al emitirla; la reimpresión lleva la huella SHA-256.</p>}
+            {n.estado === 'FUNDADA' && (
+              <div className="cv-actions cp-izq">
+                <button type="button" className="cv-btn cv-btn-primary" onClick={onComunicar}>
+                  <MenuIcon name="external" size={15} /> Comunicar y publicar ({n.comunicaciones} de 5)
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {n.estado === 'PRESENTADA' && acciones.resolver && (
+          <div className="cv-actions cp-izq">
+            <button type="button" className="cv-btn cv-btn-primary" disabled={saving}
+              onClick={() => { setAccion('RESOLVER'); setConfirmando(false); setResolucion((r) => ({ ...r, decision: opciones.length === 1 ? opciones[0] : '' })); }}>
+              <MenuIcon name="scale" size={15} /> Resolver en el Pleno
+            </button>
+          </div>
+        )}
+      </div>
+
+      <Modal abierto={n.estado === 'PRESENTADA' && acciones.resolver && resolviendo} onCerrar={onCancelar} ancho={780}
+        titulo={parcial ? 'Anular la mesa · resolución del Pleno' : 'Anular el proceso · resolución del Pleno'}
+        subtitulo={`Recurso de nulidad N.º ${n.idNulidad} · ${CAUSAL[n.causal] ?? n.causal}`}>
+        {aviso}
         <form className="ig-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
-          <h4>{parcial ? 'Anular la mesa · resolución del Pleno' : 'Anular el proceso · resolución del Pleno'}</h4>
           {sinMateria && <p className="ig-texto">La {parcial && n.estadoMesa === 'ANULADA' ? 'mesa' : 'elección'} ya fue anulada: el recurso solo puede declararse improcedente por sustracción de la materia.</p>}
           {participacion && <p className="ig-texto">La falta de participación quedó determinada por el cómputo oficial: la nulidad solo se declara fundada (RN31).</p>}
           <div className="im-estados cq-chips" role="group" aria-label="Decisión">
@@ -1132,6 +1170,12 @@ function Expediente({
               <button type="submit" className={`cv-btn ${resolucion.decision === 'FUNDADA' ? 'cv-btn-primary im-btn-peligro' : 'cv-btn-success'}`} disabled={saving || !listo}>
                 <MenuIcon name="scale" size={15} /> Emitir resolución
               </button>
+              <Motivo>{primerMotivo([
+                [!resolucion.decision, 'Elija la decisión del Pleno.'],
+                [!resolucion.numeroResolucion.trim(), 'Escriba el número de resolución (RN34).'],
+                [Boolean(errorVotos), errorVotos],
+                [resolucion.fundamento.trim().length < 10, 'Escriba el fundamento de la resolución (mínimo 10 caracteres).'],
+              ])}</Motivo>
             </div>
           ) : (
             <div className="cq-confirmar-emision" role="alert">
@@ -1154,8 +1198,8 @@ function Expediente({
             </div>
           )}
         </form>
-      ))}
-    </div>
+      </Modal>
+    </Drawer>
   );
 }
 
@@ -1241,6 +1285,11 @@ function CargoSegunda({ c, proceso, acciones, quorum, sorteo, setSorteo, accion,
                   <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || !listo}>
                     <MenuIcon name="sorteo" size={15} /> Realizar sorteo
                   </button>
+                  <Motivo>{primerMotivo([
+                    [sorteo.semilla.trim().length < 4, 'Escriba la semilla pública anunciada en la sesión (mínimo 4 caracteres).'],
+                    [!sorteo.numeroResolucion.trim(), 'Escriba el número de resolución del sorteo.'],
+                    [Number(sorteo.miembrosPleno) < quorum, `Sin quórum: se requieren al menos ${quorum} miembros del Pleno (RN36).`],
+                  ])}</Motivo>
                 </div>
               ) : (
                 <div className="cq-confirmar-emision" role="alert">

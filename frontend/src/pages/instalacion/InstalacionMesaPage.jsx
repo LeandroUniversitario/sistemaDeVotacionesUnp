@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import { Drawer, useMantenerEnVista } from '../../components/Ventana';
+import Motivo, { primerMotivo } from '../../components/Motivo';
 import { CodigoQR, EscanerQR, fecha } from '../credenciales/LectorQR';
 import { imprimirActaInstalacion, urlVerificacionActa } from './ActaInstalacion';
 import '../convocatoria/convocatoria.css';
@@ -28,7 +30,7 @@ import '../mesa/mesa-ejecutivo.css';
 
 const PASOS = [
   { codigo: 'MIEMBROS', texto: 'Llegada de miembros' },
-  { codigo: 'PERSONEROS', texto: 'Credenciales de personeros' },
+  { codigo: 'PERSONEROS', texto: 'Llegada de personeros' },
   { codigo: 'MATERIAL', texto: 'Material electoral' },
   { codigo: 'ACTA', texto: 'Acta de instalación' },
 ];
@@ -62,6 +64,8 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
   const [detalle, setDetalle] = useState(null);
   const [alertas, setAlertas] = useState([]);
   const [paso, setPaso] = useState('MIEMBROS');
+  const pasosRef = useMantenerEnVista(paso);        // la pestaña nueva se ve desde su inicio
+  const [verMesa, setVerMesa] = useState(false);             // panel lateral de la mesa abierto
   const [cargando, setCargando] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -167,9 +171,22 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
     setDni({ clave: null, valor: '' });
   }
 
+  /** Tarjeta de mesa: abre su detalle en el panel lateral (conserva el avance si es la misma mesa). */
+  function abrirMesa(id) {
+    if (id !== idMesa) elegirMesa(id);
+    setVerMesa(true);
+  }
+
+  function cerrarMesa() {
+    setVerMesa(false);
+    setConfirmando(false);
+    setDeclarando(false);
+  }
+
   function irAAlerta(a) {
     if (a.idProceso !== idProceso) cambiarProceso(a.idProceso, a.idMesa);
     elegirMesa(a.idMesa, 'ACTA');
+    setVerMesa(true);
   }
 
   async function ejecutar(promesa, exito) {
@@ -331,6 +348,43 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
   const pendientesRequisito = detalle?.requisitos.filter((r) => !r.cumplido) ?? [];
   const faltaMaterial = Object.values(material).filter((m) => m.estado === 'NO_RECIBIDO').length;
 
+  /** 1 escanearCredencialQR · 4 mostrarMiembroPresente: lector compartido por la llegada de miembros y de personeros. */
+  const lectorQR = (quien) => (
+    <div className="panel cv-form">
+      <div className="cv-section-head">
+        <div>
+          <h3>Escanear credencial QR (RF56)</h3>
+          <p className="muted">
+            {quien === 'personero'
+              ? 'Lea la credencial QR del personero (CUS05/CUS07); se registra su hora de llegada. Sin QR, use «Con DNI» en la tabla.'
+              : 'Lea el fotocheck del miembro de mesa (CUS07); se registra la hora de llegada. Sin QR, use «Con DNI» en la tabla.'}
+          </p>
+        </div>
+      </div>
+      <EscanerQR onCodigo={escanearCredencialQR} deshabilitado={saving} />
+      {lectura && (
+        <div className={`cq-resultado ${lectura.aceptada ? 'ok' : 'mal'}`} role="status" aria-live="polite">
+          <div className="cq-resultado-head">
+            <span className="cq-resultado-icono"><MenuIcon name={lectura.aceptada ? 'check' : 'alert'} size={22} /></span>
+            <div>
+              <strong>{lectura.aceptada ? 'Llegada registrada' : 'No se registró la llegada'}</strong>
+              <span>{lectura.mensaje}</span>
+            </div>
+          </div>
+          {lectura.titular && (
+            <div className="cq-titular">
+              <div className="in-avatar">{lectura.titular.nombre?.charAt(0)}</div>
+              <div className="in-cand-body">
+                <strong>{lectura.titular.nombre}</strong>
+                <span>DNI {lectura.titular.dni} · {lectura.titular.funcion}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="pd-shell cq-shell im-shell mx">
       <section className="in-head">
@@ -416,7 +470,7 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
           {mesas.map((m) => {
             const est = ESTADO_MESA[m.estado] ?? ESTADO_MESA.PENDIENTE;
             return (
-              <button key={m.id} type="button" className={`im-mesa${m.id === idMesa ? ' on' : ''}`} onClick={() => elegirMesa(m.id)}>
+              <button key={m.id} type="button" className={`im-mesa${m.id === idMesa ? ' on' : ''}`} onClick={() => abrirMesa(m.id)}>
                 <span className="im-mesa-num">Mesa {m.numero}</span>
                 <span className={`cv-estado ${est.clase}`}>{est.texto}</span>
                 <small>{m.ubicacion}</small>
@@ -433,18 +487,24 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
         <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>
       )}
 
+      {/* ── Detalle de la mesa seleccionada: panel lateral sobre el listado de mesas ── */}
       {detalle && (
-        <>
-          <div className="panel mx-ficha">
-            <div className="mx-ficha-top">
-              <div>
-                <h3>Mesa {mesa.numero}</h3>
-                <p>{mesa.ubicacion}</p>
-              </div>
-              <span className={`cv-estado ${(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).clase}`}>
-                {(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).texto}
-              </span>
+        <Drawer abierto={verMesa} onCerrar={cerrarMesa} ancho={980}
+          titulo={`Mesa ${mesa.numero} · instalación`} subtitulo={mesa.ubicacion}
+          extra={(
+            <span className={`cv-estado ${(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).clase}`}>
+              {(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).texto}
+            </span>
+          )}>
+          {feedback && (
+            <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>
+          )}
+          {mesa.estadoProceso !== 'VOTACION' && (
+            <div className="alert error" role="alert">
+              El proceso está en etapa «{mesa.estadoProceso}»: la instalación de mesas se habilita cuando el proceso pasa a VOTACIÓN (RN07).
             </div>
+          )}
+          <div className="panel mx-ficha">
             <dl className="mx-datos">
               <div><dt>Proceso</dt><dd>{mesa.proceso}</dd></div>
               <div><dt>Electores</dt><dd>{mesa.totalElectores}</dd></div>
@@ -459,7 +519,7 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
             <div className="alert error" role="note">Registre primero su propia llegada: lea su fotocheck o use «Con DNI» en la tabla de miembros.</div>
           )}
 
-          <div className="pd-tabs cq-tabs mx-pasos" role="tablist" aria-label="Pasos de la instalación">
+          <div className="pd-tabs cq-tabs mx-pasos" ref={pasosRef} role="tablist" aria-label="Pasos de la instalación">
             {PASOS.map((p, i) => {
               const hecho = (p.codigo === 'MIEMBROS' && detalle.conformacion.every((c) => !c.vacante))
                 || (p.codigo === 'PERSONEROS' && personerosPresentes > 0)
@@ -481,37 +541,7 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
           {/* ── 1-4: llegada de miembros ── */}
           {paso === 'MIEMBROS' && (
             <>
-              {editable && (
-                <div className="panel cv-form">
-                  <div className="cv-section-head">
-                    <div>
-                      <h3>Escanear credencial QR (RF56)</h3>
-                      <p className="muted">Lea el fotocheck del miembro de mesa o la credencial del personero (CUS07); se registra la hora de llegada. Sin QR, use «Con DNI» en la tabla.</p>
-                    </div>
-                  </div>
-                  <EscanerQR onCodigo={escanearCredencialQR} deshabilitado={saving} />
-                  {lectura && (
-                    <div className={`cq-resultado ${lectura.aceptada ? 'ok' : 'mal'}`} role="status" aria-live="polite">
-                      <div className="cq-resultado-head">
-                        <span className="cq-resultado-icono"><MenuIcon name={lectura.aceptada ? 'check' : 'alert'} size={22} /></span>
-                        <div>
-                          <strong>{lectura.aceptada ? 'Miembro presente' : 'No se registró la llegada'}</strong>
-                          <span>{lectura.mensaje}</span>
-                        </div>
-                      </div>
-                      {lectura.titular && (
-                        <div className="cq-titular">
-                          <div className="in-avatar">{lectura.titular.nombre?.charAt(0)}</div>
-                          <div className="in-cand-body">
-                            <strong>{lectura.titular.nombre}</strong>
-                            <span>DNI {lectura.titular.dni} · {lectura.titular.funcion}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+              {editable && lectorQR('miembro')}
 
               <div className="panel cv-form">
                 <div className="cv-section-head">
@@ -586,27 +616,28 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
             </>
           )}
 
-          {/* ── Personeros (CUN07 paso 4: el presidente recibe sus credenciales) ── */}
+          {/* ── Llegada de personeros (CUN07 paso 4: el presidente recibe sus credenciales) ── */}
+          {paso === 'PERSONEROS' && editable && detalle.personeros.length > 0 && lectorQR('personero')}
           {paso === 'PERSONEROS' && (
             <div className="panel cv-form">
               <div className="cv-section-head">
                 <div>
-                  <h3>Credenciales de personeros</h3>
-                  <p className="muted">El presidente recibe las credenciales de los personeros de esta mesa y de los personeros generales de las listas en carrera (CUS05). Es opcional; los presentes firman el acta. Para recibirlas con QR use el lector del paso 1.</p>
+                  <h3>Llegada de personeros</h3>
+                  <p className="muted">Registre la llegada de los personeros de esta mesa y de los personeros generales de las listas en carrera (CUS05) leyendo su credencial QR o con su DNI. Es opcional; los presentes firman el acta.</p>
                 </div>
                 <span className="im-contador">{personerosPresentes} presente(s)</span>
               </div>
               {detalle.personeros.length === 0 ? <p className="empty-state">No hay personeros acreditados para esta mesa (CUS05).</p> : (
                 <div className="table-wrap">
                   <table>
-                    <thead><tr><th>Personero</th><th>Lista</th><th>Tipo</th><th>Credencial</th>{editable && <th aria-label="Acciones" />}</tr></thead>
+                    <thead><tr><th>Personero</th><th>Lista</th><th>Tipo</th><th>Llegada</th>{editable && <th aria-label="Acciones" />}</tr></thead>
                     <tbody>
                       {detalle.personeros.map((p) => (
                         <tr key={p.idPersonero}>
                           <td><strong>{p.nombre}</strong><small className="pd-sub">DNI {p.dni}</small></td>
                           <td>{p.lista}<small className="pd-sub">{p.cargo}</small></td>
                           <td>{p.tipo === 'MESA' ? 'De mesa' : p.tipo === 'GENERAL' ? 'General' : 'Alterno'}</td>
-                          <td>{si(p.presente) ? <span className="cv-estado votacion">Recibida · {p.metodo} {hora(p.horaLlegada)}</span> : <span className="cv-estado creado">No presentada</span>}</td>
+                          <td>{si(p.presente) ? <span className="cv-estado votacion">Presente · {p.metodo} {hora(p.horaLlegada)}</span> : <span className="cv-estado creado">Sin registrar</span>}</td>
                           {editable && (
                             <td className="cq-row-actions">
                               {!si(p.presente) && formDni(`personero-${p.idPersonero}`, 'Con DNI', 'Registrar', (v) => asistencia('personero', p.idPersonero, true, v))}
@@ -700,6 +731,9 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
                     <MenuIcon name="check" size={15} /> {saving ? 'Verificando…' : 'Verificar y registrar material'}
                   </button>
                   <button type="button" className="cv-btn cv-btn-primary" disabled={materialCambiado} onClick={() => setPaso('ACTA')}>Continuar con el acta</button>
+                  <Motivo>{materialCambiado
+                    ? 'Tiene cambios sin registrar: pulse «Verificar y registrar material» antes de continuar con el acta.'
+                    : !detalle.material.registrado ? 'Marque el estado de cada material y la cantidad de cédulas; luego pulse «Verificar y registrar material».' : null}</Motivo>
                 </div>
               )}
             </div>
@@ -727,11 +761,16 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
 
                   {editable && !confirmando && (
                     <div className="cv-actions">
-                      {pendientesRequisito.length > 0 && <span className="cv-actions-note muted">Complete los requisitos pendientes para instalar.</span>}
-                      {pendientesRequisito.length === 0 && !soyPresidente && <span className="cv-actions-note muted">Instala el presidente en funciones: {presidencia?.nombre}.</span>}
                       <button type="button" className="cv-btn cv-btn-success" disabled={saving || !detalle.puedeInstalar || !soyPresidente || !yoPresente} onClick={() => setConfirmando(true)}>
                         <MenuIcon name="shield" size={15} /> Instalar mesa y emitir acta
                       </button>
+                      <Motivo>{primerMotivo([
+                        [mesa.estadoProceso !== 'VOTACION', `El proceso está en etapa «${mesa.estadoProceso}»: la mesa solo se instala cuando el proceso pasa a VOTACIÓN (RN07).`],
+                        [pendientesRequisito.length > 0, `Falta cumplir: ${pendientesRequisito.map((r) => r.texto).join(' · ')}.`],
+                        [!yoPresente, 'Registre primero su propia llegada en «Llegada de miembros» (fotocheck QR o «Con DNI»).'],
+                        [!soyPresidente, `Solo el presidente en funciones (${presidencia?.nombre ?? 'sin designar'}) puede instalar la mesa.`],
+                        [!detalle.puedeInstalar, detalle.motivoNoInstala || 'El servidor aún no permite instalar esta mesa: pulse «Actualizar» para ver el estado actual.'],
+                      ])}</Motivo>
                     </div>
                   )}
                   {confirmando && (
@@ -833,7 +872,7 @@ export default function InstalacionMesaPage({ session, onSessionExpired }) {
               {detalle.acta && <ActaVista acta={detalle.acta} mesa={mesa} emitida={emitida} />}
             </>
           )}
-        </>
+        </Drawer>
       )}
     </div>
   );

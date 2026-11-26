@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import Motivo from '../../components/Motivo';
+import { useMantenerEnVista } from '../../components/Ventana';
 import '../convocatoria/convocatoria.css';
 import '../padron/padron.css';
 import './inscripcion.css';
@@ -60,6 +62,8 @@ export default function InscripcionPage({ onSessionExpired }) {
   const [feedback, setFeedback] = useState(null);
   const [motivoExclusion, setMotivoExclusion] = useState('');
   const [mostrarExcluir, setMostrarExcluir] = useState(false);
+  // Maestro-detalle: si el detalle queda fuera de la vista (pantallas angostas o listas largas), se trae a la vista
+  const trabajoRef = useMantenerEnVista(vista, { tambienAbajo: true });
 
   function manejarError(error) {
     if (error.message === 'SESSION_EXPIRED') onSessionExpired?.();
@@ -355,7 +359,7 @@ export default function InscripcionPage({ onSessionExpired }) {
         </aside>
 
         {/* ── Área de trabajo ──────────────────────────────────── */}
-        <section className="in-work">
+        <section className="in-work" ref={trabajoRef}>
           {!vista && (
             <div className="panel cv-placeholder">
               <span className="cv-placeholder-icon"><MenuIcon name="ballot" size={28} /></span>
@@ -499,7 +503,8 @@ export default function InscripcionPage({ onSessionExpired }) {
                           </div>
                           <span className={`cv-estado ${ESTADO_CANDIDATO[cand.estadoValidacion] ?? ''}`}>{cand.estadoValidacion}</span>
                           {editable && cand.estadoValidacion !== 'EXCLUIDO' && (
-                            <button type="button" className="cv-icon-btn" title="Quitar candidato" aria-label={`Quitar a ${cand.docente}`}
+                            <button type="button" className="cv-icon-btn" aria-label={`Quitar a ${cand.docente}`}
+                              title={num(cand.totalTachas) > 0 ? `No se puede quitar: el candidato tiene ${num(cand.totalTachas)} tacha(s) en trámite (CUS04).` : 'Quitar candidato'}
                               disabled={saving || num(cand.totalTachas) > 0} onClick={() => quitarCandidato(cand)}>
                               <MenuIcon name="trash" size={16} />
                             </button>
@@ -538,6 +543,9 @@ export default function InscripcionPage({ onSessionExpired }) {
                     onClick={() => retirarLista(listaSel)}>
                     <MenuIcon name="trash" size={15} /> Retirar lista
                   </button>
+                )}
+                {editable && num(listaSel.totalTachas) > 0 && (
+                  <Motivo>{`No se puede retirar la lista: tiene ${num(listaSel.totalTachas)} tacha(s) en trámite. Espere el fallo del CEUNP (CUS04).`}</Motivo>
                 )}
                 {!editable && listaSel.estado === 'INSCRITA' && listaSel.completa && !plazoAbierto && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>

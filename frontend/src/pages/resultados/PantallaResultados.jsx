@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import { Drawer, useMantenerEnVista } from '../../components/Ventana';
 import { EscanerQR, fecha } from '../credenciales/LectorQR';
 import { ESTADO_RESULTADO } from '../computo/ActaComputo';
 import {
@@ -67,6 +68,7 @@ export default function PantallaResultados({ session, publico = false, codigoIni
   const [detalle, setDetalle] = useState(null);
   const [errorDetalle, setErrorDetalle] = useState(null);
   const [paso, setPaso] = useState(pasoInicial(session?.rol, codigoInicial));
+  const pasosRef = useMantenerEnVista(paso);        // la pestaña nueva se ve desde su inicio
   // El código del QR se verifica una sola vez aunque el efecto se monte dos veces (StrictMode)
   const codigoConsultado = useRef(false);
   const [idCargoMesa, setIdCargoMesa] = useState(null);
@@ -308,7 +310,7 @@ export default function PantallaResultados({ session, publico = false, codigoIni
         </button>
       </section>
 
-      <div className="pd-tabs cq-tabs mx-pasos cp-pasos nl-pasos rs-pasos" role="tablist" aria-label="Consultar resultados y verificar actas"
+      <div className="pd-tabs cq-tabs mx-pasos cp-pasos nl-pasos rs-pasos" ref={pasosRef} role="tablist" aria-label="Consultar resultados y verificar actas"
         style={{ '--rs-pasos': pasos.length }}>
         {pasos.map((x) => {
           const n = cuenta(x.codigo);
@@ -773,75 +775,75 @@ export default function PantallaResultados({ session, publico = false, codigoIni
             </div>
           </div>
 
+          {/* ── Ver / Atender cotejo: panel lateral sobre la tabla de cotejos ── */}
           {seleccionado && (
-            <div className="panel cv-form mx-ficha">
-              <div className="mx-ficha-top">
-                <div>
-                  <h3>Cotejo N.º {String(seleccionado.idCotejo).padStart(5, '0')} · {TIPO_DOCUMENTO[seleccionado.tipoDocumento]}{seleccionado.numeroMesa ? ` de la mesa ${seleccionado.numeroMesa}` : ''}</h3>
-                  <p>{seleccionado.registradoPor ?? seleccionado.username} · {ROL_USUARIO[seleccionado.rol]} · {fecha(seleccionado.fecha)}</p>
+            <Drawer onCerrar={() => setIdCotejo(null)} ancho={820}
+              titulo={`Cotejo N.º ${String(seleccionado.idCotejo).padStart(5, '0')} · ${TIPO_DOCUMENTO[seleccionado.tipoDocumento]}${seleccionado.numeroMesa ? ` de la mesa ${seleccionado.numeroMesa}` : ''}`}
+              subtitulo={`${seleccionado.registradoPor ?? seleccionado.username} · ${ROL_USUARIO[seleccionado.rol]} · ${fecha(seleccionado.fecha)}`}
+              extra={<span className={`cv-estado ${CLASE_COTEJO[seleccionado.estado]}`}>{ESTADO_COTEJO[seleccionado.estado]}</span>}>
+              {feedback && <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>}
+              <div className="panel cv-form mx-ficha">
+                <div className="table-wrap">
+                  <table>
+                    <thead><tr><th>Grupo</th><th>Concepto</th><th className="n">Documento digital</th><th className="n">Ejemplar físico</th><th>¿Coincide?</th></tr></thead>
+                    <tbody>
+                      {(seleccionado.cifras ?? []).map((l) => (
+                        <tr key={l.clave} className={l.coincide ? '' : 'rs-difiere'}>
+                          <td>{l.grupo}</td><td>{l.etiqueta}</td><td className="n">{l.digital}</td><td className="n">{l.fisico}</td>
+                          <td>{l.coincide ? <span className="cv-estado votacion">Coincide</span> : <span className="cv-estado anulado">Difiere</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <span className={`cv-estado ${CLASE_COTEJO[seleccionado.estado]}`}>{ESTADO_COTEJO[seleccionado.estado]}</span>
-              </div>
-              <div className="table-wrap">
-                <table>
-                  <thead><tr><th>Grupo</th><th>Concepto</th><th className="n">Documento digital</th><th className="n">Ejemplar físico</th><th>¿Coincide?</th></tr></thead>
-                  <tbody>
-                    {(seleccionado.cifras ?? []).map((l) => (
-                      <tr key={l.clave} className={l.coincide ? '' : 'rs-difiere'}>
-                        <td>{l.grupo}</td><td>{l.etiqueta}</td><td className="n">{l.digital}</td><td className="n">{l.fisico}</td>
-                        <td>{l.coincide ? <span className="cv-estado votacion">Coincide</span> : <span className="cv-estado anulado">Difiere</span>}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {seleccionado.observacion && <p className="ig-texto"><strong>Discrepancia reportada:</strong> {seleccionado.observacion}</p>}
-              {seleccionado.respuesta && (
-                <div className="mx-mensaje info" role="note"><MenuIcon name="info" size={18} />
-                  <div><h4>Respuesta del CEUNP · {DECISION_COTEJO[seleccionado.decision]}</h4><p>{seleccionado.respuesta}</p><small>{seleccionado.atendidoPor} · {fecha(seleccionado.fechaRespuesta)}</small></div>
-                </div>
-              )}
-              {seleccionado.estado === 'OBSERVADO' && detalle.puedeAtender && (
-                <div className="ig-form rs-cotejo">
-                  <h4>Atender la discrepancia</h4>
-                  <div className="cq-chips" role="group" aria-label="Decisión">
-                    {Object.entries(DECISION_COTEJO).map(([v, t]) => (
-                      <button key={v} type="button" className={`cq-chip${atencion.decision === v ? ' on' : ''}`} onClick={() => setAtencion((a) => ({ ...a, decision: v, confirmando: false }))}>{t}</button>
-                    ))}
+                {seleccionado.observacion && <p className="ig-texto"><strong>Discrepancia reportada:</strong> {seleccionado.observacion}</p>}
+                {seleccionado.respuesta && (
+                  <div className="mx-mensaje info" role="note"><MenuIcon name="info" size={18} />
+                    <div><h4>Respuesta del CEUNP · {DECISION_COTEJO[seleccionado.decision]}</h4><p>{seleccionado.respuesta}</p><small>{seleccionado.atendidoPor} · {fecha(seleccionado.fechaRespuesta)}</small></div>
                   </div>
-                  <label className="cv-field">
-                    <span className="cv-label">Respuesta del CEUNP</span>
-                    <textarea rows={3} maxLength={1000} value={atencion.respuesta} placeholder="Ej.: se revisó el ejemplar del CEUNP y el acta digital coincide; la copia del personero tiene un error de transcripción."
-                      onChange={(e) => setAtencion((a) => ({ ...a, respuesta: e.target.value, confirmando: false }))} />
-                  </label>
-                  {!atencion.confirmando ? (
-                    <div className="cv-actions cp-izq">
-                      <button type="button" className="cv-btn cv-btn-primary" disabled={!atencion.decision || atencion.respuesta.trim().length < 10}
-                        onClick={() => setAtencion((a) => ({ ...a, confirmando: true }))}>
-                        <MenuIcon name="check" size={15} /> Registrar respuesta
-                      </button>
+                )}
+                {seleccionado.estado === 'OBSERVADO' && detalle.puedeAtender && (
+                  <div className="ig-form rs-cotejo">
+                    <h4>Atender la discrepancia</h4>
+                    <div className="cq-chips" role="group" aria-label="Decisión">
+                      {Object.entries(DECISION_COTEJO).map(([v, t]) => (
+                        <button key={v} type="button" className={`cq-chip${atencion.decision === v ? ' on' : ''}`} onClick={() => setAtencion((a) => ({ ...a, decision: v, confirmando: false }))}>{t}</button>
+                      ))}
                     </div>
-                  ) : (
-                    <div className="cq-confirmar-emision" role="alert">
-                      <div>
-                        <strong>¿Registrar la discrepancia como {DECISION_COTEJO[atencion.decision].toLowerCase()}?</strong>
-                        <span>La respuesta no se modifica. {atencion.decision === 'FUNDADA' ? 'Revise luego el acta en «Cómputo y proclamación» o tramite la nulidad (CUS15).' : ''}</span>
-                      </div>
-                      <div className="cv-actions">
-                        <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAtencion((a) => ({ ...a, confirmando: false }))}>Volver</button>
-                        <button type="button" className="cv-btn cv-btn-success" disabled={saving} onClick={atenderCotejo}>
-                          <MenuIcon name="check" size={15} /> {saving ? 'Registrando…' : 'Confirmar'}
+                    <label className="cv-field">
+                      <span className="cv-label">Respuesta del CEUNP</span>
+                      <textarea rows={3} maxLength={1000} value={atencion.respuesta} placeholder="Ej.: se revisó el ejemplar del CEUNP y el acta digital coincide; la copia del personero tiene un error de transcripción."
+                        onChange={(e) => setAtencion((a) => ({ ...a, respuesta: e.target.value, confirmando: false }))} />
+                    </label>
+                    {!atencion.confirmando ? (
+                      <div className="cv-actions cp-izq">
+                        <button type="button" className="cv-btn cv-btn-primary" disabled={!atencion.decision || atencion.respuesta.trim().length < 10}
+                          onClick={() => setAtencion((a) => ({ ...a, confirmando: true }))}>
+                          <MenuIcon name="check" size={15} /> Registrar respuesta
                         </button>
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="cq-confirmar-emision" role="alert">
+                        <div>
+                          <strong>¿Registrar la discrepancia como {DECISION_COTEJO[atencion.decision].toLowerCase()}?</strong>
+                          <span>La respuesta no se modifica. {atencion.decision === 'FUNDADA' ? 'Revise luego el acta en «Cómputo y proclamación» o tramite la nulidad (CUS15).' : ''}</span>
+                        </div>
+                        <div className="cv-actions">
+                          <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAtencion((a) => ({ ...a, confirmando: false }))}>Volver</button>
+                          <button type="button" className="cv-btn cv-btn-success" disabled={saving} onClick={atenderCotejo}>
+                            <MenuIcon name="check" size={15} /> {saving ? 'Registrando…' : 'Confirmar'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="cv-actions cp-izq">
+                  <button type="button" className="cv-btn cv-btn-ghost" onClick={() => imprimirCotejo(seleccionado)}><MenuIcon name="file" size={15} /> Imprimir cotejo</button>
+                  <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setIdCotejo(null)}>Cerrar</button>
                 </div>
-              )}
-              <div className="cv-actions cp-izq">
-                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => imprimirCotejo(seleccionado)}><MenuIcon name="file" size={15} /> Imprimir cotejo</button>
-                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setIdCotejo(null)}>Cerrar</button>
               </div>
-            </div>
+            </Drawer>
           )}
         </>
       )}

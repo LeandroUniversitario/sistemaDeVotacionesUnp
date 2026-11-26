@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest, cabinaRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import Motivo, { primerMotivo } from '../../components/Motivo';
 import '../convocatoria/convocatoria.css';
 import '../padron/padron.css';
 import './votacion.css';
@@ -239,6 +240,11 @@ export default function TerminalVotacion({ onSessionExpired, modo = 'conexion' }
             <button type="submit" className="cv-btn cv-btn-primary" disabled={ocupado || !formulario.idMesa || !formulario.nombre.trim()}>
               <MenuIcon name="check" size={15} /> Conectar terminal
             </button>
+            <Motivo>{primerMotivo([
+              [!mesas.length, 'Su cuenta no tiene mesas asignadas: el terminal se conecta con la cuenta de un miembro de la mesa (o del CEUNP).'],
+              [!formulario.idMesa, 'Elija la mesa a la que pertenece este terminal.'],
+              [!formulario.nombre.trim(), 'Escriba un nombre para el terminal (por ejemplo, «Cabina 1»).'],
+            ])}</Motivo>
           </div>
         </form>
       </div>
@@ -359,6 +365,8 @@ export default function TerminalVotacion({ onSessionExpired, modo = 'conexion' }
             <button type="button" className="cv-btn cv-btn-primary" onClick={() => setPaso('CONFIRMAR')} disabled={marcados < cargos.length}>
               Continuar
             </button>
+            <Motivo>{marcados < cargos.length
+              ? `Marque una opción (una lista o voto en blanco) en cada cédula: falta(n) ${cargos.length - marcados} de ${cargos.length}.` : null}</Motivo>
           </div>
         </>
       )}

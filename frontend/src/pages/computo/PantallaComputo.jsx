@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import { Drawer, Modal, useMantenerEnVista } from '../../components/Ventana';
+import Motivo, { primerMotivo } from '../../components/Motivo';
 import { EscanerQR, fecha } from '../credenciales/LectorQR';
 import {
   ESTADO_RESULTADO, SITUACION_MESA, imprimirActaGeneral, imprimirComunicacionNulidad, imprimirCredencial,
@@ -114,6 +116,7 @@ export default function PantallaComputo({ session, onSessionExpired }) {
   const [idProceso, setIdProceso] = useState(null);
   const [detalle, setDetalle] = useState(null);
   const [paso, setPaso] = useState('VERIFICACION');
+  const pasosRef = useMantenerEnVista(paso);        // la pestaña nueva se ve desde su inicio
   const [idMesa, setIdMesa] = useState(null);
   const [mesa, setMesa] = useState(null);
   const [accion, setAccion] = useState(null);   // CONCLUIR | DUDOSA:<id> | COMPROBAR:<id> | CALIFICAR | COMPUTAR | PROCLAMAR | PUBLICAR | SEGUNDA
@@ -356,6 +359,8 @@ export default function PantallaComputo({ session, onSessionExpired }) {
   const general = participacion?.general;
   const actasVig = (detalle.actas ?? []).filter((a) => a.estado === 'VIGENTE');
   const quorum = parametros?.quorumPleno ?? 5;
+  // El resultado de una acción se muestra también dentro de la ventana abierta
+  const aviso = feedback && <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>;
 
   return (
     <div className="pd-shell cq-shell cs-shell ig-shell cp-shell mx">
@@ -378,7 +383,7 @@ export default function PantallaComputo({ session, onSessionExpired }) {
         </button>
       </section>
 
-      <div className="pd-tabs cq-tabs mx-pasos cp-pasos" role="tablist" aria-label="Etapas del cómputo">
+      <div className="pd-tabs cq-tabs mx-pasos cp-pasos" ref={pasosRef} role="tablist" aria-label="Etapas del cómputo">
         {PASOS.map((p, i) => {
           const hecho = pasoHecho(p.codigo, detalle);
           return (
@@ -525,8 +530,8 @@ export default function PantallaComputo({ session, onSessionExpired }) {
               confirmando={confirmando} setConfirmando={setConfirmando}
               motivoDuda={motivoDuda} setMotivoDuda={setMotivoDuda} onMarcar={marcarDudosa}
               comprobacion={comprobacion} setComprobacion={setComprobacion} onComprobar={comprobarActa} lectura={lectura}
-              calificacion={calificacion} setCalificacion={setCalificacion} onCalificar={calificarMesa}
-              onCerrar={() => { setIdMesa(null); limpiarAccion(); }}
+              calificacion={calificacion} setCalificacion={setCalificacion} onCalificar={calificarMesa} aviso={aviso}
+              onCerrar={() => { setIdMesa(null); limpiarAccion(); setLectura(null); }}
             />
           )}
         </>
@@ -584,6 +589,10 @@ export default function PantallaComputo({ session, onSessionExpired }) {
                   <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || !formSesion.lugar.trim() || Number(formSesion.miembrosCeunp) < quorum}>
                     <MenuIcon name="users" size={15} /> Instalar sesión
                   </button>
+                  <Motivo>{primerMotivo([
+                    [!formSesion.lugar.trim(), 'Escriba el lugar de la sesión de cómputo.'],
+                    [Number(formSesion.miembrosCeunp) < quorum, `Sin quórum: se requieren al menos ${quorum} miembros del CEUNP presentes (RN36); indicó ${formSesion.miembrosCeunp || 0}.`],
+                  ])}</Motivo>
                 </div>
               ) : (
                 <div className="cq-confirmar-emision" role="alert">
@@ -796,6 +805,12 @@ export default function PantallaComputo({ session, onSessionExpired }) {
                   <button type="button" className="cv-btn cv-btn-primary" disabled={saving || !acciones.ejecutarComputo} onClick={() => setAccion('COMPUTAR')}>
                     <MenuIcon name="graph" size={15} /> Ejecutar cómputo oficial
                   </button>
+                  <Motivo>{!acciones.ejecutarComputo ? primerMotivo([
+                    [proceso.estado !== 'CERRADO', 'Primero concluya la votación del proceso en «Verificación de mesas» (RN32).'],
+                    [etapa !== 'SESION_INSTALADA', 'Primero instale la sesión de cómputo con quórum en «Sesión de cómputo» (RF91).'],
+                    [detalle.bloqueos.length > 0, `Hay mesas pendientes: ${detalle.bloqueos.join(' ')}`],
+                    [true, 'El servidor aún no permite ejecutar el cómputo: pulse «Actualizar».'],
+                  ]) : null}</Motivo>
                 </div>
               ) : (
                 <div className="cq-confirmar-emision" role="alert">
@@ -994,6 +1009,11 @@ export default function PantallaComputo({ session, onSessionExpired }) {
                   <button type="submit" className="cv-btn cv-btn-success" disabled={saving || !proclamacion.numeroResolucion.trim() || !proclamacion.presidente.trim() || Number(proclamacion.miembrosPleno) < quorum}>
                     <MenuIcon name="trophy" size={15} /> Proclamar resultados
                   </button>
+                  <Motivo>{primerMotivo([
+                    [!proclamacion.numeroResolucion.trim(), 'Escriba el número de la resolución de proclamación.'],
+                    [!proclamacion.presidente.trim(), 'Escriba el nombre del presidente del CEUNP que proclama.'],
+                    [Number(proclamacion.miembrosPleno) < quorum, `Sin quórum: se requieren al menos ${quorum} miembros del Pleno (RN36).`],
+                  ])}</Motivo>
                 </div>
               ) : (
                 <div className="cq-confirmar-emision" role="alert">
@@ -1131,7 +1151,7 @@ export default function PantallaComputo({ session, onSessionExpired }) {
 function FichaMesa({
   datos, acciones, saving, accion, setAccion, confirmando, setConfirmando,
   motivoDuda, setMotivoDuda, onMarcar, comprobacion, setComprobacion, onComprobar, lectura,
-  calificacion, setCalificacion, onCalificar, onCerrar,
+  calificacion, setCalificacion, onCalificar, aviso, onCerrar,
 }) {
   const m = datos.mesa;
   const puede = acciones.verificarActas;
@@ -1141,143 +1161,145 @@ function FichaMesa({
   const listo = calificacion.calificacion && calificacion.fundamento.trim().length >= 10 && (!nulidad || calificacion.numeroResolucion.trim());
   const cargos = [...new Set(datos.conteo.map((c) => c.cargo))];
 
+  const idActaAccion = accion?.includes(':') ? Number(accion.split(':')[1]) : null;
+  const actaAccion = datos.actas.find((a) => a.idActa === idActaAccion);
+  const subActa = actaAccion ? `${TIPO_ACTA[actaAccion.tipo] ?? actaAccion.tipo} N.º ${String(actaAccion.idActa).padStart(6, '0')} · Mesa ${m.numeroMesa}` : `Mesa ${m.numeroMesa}`;
+
   return (
-    <div className="panel mx-ficha ig-expediente">
-      <div className="mx-ficha-top">
-        <div>
-          <h3>Mesa {m.numeroMesa}</h3>
-          <p>{m.ubicacion}</p>
+    <Drawer onCerrar={onCerrar} ancho={940}
+      titulo={`Mesa ${m.numeroMesa} · revisión de actas`} subtitulo={m.ubicacion}
+      extra={<span className={`cv-estado ${CLASE_SITUACION[m.situacion] ?? 'creado'}`}>{SITUACION_MESA[m.situacion] ?? m.situacion}</span>}>
+      {!accion && aviso}
+      <div className="panel mx-ficha ig-expediente">
+        <dl className="mx-datos">
+          <div><dt>Votaron</dt><dd>{m.totalVotantes ?? 0} de {m.totalElectores}</dd></div>
+          <div><dt>Conciliación</dt><dd>{m.estadoEscrutinio ? (si(m.conteoCuadra) && si(m.totalCuadra) ? 'Coincide con el conteo digital' : 'Difiere: prevalece la cédula física') : '—'}</dd></div>
+          <div><dt>Acta observada</dt><dd>{si(m.observada) ? 'Sí' : 'No'}</dd></div>
+          <div><dt>Calificación del CEUNP</dt><dd>{m.calificacion ? `${m.calificacion === 'NULIDAD' ? 'Nulidad' : 'Válida'}${m.resolucionCalificacion ? ` · ${m.resolucionCalificacion}` : ''}` : si(m.requiereCalificacion) ? 'Pendiente (A3)' : 'No requiere'}</dd></div>
+        </dl>
+
+        <h4 className="cp-sub">Actas de la mesa</h4>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>Acta</th><th>Emisión</th><th>Huella SHA-256</th><th>Autenticidad (RF90)</th><th /></tr></thead>
+            <tbody>
+              {datos.actas.map((a) => (
+                <tr key={a.idActa}>
+                  <td><strong>{TIPO_ACTA[a.tipo] ?? a.tipo}</strong><small className="pd-sub">N.º {String(a.idActa).padStart(6, '0')} · {a.estado}</small></td>
+                  <td>{fecha(a.fechaEmision)}</td>
+                  <td><span className={`cv-estado ${si(a.integra) ? 'votacion' : 'anulado'}`}>{si(a.integra) ? 'Coincide' : 'Alterada'}</span><small className="pd-sub cp-hash">{a.hashIntegridad?.slice(0, 16)}…</small></td>
+                  <td>
+                    {a.comprobacion ? (
+                      <><span className={`cv-estado ${a.comprobacion === 'AUTENTICA' ? 'votacion' : 'anulado'}`}>{a.comprobacion === 'AUTENTICA' ? 'Auténtica' : 'No auténtica'}</span>
+                        <small className="pd-sub">QR {a.qrCoincide == null ? 'no leído' : si(a.qrCoincide) ? 'coincide' : 'no coincide'} · {fecha(a.fechaComprobacion)}</small></>
+                    ) : si(a.dudosa) ? (
+                      <><span className="cv-estado inscripcion">Dudosa</span><small className="pd-sub">{a.motivoDuda}</small></>
+                    ) : <span className="muted">Sin observación</span>}
+                  </td>
+                  <td>
+                    {puede && a.estado === 'VIGENTE' && !si(a.dudosa) && (
+                      <button type="button" className="cv-btn cv-btn-ghost cq-mini" disabled={saving} onClick={() => setAccion(`DUDOSA:${a.idActa}`)}>
+                        <MenuIcon name="alert" size={13} /> Marcar dudosa
+                      </button>
+                    )}
+                    {puede && si(a.dudosa) && !a.comprobacion && (
+                      <button type="button" className="cv-btn cv-btn-primary cq-mini" disabled={saving} onClick={() => setAccion(`COMPROBAR:${a.idActa}`)}>
+                        <MenuIcon name="key" size={13} /> Comprobar autenticidad
+                      </button>
+                    )}
+                    {/* Hallazgo C14-1: si solo falló el QR (la huella del contenido coincide), se puede leer otra vez */}
+                    {puede && a.comprobacion === 'NO_AUTENTICA' && si(a.huellaCoincide) && !si(a.qrCoincide) && (
+                      <button type="button" className="cv-btn cv-btn-ghost cq-mini" disabled={saving} onClick={() => setAccion(`COMPROBAR:${a.idActa}`)}
+                        title="El contenido del acta está íntegro; solo el QR leído no correspondía. Lea el QR del ejemplar correcto.">
+                        <MenuIcon name="key" size={13} /> Volver a leer el QR
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <div className="cs-acciones-head">
-          <span className={`cv-estado ${CLASE_SITUACION[m.situacion] ?? 'creado'}`}>{SITUACION_MESA[m.situacion] ?? m.situacion}</span>
-          <button type="button" className="cv-btn cv-btn-ghost cq-mini" onClick={onCerrar}><MenuIcon name="close" size={13} /> Cerrar</button>
-        </div>
-      </div>
-      <dl className="mx-datos">
-        <div><dt>Votaron</dt><dd>{m.totalVotantes ?? 0} de {m.totalElectores}</dd></div>
-        <div><dt>Conciliación</dt><dd>{m.estadoEscrutinio ? (si(m.conteoCuadra) && si(m.totalCuadra) ? 'Coincide con el conteo digital' : 'Difiere: prevalece la cédula física') : '—'}</dd></div>
-        <div><dt>Acta observada</dt><dd>{si(m.observada) ? 'Sí' : 'No'}</dd></div>
-        <div><dt>Calificación del CEUNP</dt><dd>{m.calificacion ? `${m.calificacion === 'NULIDAD' ? 'Nulidad' : 'Válida'}${m.resolucionCalificacion ? ` · ${m.resolucionCalificacion}` : ''}` : si(m.requiereCalificacion) ? 'Pendiente (A3)' : 'No requiere'}</dd></div>
-      </dl>
 
-      <h4 className="cp-sub">Actas de la mesa</h4>
-      <div className="table-wrap">
-        <table>
-          <thead><tr><th>Acta</th><th>Emisión</th><th>Huella SHA-256</th><th>Autenticidad (RF90)</th><th /></tr></thead>
-          <tbody>
-            {datos.actas.map((a) => (
-              <tr key={a.idActa}>
-                <td><strong>{TIPO_ACTA[a.tipo] ?? a.tipo}</strong><small className="pd-sub">N.º {String(a.idActa).padStart(6, '0')} · {a.estado}</small></td>
-                <td>{fecha(a.fechaEmision)}</td>
-                <td><span className={`cv-estado ${si(a.integra) ? 'votacion' : 'anulado'}`}>{si(a.integra) ? 'Coincide' : 'Alterada'}</span><small className="pd-sub cp-hash">{a.hashIntegridad?.slice(0, 16)}…</small></td>
-                <td>
-                  {a.comprobacion ? (
-                    <><span className={`cv-estado ${a.comprobacion === 'AUTENTICA' ? 'votacion' : 'anulado'}`}>{a.comprobacion === 'AUTENTICA' ? 'Auténtica' : 'No auténtica'}</span>
-                      <small className="pd-sub">QR {a.qrCoincide == null ? 'no leído' : si(a.qrCoincide) ? 'coincide' : 'no coincide'} · {fecha(a.fechaComprobacion)}</small></>
-                  ) : si(a.dudosa) ? (
-                    <><span className="cv-estado inscripcion">Dudosa</span><small className="pd-sub">{a.motivoDuda}</small></>
-                  ) : <span className="muted">Sin observación</span>}
-                </td>
-                <td>
-                  {puede && a.estado === 'VIGENTE' && !si(a.dudosa) && (
-                    <button type="button" className="cv-btn cv-btn-ghost cq-mini" disabled={saving} onClick={() => setAccion(`DUDOSA:${a.idActa}`)}>
-                      <MenuIcon name="alert" size={13} /> Marcar dudosa
-                    </button>
-                  )}
-                  {puede && si(a.dudosa) && !a.comprobacion && (
-                    <button type="button" className="cv-btn cv-btn-primary cq-mini" disabled={saving} onClick={() => setAccion(`COMPROBAR:${a.idActa}`)}>
-                      <MenuIcon name="key" size={13} /> Comprobar autenticidad
-                    </button>
-                  )}
-                  {/* Hallazgo C14-1: si solo falló el QR (la huella del contenido coincide), se puede leer otra vez */}
-                  {puede && a.comprobacion === 'NO_AUTENTICA' && si(a.huellaCoincide) && !si(a.qrCoincide) && (
-                    <button type="button" className="cv-btn cv-btn-ghost cq-mini" disabled={saving} onClick={() => setAccion(`COMPROBAR:${a.idActa}`)}
-                      title="El contenido del acta está íntegro; solo el QR leído no correspondía. Lea el QR del ejemplar correcto.">
-                      <MenuIcon name="key" size={13} /> Volver a leer el QR
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+        <Modal abierto={accion?.startsWith('DUDOSA:')} onCerrar={() => setAccion(null)} ancho={640}
+          titulo="Marcar el acta como dudosa"
+          subtitulo={subActa}>
+          {aviso}
+          <form className="ig-form" onSubmit={(e) => { e.preventDefault(); onMarcar(Number(accion.split(':')[1])); }}>
+            <label className="cv-field">
+              <span className="cv-label">Motivo</span>
+              <textarea rows={2} minLength={10} maxLength={500} required value={motivoDuda} disabled={saving}
+                placeholder="Ej.: el ejemplar físico presenta enmendaduras en el total de votos."
+                onChange={(e) => setMotivoDuda(e.target.value)} />
+            </label>
+            <div className="cv-actions">
+              <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAccion(null)}>Cancelar</button>
+              <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || motivoDuda.trim().length < 10}>
+                <MenuIcon name="alert" size={15} /> {saving ? 'Registrando…' : 'Marcar dudosa'}
+              </button>
+              <Motivo>{motivoDuda.trim().length < 10 ? `Escriba el motivo de la duda (mínimo 10 caracteres; lleva ${motivoDuda.trim().length}).` : null}</Motivo>
+            </div>
+          </form>
+        </Modal>
 
-      {accion?.startsWith('DUDOSA:') && (
-        <form className="ig-form" onSubmit={(e) => { e.preventDefault(); onMarcar(Number(accion.split(':')[1])); }}>
-          <h4>4 · Marcar el acta como dudosa</h4>
-          <label className="cv-field">
-            <span className="cv-label">Motivo</span>
-            <textarea rows={2} minLength={10} maxLength={500} required value={motivoDuda} disabled={saving}
-              placeholder="Ej.: el ejemplar físico presenta enmendaduras en el total de votos."
-              onChange={(e) => setMotivoDuda(e.target.value)} />
-          </label>
-          <div className="cv-actions">
-            <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAccion(null)}>Cancelar</button>
-            <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || motivoDuda.trim().length < 10}>
-              <MenuIcon name="alert" size={15} /> {saving ? 'Registrando…' : 'Marcar dudosa'}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {accion?.startsWith('COMPROBAR:') && (
-        <div className="ig-form">
-          <h4>5 · Comprobar la autenticidad con el QR del ejemplar físico</h4>
-          <p className="muted">Lea el QR impreso en el acta física (o pegue su enlace). Se recalcula la huella SHA-256 del contenido guardado y se compara el QR con el del acta. Sin QR, solo se comprueba la huella.</p>
-          <label className="cv-field">
-            <span className="cv-label">Observación (opcional)</span>
-            <input maxLength={500} value={comprobacion.observacion} disabled={saving} onChange={(e) => setComprobacion((c) => ({ ...c, observacion: e.target.value }))} />
-          </label>
-          <EscanerQR deshabilitado={saving} onCodigo={(codigo) => onComprobar(Number(accion.split(':')[1]), codigo)} />
-          <div className="cv-actions">
-            <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAccion(null)}>Cancelar</button>
-            <button type="button" className="cv-btn cv-btn-ghost" disabled={saving} onClick={() => onComprobar(Number(accion.split(':')[1]), '')}>
-              <MenuIcon name="key" size={15} /> Comprobar solo la huella
-            </button>
-          </div>
-        </div>
-      )}
-
-      {lectura && (
-        <div className={`cq-resultado ${lectura.resultado === 'AUTENTICA' ? 'ok' : 'mal'}`} role="status" aria-live="polite">
-          <div className="cq-resultado-head">
-            <span className="cq-resultado-icono"><MenuIcon name={lectura.resultado === 'AUTENTICA' ? 'check' : 'alert'} size={22} /></span>
-            <div>
-              <h4>{lectura.resultado === 'AUTENTICA' ? 'Acta auténtica' : 'Acta NO auténtica'}</h4>
-              <p>Huella {si(lectura.huellaCoincide) ? 'coincide' : 'NO coincide'} · QR {lectura.qrCoincide == null ? 'no leído' : si(lectura.qrCoincide) ? 'coincide' : 'NO coincide'}</p>
+        <Modal abierto={accion?.startsWith('COMPROBAR:')} onCerrar={() => setAccion(null)} ancho={720}
+          titulo="Comprobar la autenticidad con el QR del ejemplar físico"
+          subtitulo={subActa}>
+          {aviso}
+          <div className="ig-form">
+            <p className="muted">Lea el QR impreso en el acta física (o pegue su enlace). Se recalcula la huella SHA-256 del contenido guardado y se compara el QR con el del acta. Sin QR, solo se comprueba la huella.</p>
+            <label className="cv-field">
+              <span className="cv-label">Observación (opcional)</span>
+              <input maxLength={500} value={comprobacion.observacion} disabled={saving} onChange={(e) => setComprobacion((c) => ({ ...c, observacion: e.target.value }))} />
+            </label>
+            <EscanerQR deshabilitado={saving} onCodigo={(codigo) => onComprobar(Number(accion.split(':')[1]), codigo)} />
+            <div className="cv-actions">
+              <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAccion(null)}>Cancelar</button>
+              <button type="button" className="cv-btn cv-btn-ghost" disabled={saving} onClick={() => onComprobar(Number(accion.split(':')[1]), '')}>
+                <MenuIcon name="key" size={15} /> Comprobar solo la huella
+              </button>
             </div>
           </div>
-          <dl className="cq-meta">
-            <div><dt>Huella guardada</dt><dd className="cp-hash">{lectura.hashIntegridad}</dd></div>
-            <div><dt>Huella recalculada</dt><dd className="cp-hash">{lectura.hashRecalculado}</dd></div>
-          </dl>
-        </div>
-      )}
+        </Modal>
 
-      {cargos.length > 0 && (
-        <>
-          <h4 className="cp-sub">Conteo del acta de escrutinio</h4>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Cargo</th><th>Opción</th><th className="n">Cédula física</th><th className="n">Impugnados asignados</th><th className="n">Se computa</th><th className="n">Conteo digital</th></tr></thead>
-              <tbody>
-                {datos.conteo.filter((c) => c.opcion !== 'IMPUGNADO' || c.votosActa > 0).map((c) => (
-                  <tr key={`${c.idCargo}-${c.opcion}-${c.idLista}`} className={c.opcion !== 'IMPUGNADO' && c.votosActa !== c.votosDigital ? 'cp-alerta' : ''}>
-                    <td>{c.cargo}</td><td>{c.lista}</td>
-                    <td className="n">{c.votosActa}</td><td className="n">{c.impugnadosAsignados}</td>
-                    <td className="n"><strong>{c.opcion === 'IMPUGNADO' ? '—' : c.votos}</strong></td>
-                    <td className="n">{c.opcion === 'IMPUGNADO' ? '—' : c.votosDigital}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {lectura && (
+          <div className={`cq-resultado ${lectura.resultado === 'AUTENTICA' ? 'ok' : 'mal'}`} role="status" aria-live="polite">
+            <div className="cq-resultado-head">
+              <span className="cq-resultado-icono"><MenuIcon name={lectura.resultado === 'AUTENTICA' ? 'check' : 'alert'} size={22} /></span>
+              <div>
+                <h4>{lectura.resultado === 'AUTENTICA' ? 'Acta auténtica' : 'Acta NO auténtica'}</h4>
+                <p>Huella {si(lectura.huellaCoincide) ? 'coincide' : 'NO coincide'} · QR {lectura.qrCoincide == null ? 'no leído' : si(lectura.qrCoincide) ? 'coincide' : 'NO coincide'}</p>
+              </div>
+            </div>
+            <dl className="cq-meta">
+              <div><dt>Huella guardada</dt><dd className="cp-hash">{lectura.hashIntegridad}</dd></div>
+              <div><dt>Huella recalculada</dt><dd className="cp-hash">{lectura.hashRecalculado}</dd></div>
+            </dl>
           </div>
-        </>
-      )}
+        )}
 
-      {califica && (
-        accion !== 'CALIFICAR' ? (
+        {cargos.length > 0 && (
+          <>
+            <h4 className="cp-sub">Conteo del acta de escrutinio</h4>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Cargo</th><th>Opción</th><th className="n">Cédula física</th><th className="n">Impugnados asignados</th><th className="n">Se computa</th><th className="n">Conteo digital</th></tr></thead>
+                <tbody>
+                  {datos.conteo.filter((c) => c.opcion !== 'IMPUGNADO' || c.votosActa > 0).map((c) => (
+                    <tr key={`${c.idCargo}-${c.opcion}-${c.idLista}`} className={c.opcion !== 'IMPUGNADO' && c.votosActa !== c.votosDigital ? 'cp-alerta' : ''}>
+                      <td>{c.cargo}</td><td>{c.lista}</td>
+                      <td className="n">{c.votosActa}</td><td className="n">{c.impugnadosAsignados}</td>
+                      <td className="n"><strong>{c.opcion === 'IMPUGNADO' ? '—' : c.votos}</strong></td>
+                      <td className="n">{c.opcion === 'IMPUGNADO' ? '—' : c.votosDigital}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {califica && (
           <div className="cv-actions cp-izq">
             {si(m.requiereCalificacion) && !noAutentica && (
               <button type="button" className="cv-btn cv-btn-success" disabled={saving} onClick={() => { setAccion('CALIFICAR'); setCalificacion((c) => ({ ...c, calificacion: 'VALIDA' })); }}>
@@ -1288,54 +1310,63 @@ function FichaMesa({
               <MenuIcon name="close" size={15} /> Declarar nulidad de la mesa
             </button>
           </div>
-        ) : (
-          <form className="ig-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
-            <h4>{nulidad ? 'Paso 7 · Nulidad de la votación de la mesa (RF94)' : 'A3 · Calificación del acta que difiere (RF95)'}</h4>
-            <div className="im-estados cq-chips" role="group" aria-label="Calificación">
-              {(!noAutentica && si(m.requiereCalificacion) ? ['VALIDA', 'NULIDAD'] : ['NULIDAD']).map((c) => (
-                <button key={c} type="button" className={`cq-chip${calificacion.calificacion === c ? ' on' : ''}`} onClick={() => { setCalificacion((x) => ({ ...x, calificacion: c })); setConfirmando(false); }}>
-                  {c === 'VALIDA' ? 'Válida (cédula física)' : 'Nulidad'}
-                </button>
-              ))}
-            </div>
-            <div className="ig-grid">
-              {nulidad && (
-                <label className="cv-field">
-                  <span className="cv-label">N.º de resolución (RN34)</span>
-                  <input required maxLength={40} value={calificacion.numeroResolucion} disabled={saving} onChange={(e) => setCalificacion((c) => ({ ...c, numeroResolucion: e.target.value }))} />
-                </label>
-              )}
-              <label className="cv-field cp-ancho3">
-                <span className="cv-label">Fundamento del CEUNP</span>
-                <textarea rows={2} minLength={10} maxLength={1000} required value={calificacion.fundamento} disabled={saving}
-                  placeholder={nulidad ? 'Ej.: el acta no es auténtica; se declara la nulidad de la votación de la mesa.' : 'Ej.: revisadas las cédulas, prevalece el conteo físico del acta.'}
-                  onChange={(e) => setCalificacion((c) => ({ ...c, fundamento: e.target.value }))} />
+        )}
+      </div>
+
+      <Modal abierto={califica && accion === 'CALIFICAR'} onCerrar={() => setAccion(null)} ancho={720}
+        titulo={nulidad ? 'Paso 7 · Nulidad de la votación de la mesa (RF94)' : 'A3 · Calificación del acta que difiere (RF95)'}
+        subtitulo={`Mesa ${m.numeroMesa} · ${m.ubicacion}`}>
+        {aviso}
+        <form className="ig-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
+          <div className="im-estados cq-chips" role="group" aria-label="Calificación">
+            {(!noAutentica && si(m.requiereCalificacion) ? ['VALIDA', 'NULIDAD'] : ['NULIDAD']).map((c) => (
+              <button key={c} type="button" className={`cq-chip${calificacion.calificacion === c ? ' on' : ''}`} onClick={() => { setCalificacion((x) => ({ ...x, calificacion: c })); setConfirmando(false); }}>
+                {c === 'VALIDA' ? 'Válida (cédula física)' : 'Nulidad'}
+              </button>
+            ))}
+          </div>
+          <div className="ig-grid">
+            {nulidad && (
+              <label className="cv-field">
+                <span className="cv-label">N.º de resolución (RN34)</span>
+                <input required maxLength={40} value={calificacion.numeroResolucion} disabled={saving} onChange={(e) => setCalificacion((c) => ({ ...c, numeroResolucion: e.target.value }))} />
               </label>
+            )}
+            <label className="cv-field cp-ancho3">
+              <span className="cv-label">Fundamento del CEUNP</span>
+              <textarea rows={2} minLength={10} maxLength={1000} required value={calificacion.fundamento} disabled={saving}
+                placeholder={nulidad ? 'Ej.: el acta no es auténtica; se declara la nulidad de la votación de la mesa.' : 'Ej.: revisadas las cédulas, prevalece el conteo físico del acta.'}
+                onChange={(e) => setCalificacion((c) => ({ ...c, fundamento: e.target.value }))} />
+            </label>
+          </div>
+          {!confirmando ? (
+            <div className="cv-actions">
+              <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAccion(null)}>Cancelar</button>
+              <button type="submit" className={`cv-btn ${nulidad ? 'cv-btn-primary im-btn-peligro' : 'cv-btn-success'}`} disabled={saving || !listo}>
+                <MenuIcon name="scale" size={15} /> Registrar calificación
+              </button>
+              <Motivo>{primerMotivo([
+                [!calificacion.calificacion, 'Elija la calificación: válida o nulidad.'],
+                [nulidad && !calificacion.numeroResolucion.trim(), 'Escriba el número de resolución de la nulidad (RN34).'],
+                [calificacion.fundamento.trim().length < 10, 'Escriba el fundamento del CEUNP (mínimo 10 caracteres).'],
+              ])}</Motivo>
             </div>
-            {!confirmando ? (
+          ) : (
+            <div className="cq-confirmar-emision" role="alert">
+              <div>
+                <strong>{nulidad ? `¿Declarar la nulidad de la mesa ${m.numeroMesa} (${calificacion.numeroResolucion})?` : `¿Calificar válida el acta de la mesa ${m.numeroMesa}?`}</strong>
+                <span>{nulidad ? 'La mesa y sus actas quedan ANULADAS y sus votos no se computan.' : 'Se computa con el conteo de la cédula física (RF84).'} La decisión del CEUNP es inapelable (RN36).</span>
+              </div>
               <div className="cv-actions">
-                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAccion(null)}>Cancelar</button>
-                <button type="submit" className={`cv-btn ${nulidad ? 'cv-btn-primary im-btn-peligro' : 'cv-btn-success'}`} disabled={saving || !listo}>
-                  <MenuIcon name="scale" size={15} /> Registrar calificación
+                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setConfirmando(false)}>Volver</button>
+                <button type="button" className="cv-btn cv-btn-success" disabled={saving} onClick={onCalificar}>
+                  <MenuIcon name="check" size={15} /> {saving ? 'Registrando…' : 'Confirmar'}
                 </button>
               </div>
-            ) : (
-              <div className="cq-confirmar-emision" role="alert">
-                <div>
-                  <strong>{nulidad ? `¿Declarar la nulidad de la mesa ${m.numeroMesa} (${calificacion.numeroResolucion})?` : `¿Calificar válida el acta de la mesa ${m.numeroMesa}?`}</strong>
-                  <span>{nulidad ? 'La mesa y sus actas quedan ANULADAS y sus votos no se computan.' : 'Se computa con el conteo de la cédula física (RF84).'} La decisión del CEUNP es inapelable (RN36).</span>
-                </div>
-                <div className="cv-actions">
-                  <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setConfirmando(false)}>Volver</button>
-                  <button type="button" className="cv-btn cv-btn-success" disabled={saving} onClick={onCalificar}>
-                    <MenuIcon name="check" size={15} /> {saving ? 'Registrando…' : 'Confirmar'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </form>
-        )
-      )}
-    </div>
+            </div>
+          )}
+        </form>
+      </Modal>
+    </Drawer>
   );
 }

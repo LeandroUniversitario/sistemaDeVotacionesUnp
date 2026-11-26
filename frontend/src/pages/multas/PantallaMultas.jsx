@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import { Drawer, Modal, useMantenerEnVista } from '../../components/Ventana';
+import Motivo, { primerMotivo } from '../../components/Motivo';
 import { fecha } from '../credenciales/LectorQR';
 import {
   CAUSAL_DESCARGO, ESTADO_MULTA, MEDIO, MOTIVO, MOTIVO_BASE, ROL, soles,
@@ -99,6 +101,7 @@ export default function PantallaMultas({ onSessionExpired }) {
   const [idProceso, setIdProceso] = useState(null);
   const [detalle, setDetalle] = useState(null);
   const [paso, setPaso] = useState('OMISOS');
+  const pasosRef = useMantenerEnVista(paso);        // la pestaña nueva se ve desde su inicio
   const [accion, setAccion] = useState(null);   // GENERAR | RESOLUCION | NOTIFICAR | NOTIFICAR:<id> | DESCARGO | PAGO
   const [confirmando, setConfirmando] = useState(false);
   const [filtro, setFiltro] = useState({ motivo: 'TODOS', estado: 'TODOS', departamento: 'TODOS', texto: '' });
@@ -275,10 +278,15 @@ export default function PantallaMultas({ onSessionExpired }) {
     observacion: pago.observacion.trim() || null,
   }, () => setPago(pagoVacio));
 
+  /** Abre la ficha de la multa en el panel lateral, sin salir de la pestaña actual. */
   function abrirMulta(id) {
     setIdMulta(id === idMulta ? null : id);
     limpiarAccion();
-    setPaso('DESCARGOS');
+  }
+
+  function cerrarMulta() {
+    setIdMulta(null);
+    limpiarAccion();
   }
 
   // ─── Datos derivados ─────────────────────────────────────────────────────
@@ -325,6 +333,8 @@ export default function PantallaMultas({ onSessionExpired }) {
   const sinNotificar = detalle.multas.filter((m) => !m.fechaNotificacion);
   const seleccionada = detalle.multas.find((m) => m.idMulta === idMulta) ?? null;
   const etapa = !reporte ? 'Sin generar' : detalle.desactualizado ? 'Desactualizado' : resuelto ? 'Determinadas' : 'Generadas';
+  // El resultado de una acción se muestra también dentro de la ventana abierta
+  const aviso = feedback && <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>;
 
   const filtros = (conEstado) => (
     <div className="mu-filtros" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -397,7 +407,7 @@ export default function PantallaMultas({ onSessionExpired }) {
         </button>
       </section>
 
-      <div className="pd-tabs cq-tabs mx-pasos cp-pasos nl-pasos mu-pasos" role="tablist" aria-label="Reportar omisos y multas">
+      <div className="pd-tabs cq-tabs mx-pasos cp-pasos nl-pasos mu-pasos" ref={pasosRef} role="tablist" aria-label="Reportar omisos y multas">
         {PASOS.map((p) => {
           const n = cuenta(p.codigo, detalle);
           const alerta = (p.codigo === 'OMISOS' && (detalle.desactualizado || acciones.generar && !reporte))
@@ -578,15 +588,18 @@ export default function PantallaMultas({ onSessionExpired }) {
               <div className="mx-mensaje peligro" role="note"><MenuIcon name="alert" size={18} /><div><p>Las multas generadas ya no coinciden con los omisos o los parámetros actuales: vuelva a generarlas antes de la resolución.</p></div></div>
             )}
 
-            {acciones.emitirResolucion && (accion !== 'RESOLUCION' ? (
+            {acciones.emitirResolucion && (
               <div className="cv-actions cp-izq">
                 <button type="button" className="cv-btn cv-btn-primary" disabled={saving} onClick={() => { setAccion('RESOLUCION'); setConfirmando(false); }}>
                   <MenuIcon name="scale" size={15} /> Emitir resolución del Pleno
                 </button>
               </div>
-            ) : (
+            )}
+            <Modal abierto={acciones.emitirResolucion && accion === 'RESOLUCION'} onCerrar={limpiarAccion} ancho={720}
+              titulo="Emitir resolución del Pleno"
+              subtitulo={reporte ? `Resolución que determina ${reporte.omisosVotacion + reporte.omisosMesa} multa(s) por ${soles(reporte.montoTotal)}` : null}>
+              {aviso}
               <form className="ig-form mu-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
-                <h4>Resolución que determina {reporte.omisosVotacion + reporte.omisosMesa} multa(s) por {soles(reporte.montoTotal)}</h4>
                 <div className="ig-grid nl-pleno">
                   <label className="cv-field">
                     <span className="cv-label">N.º de resolución</span>
@@ -628,7 +641,7 @@ export default function PantallaMultas({ onSessionExpired }) {
                   </div>
                 )}
               </form>
-            ))}
+            </Modal>
           </div>
 
           {resuelto && (
@@ -649,7 +662,7 @@ export default function PantallaMultas({ onSessionExpired }) {
                 <FormNotificacion
                   titulo={accion?.startsWith('NOTIFICAR:') ? `Notificar la multa N.º ${accion.split(':')[1]}` : `Notificar las ${sinNotificar.length} multa(s) pendientes de notificación`}
                   abierto={accion === 'NOTIFICAR' || accion?.startsWith('NOTIFICAR:')}
-                  notificacion={notificacion} setNotificacion={setNotificacion} saving={saving}
+                  notificacion={notificacion} setNotificacion={setNotificacion} saving={saving} aviso={aviso}
                   confirmando={confirmando} setConfirmando={setConfirmando}
                   onAbrir={() => { setAccion('NOTIFICAR'); setConfirmando(false); setNotificacion((n) => ({ ...n, fecha: ahoraLocal() })); }}
                   onCancelar={limpiarAccion}
@@ -700,16 +713,6 @@ export default function PantallaMultas({ onSessionExpired }) {
             {filtros(true)}
             <TablaMultas filas={multasFiltradas} activo={idMulta} gestionar={acciones.descargo} onAbrir={abrirMulta} />
           </div>
-
-          {seleccionada && (
-            <FichaMulta
-              m={seleccionada} documento={multa?.idMulta === seleccionada.idMulta ? multa : null} acciones={acciones} quorum={quorum}
-              accion={accion} setAccion={setAccion} confirmando={confirmando} setConfirmando={setConfirmando} saving={saving}
-              descargo={descargo} setDescargo={setDescargo} pago={pago} setPago={setPago}
-              onJustificar={justificar} onPagar={pagar} onCancelar={limpiarAccion}
-              onCerrar={() => { setIdMulta(null); limpiarAccion(); }}
-            />
-          )}
 
           <div className="panel cv-form">
             <div className="cv-section-head">
@@ -842,6 +845,17 @@ export default function PantallaMultas({ onSessionExpired }) {
           </div>
         </>
       )}
+
+      {/* ── Ficha de la multa (Ver / Gestionar): panel lateral sobre la pestaña actual ── */}
+      {seleccionada && (
+        <FichaMulta
+          m={seleccionada} documento={multa?.idMulta === seleccionada.idMulta ? multa : null} acciones={acciones} quorum={quorum}
+          accion={accion} setAccion={setAccion} confirmando={confirmando} setConfirmando={setConfirmando} saving={saving}
+          descargo={descargo} setDescargo={setDescargo} pago={pago} setPago={setPago} aviso={aviso}
+          onJustificar={justificar} onPagar={pagar} onCancelar={limpiarAccion}
+          onCerrar={cerrarMulta}
+        />
+      )}
     </div>
   );
 }
@@ -890,71 +904,71 @@ function TablaMultas({ filas, activo, gestionar, onAbrir, onNotificar }) {
   );
 }
 
-function FormNotificacion({ titulo, abierto, notificacion, setNotificacion, saving, confirmando, setConfirmando, onAbrir, onCancelar, onConfirmar }) {
-  if (!abierto) {
-    return (
+function FormNotificacion({ titulo, abierto, notificacion, setNotificacion, saving, aviso, confirmando, setConfirmando, onAbrir, onCancelar, onConfirmar }) {
+  const cedula = notificacion.medio === 'CEDULA_PERSONAL';
+  const listo = notificacion.medio && (!cedula || notificacion.documento.trim());
+  const set = (campo) => (e) => { setNotificacion((n) => ({ ...n, [campo]: e.target.value })); setConfirmando(false); };
+  return (
+    <>
       <div className="cv-actions cp-izq">
         <button type="button" className="cv-btn cv-btn-primary" disabled={saving} onClick={onAbrir}>
           <MenuIcon name="external" size={15} /> Notificar multas pendientes
         </button>
       </div>
-    );
-  }
-  const cedula = notificacion.medio === 'CEDULA_PERSONAL';
-  const listo = notificacion.medio && (!cedula || notificacion.documento.trim());
-  const set = (campo) => (e) => { setNotificacion((n) => ({ ...n, [campo]: e.target.value })); setConfirmando(false); };
-  return (
-    <form className="ig-form mu-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
-      <h4>{titulo}</h4>
-      <div className="cv-field">
-        <span className="cv-label">Medio de notificación</span>
-        <div className="cq-chips" role="group" aria-label="Medio">
-          {Object.entries(MEDIO).map(([v, t]) => (
-            <button key={v} type="button" className={`cq-chip${notificacion.medio === v ? ' on' : ''}`} disabled={saving}
-              onClick={() => { setNotificacion((n) => ({ ...n, medio: v })); setConfirmando(false); }}>{t}</button>
-          ))}
-        </div>
-      </div>
-      <div className="ig-grid">
-        <label className="cv-field">
-          <span className="cv-label">{cedula ? 'N.º de cédula o cargo' : 'Referencia (opcional)'}</span>
-          <input maxLength={80} required={cedula} value={notificacion.documento} disabled={saving} onChange={set('documento')}
-            placeholder={cedula ? 'Ej.: Cédula N.º 045-2026-CEUNP' : 'Ej.: correo del 28/10'} />
-        </label>
-        <label className="cv-field">
-          <span className="cv-label">Fecha de notificación</span>
-          <input type="datetime-local" value={notificacion.fecha} disabled={saving} onChange={set('fecha')} />
-        </label>
-      </div>
-      {!confirmando ? (
-        <div className="cv-actions">
-          <button type="button" className="cv-btn cv-btn-ghost" onClick={onCancelar}>Cancelar</button>
-          <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || !listo}>
-            <MenuIcon name="external" size={15} /> Registrar notificación
-          </button>
-        </div>
-      ) : (
-        <div className="cq-confirmar-emision" role="alert">
-          <div>
-            <strong>¿Registrar la notificación por {MEDIO[notificacion.medio].toLowerCase()}?</strong>
-            <span>Desde esta fecha corre el plazo para que el docente presente su justificación.</span>
+      <Modal abierto={abierto} onCerrar={onCancelar} titulo={titulo} ancho={640}>
+        {aviso}
+        <form className="ig-form mu-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
+          <div className="cv-field">
+            <span className="cv-label">Medio de notificación</span>
+            <div className="cq-chips" role="group" aria-label="Medio">
+              {Object.entries(MEDIO).map(([v, t]) => (
+                <button key={v} type="button" className={`cq-chip${notificacion.medio === v ? ' on' : ''}`} disabled={saving}
+                  onClick={() => { setNotificacion((n) => ({ ...n, medio: v })); setConfirmando(false); }}>{t}</button>
+              ))}
+            </div>
           </div>
-          <div className="cv-actions">
-            <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setConfirmando(false)}>Volver</button>
-            <button type="button" className="cv-btn cv-btn-success" disabled={saving} onClick={onConfirmar}>
-              <MenuIcon name="check" size={15} /> {saving ? 'Registrando…' : 'Confirmar'}
-            </button>
+          <div className="ig-grid">
+            <label className="cv-field">
+              <span className="cv-label">{cedula ? 'N.º de cédula o cargo' : 'Referencia (opcional)'}</span>
+              <input maxLength={80} required={cedula} value={notificacion.documento} disabled={saving} onChange={set('documento')}
+                placeholder={cedula ? 'Ej.: Cédula N.º 045-2026-CEUNP' : 'Ej.: correo del 28/10'} />
+            </label>
+            <label className="cv-field">
+              <span className="cv-label">Fecha de notificación</span>
+              <input type="datetime-local" value={notificacion.fecha} disabled={saving} onChange={set('fecha')} />
+            </label>
           </div>
-        </div>
-      )}
-    </form>
+          {!confirmando ? (
+            <div className="cv-actions">
+              <button type="button" className="cv-btn cv-btn-ghost" onClick={onCancelar}>Cancelar</button>
+              <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || !listo}>
+                <MenuIcon name="external" size={15} /> Registrar notificación
+              </button>
+            </div>
+          ) : (
+            <div className="cq-confirmar-emision" role="alert">
+              <div>
+                <strong>¿Registrar la notificación por {MEDIO[notificacion.medio].toLowerCase()}?</strong>
+                <span>Desde esta fecha corre el plazo para que el docente presente su justificación.</span>
+              </div>
+              <div className="cv-actions">
+                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setConfirmando(false)}>Volver</button>
+                <button type="button" className="cv-btn cv-btn-success" disabled={saving} onClick={onConfirmar}>
+                  <MenuIcon name="check" size={15} /> {saving ? 'Registrando…' : 'Confirmar'}
+                </button>
+              </div>
+            </div>
+          )}
+        </form>
+      </Modal>
+    </>
   );
 }
 
 /** Ficha de la multa: 8 registrarJustificacion · 9 justificar · 10 actualizarEstado · 11 confirmar, y pago. */
 function FichaMulta({
   m, documento, acciones, quorum, accion, setAccion, confirmando, setConfirmando, saving,
-  descargo, setDescargo, pago, setPago, onJustificar, onPagar, onCancelar, onCerrar,
+  descargo, setDescargo, pago, setPago, aviso, onJustificar, onPagar, onCancelar, onCerrar,
 }) {
   const pendiente = m.estadoPago === 'PENDIENTE';
   const lista = documento?.descargosLista ?? [];
@@ -968,59 +982,56 @@ function FichaMulta({
   const listoPago = pago.numeroRecibo.trim().length >= 3;
 
   return (
-    <div className="panel mx-ficha ig-expediente">
-      <div className="mx-ficha-top">
-        <div>
-          <h3>Multa N.º {String(m.idMulta).padStart(5, '0')} · {m.docente}</h3>
-          <p>{MOTIVO[m.motivo]} ({MOTIVO_BASE[m.motivo]}) · DNI {m.dni} · {m.facultad}</p>
-        </div>
-        <div className="cs-acciones-head">
-          <span className={`cv-estado ${CLASE_MULTA[m.estadoPago]}`}>{ESTADO_MULTA[m.estadoPago]}</span>
-          <button type="button" className="cv-btn cv-btn-ghost cq-mini" onClick={onCerrar}><MenuIcon name="close" size={13} /> Cerrar</button>
-        </div>
+    <Drawer onCerrar={onCerrar} ancho={780}
+      titulo={`Multa N.º ${String(m.idMulta).padStart(5, '0')} · ${m.docente}`}
+      subtitulo={`${MOTIVO[m.motivo]} (${MOTIVO_BASE[m.motivo]}) · DNI ${m.dni} · ${m.facultad}`}
+      extra={<span className={`cv-estado ${CLASE_MULTA[m.estadoPago]}`}>{ESTADO_MULTA[m.estadoPago]}</span>}>
+      {!accion && aviso}
+      <div className="panel mx-ficha ig-expediente">
+        <dl className="mx-datos">
+          <div><dt>Monto</dt><dd>{soles(m.monto)} · {Number(m.porcentajeUit).toFixed(1)} % de {soles(m.uitReferencia)}</dd></div>
+          <div><dt>Mesa</dt><dd>{m.numeroMesa ? `Mesa ${m.numeroMesa}` : '—'}{m.rolMesa ? ` · ${ROL[m.rolMesa] ?? m.rolMesa} titular` : ''}</dd></div>
+          <div><dt>Notificada</dt><dd>{m.fechaNotificacion ? `${fecha(m.fechaNotificacion)} · ${MEDIO[m.medioNotificacion] ?? ''}` : 'Sin notificar'}</dd></div>
+          <div><dt>Plazo de justificación</dt><dd>{m.limiteJustificacion ? <>{fecha(m.limiteJustificacion)}{vencido ? <span className="cv-estado anulado"> Vencido</span> : null}</> : 'Corre desde la notificación'}</dd></div>
+        </dl>
+        {si(m.asistioSinVotar) && <p className="ig-texto">El docente asistió a la mesa y no votó (CUS10 A3): el CEUNP resuelve si lo justifica (Disp. Final 5.ª).</p>}
+        {m.estadoPago === 'PAGADA' && <p className="ig-texto">Pagada el {fecha(m.fechaPago)} con el recibo {m.numeroRecibo}{m.observacion ? ` · ${m.observacion}` : ''}.</p>}
+
+        {lista.length > 0 && (
+          <>
+            <h4 className="cp-sub">Descargos de la multa</h4>
+            <ul className="nl-recursos">
+              {lista.map((j) => (
+                <li key={j.idJustificacion}>
+                  <span className={`cv-estado ${j.decision === 'ADMITIDA' ? 'votacion' : 'anulado'}`}>{j.decision === 'ADMITIDA' ? 'Admitida' : 'Denegada'}</span>
+                  <span>{j.tipo === 'EXONERACION' ? 'Exoneración de oficio' : 'Justificación'} · {CAUSAL_DESCARGO[j.causal] ?? j.causal}<small>{j.numeroResolucion} · {fecha(j.fechaResolucion)} · {j.sustento}</small></span>
+                  <button type="button" className="cv-btn cv-btn-ghost cq-mini" onClick={() => imprimirDescargo(documento, j)}>
+                    <MenuIcon name="file" size={13} /> Resolución
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {pendiente && acciones.descargo && (
+          <div className="cv-actions cp-izq">
+            <button type="button" className="cv-btn cv-btn-primary" disabled={saving}
+              onClick={() => { setAccion('DESCARGO'); setConfirmando(false); setDescargo((x) => ({ ...x, tipo: yaJustifico || vencido ? 'EXONERACION' : 'JUSTIFICACION', fechaPresentacion: ahoraLocal() })); }}>
+              <MenuIcon name="check" size={15} /> Registrar justificación
+            </button>
+            <button type="button" className="cv-btn cv-btn-ghost" disabled={saving}
+              onClick={() => { setAccion('PAGO'); setConfirmando(false); setPago({ ...pagoVacio, fechaPago: ahoraLocal() }); }}>
+              <MenuIcon name="coins" size={15} /> Registrar pago
+            </button>
+          </div>
+        )}
       </div>
-      <dl className="mx-datos">
-        <div><dt>Monto</dt><dd>{soles(m.monto)} · {Number(m.porcentajeUit).toFixed(1)} % de {soles(m.uitReferencia)}</dd></div>
-        <div><dt>Mesa</dt><dd>{m.numeroMesa ? `Mesa ${m.numeroMesa}` : '—'}{m.rolMesa ? ` · ${ROL[m.rolMesa] ?? m.rolMesa} titular` : ''}</dd></div>
-        <div><dt>Notificada</dt><dd>{m.fechaNotificacion ? `${fecha(m.fechaNotificacion)} · ${MEDIO[m.medioNotificacion] ?? ''}` : 'Sin notificar'}</dd></div>
-        <div><dt>Plazo de justificación</dt><dd>{m.limiteJustificacion ? <>{fecha(m.limiteJustificacion)}{vencido ? <span className="cv-estado anulado"> Vencido</span> : null}</> : 'Corre desde la notificación'}</dd></div>
-      </dl>
-      {si(m.asistioSinVotar) && <p className="ig-texto">El docente asistió a la mesa y no votó (CUS10 A3): el CEUNP resuelve si lo justifica (Disp. Final 5.ª).</p>}
-      {m.estadoPago === 'PAGADA' && <p className="ig-texto">Pagada el {fecha(m.fechaPago)} con el recibo {m.numeroRecibo}{m.observacion ? ` · ${m.observacion}` : ''}.</p>}
 
-      {lista.length > 0 && (
-        <>
-          <h4 className="cp-sub">Descargos de la multa</h4>
-          <ul className="nl-recursos">
-            {lista.map((j) => (
-              <li key={j.idJustificacion}>
-                <span className={`cv-estado ${j.decision === 'ADMITIDA' ? 'votacion' : 'anulado'}`}>{j.decision === 'ADMITIDA' ? 'Admitida' : 'Denegada'}</span>
-                <span>{j.tipo === 'EXONERACION' ? 'Exoneración de oficio' : 'Justificación'} · {CAUSAL_DESCARGO[j.causal] ?? j.causal}<small>{j.numeroResolucion} · {fecha(j.fechaResolucion)} · {j.sustento}</small></span>
-                <button type="button" className="cv-btn cv-btn-ghost cq-mini" onClick={() => imprimirDescargo(documento, j)}>
-                  <MenuIcon name="file" size={13} /> Resolución
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-
-      {pendiente && acciones.descargo && accion !== 'DESCARGO' && accion !== 'PAGO' && (
-        <div className="cv-actions cp-izq">
-          <button type="button" className="cv-btn cv-btn-primary" disabled={saving}
-            onClick={() => { setAccion('DESCARGO'); setConfirmando(false); setDescargo((x) => ({ ...x, tipo: yaJustifico || vencido ? 'EXONERACION' : 'JUSTIFICACION', fechaPresentacion: ahoraLocal() })); }}>
-            <MenuIcon name="check" size={15} /> Registrar justificación
-          </button>
-          <button type="button" className="cv-btn cv-btn-ghost" disabled={saving}
-            onClick={() => { setAccion('PAGO'); setConfirmando(false); setPago({ ...pagoVacio, fechaPago: ahoraLocal() }); }}>
-            <MenuIcon name="coins" size={15} /> Registrar pago
-          </button>
-        </div>
-      )}
-
-      {accion === 'DESCARGO' && (
+      <Modal abierto={accion === 'DESCARGO'} onCerrar={onCancelar} ancho={760} titulo="Registrar la justificación"
+        subtitulo={`Multa N.º ${String(m.idMulta).padStart(5, '0')} · ${m.docente} · ${soles(m.monto)}`}>
+        {aviso}
         <form className="ig-form mu-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
-          <h4>Registrar la justificación</h4>
           <div className="cq-chips" role="group" aria-label="Tipo de descargo">
             {[['JUSTIFICACION', 'Justificación del docente (RF106)'], ['EXONERACION', 'Exoneración de oficio (RN40)']].map(([v, t]) => (
               <button key={v} type="button" className={`cq-chip${descargo.tipo === v ? ' on' : ''}`}
@@ -1086,6 +1097,14 @@ function FichaMulta({
               <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || !listoDescargo}>
                 <MenuIcon name="scale" size={15} /> Resolver descargo
               </button>
+              <Motivo>{primerMotivo([
+                [!descargo.causal, 'Elija la causal del descargo.'],
+                [descargo.sustento.trim().length < 10, `Escriba el ${exoneracion ? 'hecho que motiva la exoneración' : 'sustento del docente'} (mínimo 10 caracteres).`],
+                [!descargo.numeroResolucion.trim(), 'Escriba el número de resolución del Pleno.'],
+                [Number(descargo.miembrosPleno) < quorum, `Sin quórum: se requieren al menos ${quorum} miembros del Pleno (RN36).`],
+                [!exoneracion && !descargo.decision, 'Elija la decisión del Pleno: admitir o denegar.'],
+                [descargo.fundamento.trim().length < 10, 'Escriba el fundamento de la decisión (mínimo 10 caracteres).'],
+              ])}</Motivo>
             </div>
           ) : (
             <div className="cq-confirmar-emision" role="alert">
@@ -1102,11 +1121,12 @@ function FichaMulta({
             </div>
           )}
         </form>
-      )}
+      </Modal>
 
-      {accion === 'PAGO' && (
+      <Modal abierto={accion === 'PAGO'} onCerrar={onCancelar} ancho={680} titulo="Registrar el pago en Tesorería"
+        subtitulo={`Multa N.º ${String(m.idMulta).padStart(5, '0')} · ${m.docente} · ${soles(m.monto)}`}>
+        {aviso}
         <form className="ig-form mu-form mu-pago" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
-          <h4>Pago de la multa en Tesorería</h4>
           <div className="ig-grid">
             <label className="cv-field">
               <span className="cv-label">N.º de recibo</span>
@@ -1127,6 +1147,7 @@ function FichaMulta({
               <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || !listoPago}>
                 <MenuIcon name="coins" size={15} /> Registrar pago
               </button>
+              <Motivo>{!listoPago ? 'Escriba el número de recibo de Tesorería (mínimo 3 caracteres).' : null}</Motivo>
             </div>
           ) : (
             <div className="cq-confirmar-emision" role="alert">
@@ -1143,7 +1164,7 @@ function FichaMulta({
             </div>
           )}
         </form>
-      )}
-    </div>
+      </Modal>
+    </Drawer>
   );
 }

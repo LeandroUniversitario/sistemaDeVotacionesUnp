@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import { Drawer, Modal } from '../../components/Ventana';
+import Motivo, { primerMotivo } from '../../components/Motivo';
 import { fecha } from '../credenciales/LectorQR';
 import { imprimirConstanciaImpugnacion, imprimirRelacionImpugnaciones } from './ConstanciaImpugnacion';
 import '../convocatoria/convocatoria.css';
@@ -107,6 +109,7 @@ export default function PantallaImpugnaciones({ session, onSessionExpired }) {
   const [vista, setVista] = useState(supervisa ? 'BANDEJA' : 'MESA');   // BANDEJA | MESA
   const [mesas, setMesas] = useState([]);
   const [idMesa, setIdMesa] = useState(null);
+  const [verMesa, setVerMesa] = useState(false);    // panel lateral de la mesa abierto
   const [detalle, setDetalle] = useState(null);
   const [bandeja, setBandeja] = useState(null);
   const [filtro, setFiltro] = useState('APELADAS');
@@ -189,6 +192,18 @@ export default function PantallaImpugnaciones({ session, onSessionExpired }) {
     } catch (e) {
       manejarError(e);
     }
+  }
+
+  /** Tarjeta de mesa: abre su detalle en el panel lateral (conserva lo elegido si es la misma mesa). */
+  function abrirMesa(id) {
+    if (id !== idMesa) elegirMesa(id);
+    setVerMesa(true);
+  }
+
+  function cerrarMesa() {
+    setVerMesa(false);
+    setIdSel(null);
+    limpiarAccion();
   }
 
   function elegirMesa(id) {
@@ -336,6 +351,8 @@ export default function PantallaImpugnaciones({ session, onSessionExpired }) {
   const miembros = detalle?.miembros?.length || 3;
   const quorum = bandeja?.quorumPleno ?? 5;
   const misPersonerosMesa = (detalle?.personeros ?? []).filter((p) => (detalle?.misPersoneros ?? []).some((m) => m.idPersonero === p.idPersonero));
+  // El resultado de una acción se muestra también dentro de la ventana abierta
+  const aviso = feedback && <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>;
 
   return (
     <div className="pd-shell cq-shell im-shell cs-shell ig-shell mx">
@@ -411,7 +428,7 @@ export default function PantallaImpugnaciones({ session, onSessionExpired }) {
           {mesas.map((m) => {
             const est = ESTADO_MESA[m.estado] ?? ESTADO_MESA.PENDIENTE;
             return (
-              <button key={m.id} type="button" className={`im-mesa${m.id === idMesa ? ' on' : ''}`} onClick={() => elegirMesa(m.id)}>
+              <button key={m.id} type="button" className={`im-mesa${m.id === idMesa ? ' on' : ''}`} onClick={() => abrirMesa(m.id)}>
                 <span className="im-mesa-num">Mesa {m.numero}</span>
                 <span className={`cv-estado ${est.clase}`}>{est.texto}</span>
                 <small>{m.ubicacion}</small>
@@ -427,19 +444,17 @@ export default function PantallaImpugnaciones({ session, onSessionExpired }) {
         <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>
       )}
 
-      {/* ── Ficha de la mesa y registro (mensajes 1-5) ── */}
+      {/* ── Ficha de la mesa y registro (mensajes 1-5): panel lateral sobre el listado de mesas ── */}
       {vista === 'MESA' && detalle && (
-        <>
+        <Drawer abierto={verMesa} onCerrar={cerrarMesa} ancho={980}
+          titulo={`Mesa ${mesa.numero} · impugnaciones`} subtitulo={mesa.ubicacion}
+          extra={(
+            <span className={`cv-estado ${(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).clase}`}>
+              {(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).texto}
+            </span>
+          )}>
+          {!accion && !seleccionada && aviso}
           <div className="panel mx-ficha">
-            <div className="mx-ficha-top">
-              <div>
-                <h3>Mesa {mesa.numero}</h3>
-                <p>{mesa.ubicacion}</p>
-              </div>
-              <span className={`cv-estado ${(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).clase}`}>
-                {(ESTADO_MESA[mesa.estado] ?? ESTADO_MESA.PENDIENTE).texto}
-              </span>
-            </div>
             <dl className="mx-datos">
               <div><dt>Proceso</dt><dd>{mesa.proceso} · {mesa.estadoProceso}</dd></div>
               <div><dt>Escrutinio</dt><dd>{detalle.escrutinio ? String(detalle.escrutinio.estado).replaceAll('_', ' ').toLowerCase() : (mesa.estado === 'CERRADA' ? 'Por iniciar' : '—')}</dd></div>
@@ -492,9 +507,11 @@ export default function PantallaImpugnaciones({ session, onSessionExpired }) {
               </div>
             </div>
 
-            {accion === 'REGISTRAR' && (
+            <Modal abierto={accion === 'REGISTRAR'} onCerrar={limpiarAccion} ancho={720}
+              titulo="Registrar impugnación"
+              subtitulo={`1 · Ingresar impugnación · Mesa ${mesa.numero}`}>
+              {aviso}
               <form className="ig-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
-                <h4>1 · Ingresar impugnación</h4>
                 <div className="im-cedulas">
                   {esPersonero ? (
                     <div className="cv-field">
@@ -534,6 +551,10 @@ export default function PantallaImpugnaciones({ session, onSessionExpired }) {
                     <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || nueva.motivo.trim().length < 10 || (!esPersonero && !nueva.idPersonero)}>
                       <MenuIcon name="check" size={15} /> Registrar impugnación
                     </button>
+                    <Motivo>{primerMotivo([
+                      [!esPersonero && !nueva.idPersonero, detalle.personeros.length === 0 ? 'No hay personeros presentes en la mesa: nadie puede impugnar votos (RN24).' : 'Elija el personero presente que impugna.'],
+                      [nueva.motivo.trim().length < 10, `Escriba el motivo de la impugnación (mínimo 10 caracteres; lleva ${nueva.motivo.trim().length}).`],
+                    ])}</Motivo>
                   </div>
                 ) : (
                   <div className="cq-confirmar-emision" role="alert">
@@ -550,12 +571,12 @@ export default function PantallaImpugnaciones({ session, onSessionExpired }) {
                   </div>
                 )}
               </form>
-            )}
+            </Modal>
 
             <ListaImpugnaciones lista={lista} idSel={idSel} onElegir={elegirImpugnacion} mostrarMesa={false} esCeunp={esCeunp}
               vacio={mesa.estado === 'CERRADA' ? 'No hay impugnaciones en esta mesa.' : 'Aún no hay escrutinio en esta mesa.'} />
           </div>
-        </>
+        </Drawer>
       )}
 
       {/* ── Bandeja del CEUNP ── */}
@@ -584,7 +605,7 @@ export default function PantallaImpugnaciones({ session, onSessionExpired }) {
         </div>
       )}
 
-      {/* ── Expediente de la impugnación seleccionada ── */}
+      {/* ── Expediente de la impugnación seleccionada: panel lateral (sobre la mesa o la bandeja) ── */}
       {seleccionada && (
         <Expediente
           i={seleccionada}
@@ -601,7 +622,7 @@ export default function PantallaImpugnaciones({ session, onSessionExpired }) {
           personerosLista={(detalle?.personeros ?? []).filter((p) => p.idLista === seleccionada.idListaPersonero)}
           decision={decision} setDecision={setDecision} onDecidir={registrarDecisionMesa}
           apelacion={apelacion} setApelacion={setApelacion} onApelar={apelarDecision}
-          fallo={fallo} setFallo={setFallo} onFallar={registrarFalloCeunp}
+          fallo={fallo} setFallo={setFallo} onFallar={registrarFalloCeunp} aviso={aviso}
           onCerrar={() => { setIdSel(null); limpiarAccion(); }}
         />
       )}
@@ -685,7 +706,7 @@ function OpcionCedula({ nombre, valor, lista, listas, disabled, onCambiar }) {
 /** Expediente: trámite completo de la impugnación con las acciones que corresponden al actor. */
 function Expediente({
   i, accion, setAccion, confirmando, setConfirmando, saving, esCeunp, esPersonero, miembros, quorum, listas,
-  personerosLista, decision, setDecision, onDecidir, apelacion, setApelacion, onApelar, fallo, setFallo, onFallar, onCerrar,
+  personerosLista, decision, setDecision, onDecidir, apelacion, setApelacion, onApelar, fallo, setFallo, onFallar, aviso, onCerrar,
 }) {
   const sit = SITUACION[i.situacion] ?? SITUACION.PENDIENTE_MESA;
   const puedeFallar = esCeunp && i.estado === 'APELADA';
@@ -721,306 +742,329 @@ function Expediente({
     && fallo.fundamento.trim().length >= 10;
 
   return (
-    <div className="panel cv-form ig-expediente">
-      <div className="cv-section-head">
-        <div>
-          <h3>Impugnación N.º {String(i.id).padStart(4, '0')} · Mesa {i.numeroMesa}</h3>
-          <p className="muted">Presentada el {fecha(i.fechaPresentacion)} por {i.personero} (personero {TIPO_PERSONERO[i.tipoPersonero] ?? ''} de {i.listaPersonero}){i.cargo ? ` · cargo ${i.cargo}` : ''}.</p>
-        </div>
-        <div className="cs-acciones-head">
+    <Drawer onCerrar={onCerrar} ancho={900}
+      titulo={`Impugnación N.º ${String(i.id).padStart(4, '0')} · Mesa ${i.numeroMesa}`}
+      subtitulo={`Presentada el ${fecha(i.fechaPresentacion)} por ${i.personero} (personero ${TIPO_PERSONERO[i.tipoPersonero] ?? ''} de ${i.listaPersonero})${i.cargo ? ` · cargo ${i.cargo}` : ''}.`}
+      extra={(
+        <>
           <span className={`cv-estado ${sit.clase}`}>{sit.texto}</span>
           <button type="button" className="cv-btn cv-btn-ghost cq-mini" onClick={() => imprimirConstanciaImpugnacion(i)}>
             <MenuIcon name="file" size={13} /> Imprimir constancia
           </button>
-          <button type="button" className="cv-btn cv-btn-ghost cq-mini" onClick={onCerrar} aria-label="Cerrar expediente">
-            <MenuIcon name="close" size={13} />
-          </button>
+        </>
+      )}>
+      {!accion && aviso}
+      <div className="panel cv-form ig-expediente">
+
+        <div className="pd-tabs cq-tabs mx-pasos ig-pasos" aria-label="Trámite">
+          {PASOS.map((p, n) => {
+            const e = estadoPaso(p.codigo, i);
+            return (
+              <div key={p.codigo} className={`pd-tab mx-paso${e.on ? ' on' : ''}${e.hecho ? ' hecho' : ''}${e.omitido ? ' ig-omitido' : ''}`}>
+                <span className="mx-paso-num">{e.hecho ? <MenuIcon name="check" size={14} /> : n + 1}</span>
+                <span className="mx-paso-texto"><b>{p.texto}</b><small>{e.texto ?? p.nota}</small></span>
+              </div>
+            );
+          })}
         </div>
-      </div>
 
-      <div className="pd-tabs cq-tabs mx-pasos ig-pasos" aria-label="Trámite">
-        {PASOS.map((p, n) => {
-          const e = estadoPaso(p.codigo, i);
-          return (
-            <div key={p.codigo} className={`pd-tab mx-paso${e.on ? ' on' : ''}${e.hecho ? ' hecho' : ''}${e.omitido ? ' ig-omitido' : ''}`}>
-              <span className="mx-paso-num">{e.hecho ? <MenuIcon name="check" size={14} /> : n + 1}</span>
-              <span className="mx-paso-texto"><b>{p.texto}</b><small>{e.texto ?? p.nota}</small></span>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="ig-instancias">
-        <section className="ig-instancia">
-          <h4><MenuIcon name="alert" size={14} /> Impugnación</h4>
-          <p className="ig-texto">{i.motivo}</p>
-        </section>
-
-        <section className={`ig-instancia${i.decisionMesa === 'PENDIENTE' ? ' pendiente' : ''}`}>
-          <h4><MenuIcon name="users" size={14} /> Decisión de la mesa</h4>
-          {i.decisionMesa === 'PENDIENTE' ? <p className="muted">Pendiente. La cédula se cuenta como IMPUGNADA.</p> : (
-            <>
-              <dl className="cq-meta">
-                <div><dt>Decisión</dt><dd><span className={`ig-decision ${i.decisionMesa.toLowerCase()}`}>{DECISION_MESA[i.decisionMesa]}</span></dd></div>
-                <div><dt>Votación</dt><dd>{i.votosMesaFavor} a favor · {i.votosMesaContra} en contra</dd></div>
-                <div><dt>La cédula va a</dt><dd>{textoOpcion(i.opcionMesa, i.listaMesa)}</dd></div>
-                <div><dt>Registró</dt><dd>{i.decididoPor ?? '—'} · {fecha(i.fechaDecisionMesa)}</dd></div>
-              </dl>
-              <p className="ig-texto">{i.fundamentoMesa}</p>
-              {i.decisionMesa === 'RECHAZADA' && !i.fechaApelacion && i.venceApelacion && (
-                <p className="muted im-nota">{i.puedeApelar || i.situacion === 'APELABLE' ? `Puede apelarse hasta el ${fecha(i.venceApelacion)}.` : `El plazo para apelar venció el ${fecha(i.venceApelacion)}: la decisión quedó firme.`}</p>
-              )}
-            </>
-          )}
-        </section>
-
-        {i.fechaApelacion && (
+        <div className="ig-instancias">
           <section className="ig-instancia">
-            <h4><MenuIcon name="upload" size={14} /> Apelación ante el CEUNP</h4>
-            <dl className="cq-meta">
-              <div><dt>Apela</dt><dd>{i.apelante}</dd></div>
-              <div><dt>Fecha</dt><dd>{fecha(i.fechaApelacion)}</dd></div>
-              <div><dt>Registró</dt><dd>{i.apelacionRegistradaPor ?? '—'}</dd></div>
-            </dl>
-            <p className="ig-texto">{i.fundamentoApelacion}</p>
+            <h4><MenuIcon name="alert" size={14} /> Impugnación</h4>
+            <p className="ig-texto">{i.motivo}</p>
           </section>
-        )}
 
-        {i.decisionCeunp !== 'PENDIENTE' && (
-          <section className="ig-instancia final">
-            <h4><MenuIcon name="scale" size={14} /> Fallo del CEUNP · Resolución {i.numeroResolucion}</h4>
-            <dl className="cq-meta">
-              <div><dt>Fallo</dt><dd><span className={`ig-decision ${i.decisionCeunp.toLowerCase()}`}>{DECISION_CEUNP[i.decisionCeunp]}</span></dd></div>
-              <div><dt>Pleno</dt><dd>{i.miembrosPleno} miembros · {i.votosPlenoFavor} a favor · {i.votosPlenoContra} en contra{i.votoDirimente ? ` · dirimente ${i.votoDirimente === 'FAVOR' ? 'a favor' : 'en contra'}` : ''}</dd></div>
-              <div><dt>Opción final</dt><dd>{textoOpcion(i.opcionFinal, i.listaFinal)}</dd></div>
-              <div><dt>Fecha</dt><dd>{fecha(i.fechaFallo)}</dd></div>
-            </dl>
-            <p className="ig-texto">{i.fundamentoCeunp}</p>
-            <p className="muted im-nota">RN36: el fallo del CEUNP es inapelable.</p>
+          <section className={`ig-instancia${i.decisionMesa === 'PENDIENTE' ? ' pendiente' : ''}`}>
+            <h4><MenuIcon name="users" size={14} /> Decisión de la mesa</h4>
+            {i.decisionMesa === 'PENDIENTE' ? <p className="muted">Pendiente. La cédula se cuenta como IMPUGNADA.</p> : (
+              <>
+                <dl className="cq-meta">
+                  <div><dt>Decisión</dt><dd><span className={`ig-decision ${i.decisionMesa.toLowerCase()}`}>{DECISION_MESA[i.decisionMesa]}</span></dd></div>
+                  <div><dt>Votación</dt><dd>{i.votosMesaFavor} a favor · {i.votosMesaContra} en contra</dd></div>
+                  <div><dt>La cédula va a</dt><dd>{textoOpcion(i.opcionMesa, i.listaMesa)}</dd></div>
+                  <div><dt>Registró</dt><dd>{i.decididoPor ?? '—'} · {fecha(i.fechaDecisionMesa)}</dd></div>
+                </dl>
+                <p className="ig-texto">{i.fundamentoMesa}</p>
+                {i.decisionMesa === 'RECHAZADA' && !i.fechaApelacion && i.venceApelacion && (
+                  <p className="muted im-nota">{i.puedeApelar || i.situacion === 'APELABLE' ? `Puede apelarse hasta el ${fecha(i.venceApelacion)}.` : `El plazo para apelar venció el ${fecha(i.venceApelacion)}: la decisión quedó firme.`}</p>
+                )}
+              </>
+            )}
           </section>
-        )}
-      </div>
 
-      {/* Acciones del actor */}
-      {!accion && (i.puedeDecidir || i.puedeApelar || puedeFallar) && (
-        <div className="cv-actions">
-          {i.puedeDecidir && (
-            <button type="button" className="cv-btn cv-btn-primary" onClick={() => setAccion('DECIDIR')}>
-              <MenuIcon name="users" size={15} /> Registrar decisión de la mesa
-            </button>
+          {i.fechaApelacion && (
+            <section className="ig-instancia">
+              <h4><MenuIcon name="upload" size={14} /> Apelación ante el CEUNP</h4>
+              <dl className="cq-meta">
+                <div><dt>Apela</dt><dd>{i.apelante}</dd></div>
+                <div><dt>Fecha</dt><dd>{fecha(i.fechaApelacion)}</dd></div>
+                <div><dt>Registró</dt><dd>{i.apelacionRegistradaPor ?? '—'}</dd></div>
+              </dl>
+              <p className="ig-texto">{i.fundamentoApelacion}</p>
+            </section>
           )}
-          {i.puedeApelar && (
-            <button type="button" className="cv-btn im-btn-peligro" onClick={() => setAccion('APELAR')}>
-              <MenuIcon name="upload" size={15} /> Apelar ante el CEUNP
-            </button>
-          )}
-          {puedeFallar && (
-            <button type="button" className="cv-btn cv-btn-success" onClick={() => setAccion('FALLAR')}>
-              <MenuIcon name="scale" size={15} /> Registrar fallo del CEUNP
-            </button>
+
+          {i.decisionCeunp !== 'PENDIENTE' && (
+            <section className="ig-instancia final">
+              <h4><MenuIcon name="scale" size={14} /> Fallo del CEUNP · Resolución {i.numeroResolucion}</h4>
+              <dl className="cq-meta">
+                <div><dt>Fallo</dt><dd><span className={`ig-decision ${i.decisionCeunp.toLowerCase()}`}>{DECISION_CEUNP[i.decisionCeunp]}</span></dd></div>
+                <div><dt>Pleno</dt><dd>{i.miembrosPleno} miembros · {i.votosPlenoFavor} a favor · {i.votosPlenoContra} en contra{i.votoDirimente ? ` · dirimente ${i.votoDirimente === 'FAVOR' ? 'a favor' : 'en contra'}` : ''}</dd></div>
+                <div><dt>Opción final</dt><dd>{textoOpcion(i.opcionFinal, i.listaFinal)}</dd></div>
+                <div><dt>Fecha</dt><dd>{fecha(i.fechaFallo)}</dd></div>
+              </dl>
+              <p className="ig-texto">{i.fundamentoCeunp}</p>
+              <p className="muted im-nota">RN36: el fallo del CEUNP es inapelable.</p>
+            </section>
           )}
         </div>
-      )}
-      {!accion && esPersonero && i.decisionMesa === 'RECHAZADA' && !i.puedeApelar && !i.fechaApelacion && (
-        <p className="muted im-nota">Solo apela un personero de {i.listaPersonero} dentro del plazo.</p>
-      )}
 
-      {/* 6-9 · Decisión de la mesa */}
-      {accion === 'DECIDIR' && (
-        <form className="ig-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
-          <h4>Decisión de la mesa · primera instancia (RN23)</h4>
-          <p className="muted im-nota">Los {miembros} miembros en funciones votan; decide la mayoría simple. Luego indique a qué opción va la cédula.</p>
-          <div className="im-estados" role="radiogroup" aria-label="Decisión">
-            {[['ACEPTADA', 'Fundada (se acepta la impugnación)', 'no_recibido'], ['RECHAZADA', 'Infundada (se rechaza)', 'conforme']].map(([codigo, texto, clase]) => (
-              <label key={codigo} className={decision.decision === codigo ? `on ${clase}` : ''}>
-                <input type="radio" name="decision-mesa" checked={decision.decision === codigo} disabled={saving}
-                  onChange={() => setDecision((d) => ({ ...d, decision: codigo }))} />
-                {texto}
+        {/* Acciones del actor */}
+        {!accion && (i.puedeDecidir || i.puedeApelar || puedeFallar) && (
+          <div className="cv-actions">
+            {i.puedeDecidir && (
+              <button type="button" className="cv-btn cv-btn-primary" onClick={() => setAccion('DECIDIR')}>
+                <MenuIcon name="users" size={15} /> Registrar decisión de la mesa
+              </button>
+            )}
+            {i.puedeApelar && (
+              <button type="button" className="cv-btn im-btn-peligro" onClick={() => setAccion('APELAR')}>
+                <MenuIcon name="upload" size={15} /> Apelar ante el CEUNP
+              </button>
+            )}
+            {puedeFallar && (
+              <button type="button" className="cv-btn cv-btn-success" onClick={() => setAccion('FALLAR')}>
+                <MenuIcon name="scale" size={15} /> Registrar fallo del CEUNP
+              </button>
+            )}
+          </div>
+        )}
+        {!accion && esPersonero && i.decisionMesa === 'RECHAZADA' && !i.puedeApelar && !i.fechaApelacion && (
+          <p className="muted im-nota">Solo apela un personero de {i.listaPersonero} dentro del plazo.</p>
+        )}
+
+        {/* 6-9 · Decisión de la mesa */}
+        <Modal abierto={accion === 'DECIDIR'} onCerrar={() => setAccion(null)} ancho={760}
+          titulo="Decisión de la mesa · primera instancia (RN23)"
+          subtitulo={`Impugnación N.º ${String(i.id).padStart(4, '0')} · Mesa ${i.numeroMesa}`}>
+          {aviso}
+          <form className="ig-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
+            <p className="muted im-nota">Los {miembros} miembros en funciones votan; decide la mayoría simple. Luego indique a qué opción va la cédula.</p>
+            <div className="im-estados" role="radiogroup" aria-label="Decisión">
+              {[['ACEPTADA', 'Fundada (se acepta la impugnación)', 'no_recibido'], ['RECHAZADA', 'Infundada (se rechaza)', 'conforme']].map(([codigo, texto, clase]) => (
+                <label key={codigo} className={decision.decision === codigo ? `on ${clase}` : ''}>
+                  <input type="radio" name="decision-mesa" checked={decision.decision === codigo} disabled={saving}
+                    onChange={() => setDecision((d) => ({ ...d, decision: codigo }))} />
+                  {texto}
+                </label>
+              ))}
+            </div>
+            <div className="im-cedulas">
+              <label className="cv-field">
+                <span className="cv-label">Miembros a favor de la impugnación</span>
+                <input type="number" min={0} max={miembros} required value={decision.votosFavor} disabled={saving}
+                  onChange={(e) => setDecision((d) => ({ ...d, votosFavor: e.target.value }))} />
               </label>
-            ))}
-          </div>
-          <div className="im-cedulas">
-            <label className="cv-field">
-              <span className="cv-label">Miembros a favor de la impugnación</span>
-              <input type="number" min={0} max={miembros} required value={decision.votosFavor} disabled={saving}
-                onChange={(e) => setDecision((d) => ({ ...d, votosFavor: e.target.value }))} />
-            </label>
-            <label className="cv-field">
-              <span className="cv-label">Miembros en contra</span>
-              <input type="number" min={0} max={miembros} required value={decision.votosContra} disabled={saving}
-                onChange={(e) => setDecision((d) => ({ ...d, votosContra: e.target.value }))} />
-            </label>
-          </div>
-          {dError && <small className="cv-error">{dError}</small>}
-          <div className="cv-field">
-            <span className="cv-label">La cédula impugnada va a</span>
-            <OpcionCedula nombre={`op-mesa-${i.id}`} valor={decision.opcion} lista={decision.idLista} listas={listas} disabled={saving}
-              onCambiar={(opcion, idLista) => setDecision((d) => ({ ...d, opcion, idLista }))} />
-          </div>
-          <label className="cv-field">
-            <span className="cv-label">Fundamento</span>
-            <textarea rows={3} minLength={10} maxLength={1000} required value={decision.fundamento} disabled={saving}
-              placeholder="Ej.: la cédula lleva la firma del presidente y una sola marca dentro del recuadro de la lista; es válida."
-              onChange={(e) => setDecision((d) => ({ ...d, fundamento: e.target.value }))} />
-          </label>
-          {!confirmando ? (
-            <div className="cv-actions">
-              <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAccion(null)}>Cancelar</button>
-              <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || !decisionLista}>
-                <MenuIcon name="check" size={15} /> Registrar decisión
-              </button>
-            </div>
-          ) : (
-            <div className="cq-confirmar-emision" role="alert">
-              <div>
-                <strong>¿Declarar {decision.decision === 'ACEPTADA' ? 'FUNDADA' : 'INFUNDADA'} la impugnación ({dFavor} a {dContra})?</strong>
-                <span>La cédula irá a {textoOpcion(decision.opcion, listas.find((l) => String(l.idLista) === String(decision.idLista))?.nombre)}. {decision.decision === 'RECHAZADA' ? 'El personero podrá apelar ante el CEUNP.' : 'La decisión quedará firme.'}</span>
-              </div>
-              <div className="cv-actions">
-                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setConfirmando(false)}>Volver</button>
-                <button type="button" className="cv-btn cv-btn-primary" disabled={saving} onClick={onDecidir}>
-                  <MenuIcon name="check" size={15} /> {saving ? 'Registrando…' : 'Confirmar decisión'}
-                </button>
-              </div>
-            </div>
-          )}
-        </form>
-      )}
-
-      {/* 10 · Apelación */}
-      {accion === 'APELAR' && (
-        <form className="ig-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
-          <h4>Apelar la decisión de la mesa (RF81)</h4>
-          <p className="muted im-nota">La mesa eleva la apelación al CEUNP, que resuelve en segunda y última instancia{i.venceApelacion ? `. Plazo: hasta el ${fecha(i.venceApelacion)}` : ''}.</p>
-          {!esPersonero && (
-            <label className="cv-field">
-              <span className="cv-label">Personero de {i.listaPersonero} que apela</span>
-              <select value={apelacion.idPersonero} disabled={saving} onChange={(e) => setApelacion((a) => ({ ...a, idPersonero: e.target.value }))}>
-                <option value="">{i.personero} (quien impugnó)</option>
-                {personerosLista.filter((p) => p.idPersonero !== i.idPersonero).map((p) => <option key={p.idPersonero} value={p.idPersonero}>{p.nombre}</option>)}
-              </select>
-            </label>
-          )}
-          <label className="cv-field">
-            <span className="cv-label">Fundamento de la apelación</span>
-            <textarea rows={3} minLength={10} maxLength={1000} required value={apelacion.fundamento} disabled={saving}
-              placeholder="Ej.: la marca está fuera del recuadro y no permite identificar la voluntad del elector; debe ser nulo."
-              onChange={(e) => setApelacion((a) => ({ ...a, fundamento: e.target.value }))} />
-          </label>
-          {!confirmando ? (
-            <div className="cv-actions">
-              <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAccion(null)}>Cancelar</button>
-              <button type="submit" className="cv-btn im-btn-peligro-solido" disabled={saving || apelacion.fundamento.trim().length < 10}>
-                <MenuIcon name="upload" size={15} /> Apelar
-              </button>
-            </div>
-          ) : (
-            <div className="cq-confirmar-emision peligro" role="alert">
-              <div>
-                <strong>¿Elevar la apelación al CEUNP?</strong>
-                <span>La cédula volverá a contarse como IMPUGNADA hasta el fallo, que es inapelable.</span>
-              </div>
-              <div className="cv-actions">
-                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setConfirmando(false)}>Volver</button>
-                <button type="button" className="cv-btn im-btn-peligro-solido" disabled={saving} onClick={onApelar}>
-                  <MenuIcon name="check" size={15} /> {saving ? 'Elevando…' : 'Confirmar apelación'}
-                </button>
-              </div>
-            </div>
-          )}
-        </form>
-      )}
-
-      {/* 11-14 · Fallo del CEUNP */}
-      {accion === 'FALLAR' && (
-        <form className="ig-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
-          <h4>Fallo del CEUNP · segunda y última instancia (RN36)</h4>
-          <div className="im-estados" role="radiogroup" aria-label="Fallo">
-            {[['CONFIRMADA', 'Confirmar la decisión de la mesa', 'conforme'], ['MODIFICADA', 'Modificar la decisión (ampara la apelación)', 'no_recibido']].map(([codigo, texto, clase]) => (
-              <label key={codigo} className={fallo.decision === codigo ? `on ${clase}` : ''}>
-                <input type="radio" name="fallo" checked={fallo.decision === codigo} disabled={saving}
-                  onChange={() => setFallo((f) => ({ ...f, decision: codigo }))} />
-                {texto}
+              <label className="cv-field">
+                <span className="cv-label">Miembros en contra</span>
+                <input type="number" min={0} max={miembros} required value={decision.votosContra} disabled={saving}
+                  onChange={(e) => setDecision((d) => ({ ...d, votosContra: e.target.value }))} />
               </label>
-            ))}
-          </div>
-          <div className="ig-grid">
-            <label className="cv-field">
-              <span className="cv-label">N.º de resolución</span>
-              <input maxLength={40} required value={fallo.numeroResolucion} disabled={saving} placeholder="Ej.: 045-2026-CEUNP"
-                onChange={(e) => setFallo((f) => ({ ...f, numeroResolucion: e.target.value }))} />
-            </label>
-            <label className="cv-field">
-              <span className="cv-label">Miembros del Pleno presentes</span>
-              <input type="number" min={1} max={30} required value={fallo.miembrosPleno} disabled={saving}
-                onChange={(e) => setFallo((f) => ({ ...f, miembrosPleno: e.target.value }))} />
-              <small className="muted">Quórum: {quorum}</small>
-            </label>
-            <label className="cv-field">
-              <span className="cv-label">Votos a favor de la apelación</span>
-              <input type="number" min={0} max={30} required value={fallo.votosFavor} disabled={saving}
-                onChange={(e) => setFallo((f) => ({ ...f, votosFavor: e.target.value }))} />
-            </label>
-            <label className="cv-field">
-              <span className="cv-label">Votos en contra</span>
-              <input type="number" min={0} max={30} required value={fallo.votosContra} disabled={saving}
-                onChange={(e) => setFallo((f) => ({ ...f, votosContra: e.target.value }))} />
-            </label>
-          </div>
-          {fEmpate && (
+            </div>
+            {dError && <small className="cv-error">{dError}</small>}
             <div className="cv-field">
-              <span className="cv-label">Voto dirimente del Presidente del CEUNP</span>
-              <div className="im-estados" role="radiogroup" aria-label="Voto dirimente">
-                {[['FAVOR', 'A favor de la apelación'], ['CONTRA', 'En contra']].map(([codigo, texto]) => (
-                  <label key={codigo} className={fallo.votoDirimente === codigo ? 'on observado' : ''}>
-                    <input type="radio" name="dirimente" checked={fallo.votoDirimente === codigo} disabled={saving}
-                      onChange={() => setFallo((f) => ({ ...f, votoDirimente: codigo }))} />
-                    {texto}
-                  </label>
-                ))}
-              </div>
+              <span className="cv-label">La cédula impugnada va a</span>
+              <OpcionCedula nombre={`op-mesa-${i.id}`} valor={decision.opcion} lista={decision.idLista} listas={listas} disabled={saving}
+                onCambiar={(opcion, idLista) => setDecision((d) => ({ ...d, opcion, idLista }))} />
             </div>
-          )}
-          {fError && <small className="cv-error">{fError}</small>}
-          {fallo.decision === 'MODIFICADA' && (
-            <div className="cv-field">
-              <span className="cv-label">Opción final de la cédula (la mesa la asignó a {textoOpcion(i.opcionMesa, i.listaMesa)})</span>
-              <OpcionCedula nombre={`op-final-${i.id}`} valor={fallo.opcion} lista={fallo.idLista} listas={listas} disabled={saving}
-                onCambiar={(opcion, idLista) => setFallo((f) => ({ ...f, opcion, idLista }))} />
-              {igualMesa && <small className="cv-error">Para modificar, elija una opción distinta de la que fijó la mesa.</small>}
-            </div>
-          )}
-          <label className="cv-field">
-            <span className="cv-label">Fundamento del fallo</span>
-            <textarea rows={3} minLength={10} maxLength={1000} required value={fallo.fundamento} disabled={saving}
-              placeholder="Ej.: revisada la cédula, la marca no permite identificar la voluntad del elector (Art. 53)."
-              onChange={(e) => setFallo((f) => ({ ...f, fundamento: e.target.value }))} />
-          </label>
-          {!confirmando ? (
-            <div className="cv-actions">
-              <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAccion(null)}>Cancelar</button>
-              <button type="submit" className="cv-btn cv-btn-success" disabled={saving || !falloListo}>
-                <MenuIcon name="scale" size={15} /> Registrar fallo
-              </button>
-            </div>
-          ) : (
-            <div className="cq-confirmar-emision" role="alert">
-              <div>
-                <strong>¿Registrar el fallo {fallo.numeroResolucion}: {fallo.decision === 'MODIFICADA' ? 'MODIFICAR' : 'CONFIRMAR'} la decisión de la mesa?</strong>
-                <span>La cédula irá a {fallo.decision === 'MODIFICADA'
-                  ? textoOpcion(fallo.opcion, listas.find((l) => String(l.idLista) === String(fallo.idLista))?.nombre)
-                  : textoOpcion(i.opcionMesa, i.listaMesa)}. El fallo es inapelable y ya no podrá cambiarse.</span>
-              </div>
+            <label className="cv-field">
+              <span className="cv-label">Fundamento</span>
+              <textarea rows={3} minLength={10} maxLength={1000} required value={decision.fundamento} disabled={saving}
+                placeholder="Ej.: la cédula lleva la firma del presidente y una sola marca dentro del recuadro de la lista; es válida."
+                onChange={(e) => setDecision((d) => ({ ...d, fundamento: e.target.value }))} />
+            </label>
+            {!confirmando ? (
               <div className="cv-actions">
-                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setConfirmando(false)}>Volver</button>
-                <button type="button" className="cv-btn cv-btn-success" disabled={saving} onClick={onFallar}>
-                  <MenuIcon name="check" size={15} /> {saving ? 'Registrando…' : 'Confirmar fallo'}
+                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAccion(null)}>Cancelar</button>
+                <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || !decisionLista}>
+                  <MenuIcon name="check" size={15} /> Registrar decisión
                 </button>
+                <Motivo>{primerMotivo([
+                  [!decision.decision, 'Elija la decisión: fundada o infundada.'],
+                  [dFavor == null || dContra == null, `Ingrese los votos a favor y en contra de los ${miembros} miembros.`],
+                  [Boolean(dError), dError],
+                  [!decision.opcion, 'Indique a qué opción va la cédula.'],
+                  [decision.opcion === 'LISTA' && !decision.idLista, 'Elija la lista a la que va la cédula.'],
+                  [decision.fundamento.trim().length < 10, 'Escriba el fundamento de la decisión (mínimo 10 caracteres).'],
+                ])}</Motivo>
               </div>
+            ) : (
+              <div className="cq-confirmar-emision" role="alert">
+                <div>
+                  <strong>¿Declarar {decision.decision === 'ACEPTADA' ? 'FUNDADA' : 'INFUNDADA'} la impugnación ({dFavor} a {dContra})?</strong>
+                  <span>La cédula irá a {textoOpcion(decision.opcion, listas.find((l) => String(l.idLista) === String(decision.idLista))?.nombre)}. {decision.decision === 'RECHAZADA' ? 'El personero podrá apelar ante el CEUNP.' : 'La decisión quedará firme.'}</span>
+                </div>
+                <div className="cv-actions">
+                  <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setConfirmando(false)}>Volver</button>
+                  <button type="button" className="cv-btn cv-btn-primary" disabled={saving} onClick={onDecidir}>
+                    <MenuIcon name="check" size={15} /> {saving ? 'Registrando…' : 'Confirmar decisión'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </form>
+        </Modal>
+
+        {/* 10 · Apelación */}
+        <Modal abierto={accion === 'APELAR'} onCerrar={() => setAccion(null)} ancho={680}
+          titulo="Apelar la decisión de la mesa (RF81)"
+          subtitulo={`Impugnación N.º ${String(i.id).padStart(4, '0')} · Mesa ${i.numeroMesa}`}>
+          {aviso}
+          <form className="ig-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
+            <p className="muted im-nota">La mesa eleva la apelación al CEUNP, que resuelve en segunda y última instancia{i.venceApelacion ? `. Plazo: hasta el ${fecha(i.venceApelacion)}` : ''}.</p>
+            {!esPersonero && (
+              <label className="cv-field">
+                <span className="cv-label">Personero de {i.listaPersonero} que apela</span>
+                <select value={apelacion.idPersonero} disabled={saving} onChange={(e) => setApelacion((a) => ({ ...a, idPersonero: e.target.value }))}>
+                  <option value="">{i.personero} (quien impugnó)</option>
+                  {personerosLista.filter((p) => p.idPersonero !== i.idPersonero).map((p) => <option key={p.idPersonero} value={p.idPersonero}>{p.nombre}</option>)}
+                </select>
+              </label>
+            )}
+            <label className="cv-field">
+              <span className="cv-label">Fundamento de la apelación</span>
+              <textarea rows={3} minLength={10} maxLength={1000} required value={apelacion.fundamento} disabled={saving}
+                placeholder="Ej.: la marca está fuera del recuadro y no permite identificar la voluntad del elector; debe ser nulo."
+                onChange={(e) => setApelacion((a) => ({ ...a, fundamento: e.target.value }))} />
+            </label>
+            {!confirmando ? (
+              <div className="cv-actions">
+                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAccion(null)}>Cancelar</button>
+                <button type="submit" className="cv-btn im-btn-peligro-solido" disabled={saving || apelacion.fundamento.trim().length < 10}>
+                  <MenuIcon name="upload" size={15} /> Apelar
+                </button>
+                <Motivo>{apelacion.fundamento.trim().length < 10 ? `Escriba el fundamento de la apelación (mínimo 10 caracteres; lleva ${apelacion.fundamento.trim().length}).` : null}</Motivo>
+              </div>
+            ) : (
+              <div className="cq-confirmar-emision peligro" role="alert">
+                <div>
+                  <strong>¿Elevar la apelación al CEUNP?</strong>
+                  <span>La cédula volverá a contarse como IMPUGNADA hasta el fallo, que es inapelable.</span>
+                </div>
+                <div className="cv-actions">
+                  <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setConfirmando(false)}>Volver</button>
+                  <button type="button" className="cv-btn im-btn-peligro-solido" disabled={saving} onClick={onApelar}>
+                    <MenuIcon name="check" size={15} /> {saving ? 'Elevando…' : 'Confirmar apelación'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </form>
+        </Modal>
+
+        {/* 11-14 · Fallo del CEUNP */}
+        <Modal abierto={accion === 'FALLAR'} onCerrar={() => setAccion(null)} ancho={820}
+          titulo="Fallo del CEUNP · segunda y última instancia (RN36)"
+          subtitulo={`Impugnación N.º ${String(i.id).padStart(4, '0')} · Mesa ${i.numeroMesa}`}>
+          {aviso}
+          <form className="ig-form" onSubmit={(e) => { e.preventDefault(); setConfirmando(true); }}>
+            <div className="im-estados" role="radiogroup" aria-label="Fallo">
+              {[['CONFIRMADA', 'Confirmar la decisión de la mesa', 'conforme'], ['MODIFICADA', 'Modificar la decisión (ampara la apelación)', 'no_recibido']].map(([codigo, texto, clase]) => (
+                <label key={codigo} className={fallo.decision === codigo ? `on ${clase}` : ''}>
+                  <input type="radio" name="fallo" checked={fallo.decision === codigo} disabled={saving}
+                    onChange={() => setFallo((f) => ({ ...f, decision: codigo }))} />
+                  {texto}
+                </label>
+              ))}
             </div>
-          )}
-        </form>
-      )}
-    </div>
+            <div className="ig-grid">
+              <label className="cv-field">
+                <span className="cv-label">N.º de resolución</span>
+                <input maxLength={40} required value={fallo.numeroResolucion} disabled={saving} placeholder="Ej.: 045-2026-CEUNP"
+                  onChange={(e) => setFallo((f) => ({ ...f, numeroResolucion: e.target.value }))} />
+              </label>
+              <label className="cv-field">
+                <span className="cv-label">Miembros del Pleno presentes</span>
+                <input type="number" min={1} max={30} required value={fallo.miembrosPleno} disabled={saving}
+                  onChange={(e) => setFallo((f) => ({ ...f, miembrosPleno: e.target.value }))} />
+                <small className="muted">Quórum: {quorum}</small>
+              </label>
+              <label className="cv-field">
+                <span className="cv-label">Votos a favor de la apelación</span>
+                <input type="number" min={0} max={30} required value={fallo.votosFavor} disabled={saving}
+                  onChange={(e) => setFallo((f) => ({ ...f, votosFavor: e.target.value }))} />
+              </label>
+              <label className="cv-field">
+                <span className="cv-label">Votos en contra</span>
+                <input type="number" min={0} max={30} required value={fallo.votosContra} disabled={saving}
+                  onChange={(e) => setFallo((f) => ({ ...f, votosContra: e.target.value }))} />
+              </label>
+            </div>
+            {fEmpate && (
+              <div className="cv-field">
+                <span className="cv-label">Voto dirimente del Presidente del CEUNP</span>
+                <div className="im-estados" role="radiogroup" aria-label="Voto dirimente">
+                  {[['FAVOR', 'A favor de la apelación'], ['CONTRA', 'En contra']].map(([codigo, texto]) => (
+                    <label key={codigo} className={fallo.votoDirimente === codigo ? 'on observado' : ''}>
+                      <input type="radio" name="dirimente" checked={fallo.votoDirimente === codigo} disabled={saving}
+                        onChange={() => setFallo((f) => ({ ...f, votoDirimente: codigo }))} />
+                      {texto}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            {fError && <small className="cv-error">{fError}</small>}
+            {fallo.decision === 'MODIFICADA' && (
+              <div className="cv-field">
+                <span className="cv-label">Opción final de la cédula (la mesa la asignó a {textoOpcion(i.opcionMesa, i.listaMesa)})</span>
+                <OpcionCedula nombre={`op-final-${i.id}`} valor={fallo.opcion} lista={fallo.idLista} listas={listas} disabled={saving}
+                  onCambiar={(opcion, idLista) => setFallo((f) => ({ ...f, opcion, idLista }))} />
+                {igualMesa && <small className="cv-error">Para modificar, elija una opción distinta de la que fijó la mesa.</small>}
+              </div>
+            )}
+            <label className="cv-field">
+              <span className="cv-label">Fundamento del fallo</span>
+              <textarea rows={3} minLength={10} maxLength={1000} required value={fallo.fundamento} disabled={saving}
+                placeholder="Ej.: revisada la cédula, la marca no permite identificar la voluntad del elector (Art. 53)."
+                onChange={(e) => setFallo((f) => ({ ...f, fundamento: e.target.value }))} />
+            </label>
+            {!confirmando ? (
+              <div className="cv-actions">
+                <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setAccion(null)}>Cancelar</button>
+                <button type="submit" className="cv-btn cv-btn-success" disabled={saving || !falloListo}>
+                  <MenuIcon name="scale" size={15} /> Registrar fallo
+                </button>
+                <Motivo>{primerMotivo([
+                  [!fallo.decision, 'Elija el fallo: confirmar o modificar la decisión de la mesa.'],
+                  [!fallo.numeroResolucion.trim(), 'Escriba el número de resolución del CEUNP.'],
+                  [fFavor == null || fContra == null, 'Ingrese los votos del Pleno a favor y en contra.'],
+                  [Boolean(fError), fError],
+                  [igualMesa, 'Para modificar, elija una opción distinta de la que fijó la mesa.'],
+                  [fallo.decision === 'MODIFICADA' && !fallo.opcion, 'Indique a qué opción va la cédula.'],
+                  [fallo.decision === 'MODIFICADA' && fallo.opcion === 'LISTA' && !fallo.idLista, 'Elija la lista a la que va la cédula.'],
+                  [fallo.fundamento.trim().length < 10, 'Escriba el fundamento del fallo (mínimo 10 caracteres).'],
+                ])}</Motivo>
+              </div>
+            ) : (
+              <div className="cq-confirmar-emision" role="alert">
+                <div>
+                  <strong>¿Registrar el fallo {fallo.numeroResolucion}: {fallo.decision === 'MODIFICADA' ? 'MODIFICAR' : 'CONFIRMAR'} la decisión de la mesa?</strong>
+                  <span>La cédula irá a {fallo.decision === 'MODIFICADA'
+                    ? textoOpcion(fallo.opcion, listas.find((l) => String(l.idLista) === String(fallo.idLista))?.nombre)
+                    : textoOpcion(i.opcionMesa, i.listaMesa)}. El fallo es inapelable y ya no podrá cambiarse.</span>
+                </div>
+                <div className="cv-actions">
+                  <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setConfirmando(false)}>Volver</button>
+                  <button type="button" className="cv-btn cv-btn-success" disabled={saving} onClick={onFallar}>
+                    <MenuIcon name="check" size={15} /> {saving ? 'Registrando…' : 'Confirmar fallo'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </form>
+        </Modal>
+      </div>
+    </Drawer>
   );
 }

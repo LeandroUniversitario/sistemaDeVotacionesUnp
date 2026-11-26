@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { apiRequest, apiUrl } from '../../api/apiClient';
+import { apiRequest, mensajePorEstado, pedir } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import Motivo from '../../components/Motivo';
 import '../convocatoria/convocatoria.css';
 import './padron.css';
 
@@ -42,7 +43,7 @@ async function subirArchivo(path, archivo) {
   const token = sessionStorage.getItem('accessToken');
   const form = new FormData();
   form.append('archivo', archivo);
-  const response = await fetch(apiUrl(path), {
+  const response = await pedir(path, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
@@ -52,7 +53,7 @@ async function subirArchivo(path, archivo) {
     throw new Error('SESSION_EXPIRED');
   }
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.detail || data.error || data.message || 'No se pudo importar el archivo.');
+  if (!response.ok) throw new Error(data.detail || data.message || (data.error && data.error !== 'Forbidden' ? data.error : null) || mensajePorEstado(response.status));
   return data;
 }
 
@@ -580,6 +581,7 @@ export default function PadronPage({ session, onChange, onSessionExpired }) {
               title={resumen?.depuracionVigente ? '' : 'Depure el padrón para continuar'}>
               Continuar a aprobar
             </button>
+            <Motivo>{!resumen?.depuracionVigente ? 'Primero ejecute la depuración del padrón (botón «Depurar») con los docentes importados; luego podrá aprobarlo.' : null}</Motivo>
           </div>
         </section>
       )}
@@ -651,6 +653,9 @@ export default function PadronPage({ session, onChange, onSessionExpired }) {
                   <button type="button" className="cv-btn cv-btn-success" disabled={!aprobable || saving} onClick={() => setConfirmando(true)}>
                     <MenuIcon name="check" size={15} /> {yaAprobado ? 'Regenerar padrón definitivo' : 'Aprobar padrón definitivo'}
                   </button>
+                  <Motivo>{!aprobable ? (requisitos.length
+                    ? `Falta: ${requisitos.filter((r) => !r.cumple).map((r) => r.descripcion).join(' · ')}.`
+                    : 'Elija un proceso electoral con cargos para poder aprobar su padrón.') : null}</Motivo>
                 </div>
               </div>
 

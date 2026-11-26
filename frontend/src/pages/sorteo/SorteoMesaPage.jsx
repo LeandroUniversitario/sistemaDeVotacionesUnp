@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import Motivo, { primerMotivo } from '../../components/Motivo';
 import '../convocatoria/convocatoria.css';
 import '../padron/padron.css';
 import '../inscripcion/inscripcion.css';
@@ -187,7 +188,7 @@ export default function SorteoMesaPage({ onSessionExpired }) {
             <MenuIcon name={admite ? 'sorteo' : 'lock'} size={18} />
             <div>
               <strong>{admite ? 'Sorteos habilitados' : 'Sorteos cerrados'}</strong>
-              <span>{admite ? `${num(proceso.electoresPadron)} electores en el padrón · los sorteos se hacen antes de la votación` : `El proceso está en ${proceso.estado}.`}</span>
+              <span>{admite ? `${num(proceso.electoresPadron)} electores en el padrón · los sorteos se hacen antes de la votación` : `El proceso está en ${proceso.estado}: las mesas y los sorteos solo se hacen en las etapas CREADO o INSCRIPCIÓN (antes de la votación).`}</span>
             </div>
           </div>
         )}
@@ -255,6 +256,10 @@ export default function SorteoMesaPage({ onSessionExpired }) {
                     <button type="submit" className="cv-btn cv-btn-primary" disabled={saving || !admite || num(mesasForm.electoresPorMesa) < 6}>
                       <MenuIcon name="table" size={15} /> {saving ? 'Conformando…' : 'Conformar mesas'}
                     </button>
+                    <Motivo>{primerMotivo([
+                      [!admite, `No se pueden conformar mesas: el proceso está en ${proceso.estado} (solo en CREADO o INSCRIPCIÓN).`],
+                      [num(mesasForm.electoresPorMesa) < 6, 'Ingrese el máximo de electores por mesa: mínimo 6 (se necesitan 6 docentes por mesa para sortear sus miembros, RN19).'],
+                    ])}</Motivo>
                   </div>
                 </>
               )}
@@ -343,6 +348,8 @@ export default function SorteoMesaPage({ onSessionExpired }) {
                   onClick={() => setConfirmando(true)}>
                   <MenuIcon name="sorteo" size={15} /> Realizar sorteo
                 </button>
+                <Motivo>{insuficientes.length > 0
+                  ? `RN19: ${insuficientes.map((m) => `la mesa ${m.numeroMesa} tiene ${m.elegibles} docente(s) elegible(s)`).join(', ')}; cada mesa necesita 6. Vuelva a conformar las mesas con más electores por mesa.` : null}</Motivo>
               </div>
 
               {preview && (

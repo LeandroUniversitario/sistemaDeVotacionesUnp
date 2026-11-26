@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/apiClient';
 import MenuIcon from '../../components/MenuIcon';
+import { Modal, useMantenerEnVista } from '../../components/Ventana';
+import Motivo, { primerMotivo } from '../../components/Motivo';
 import '../convocatoria/convocatoria.css';
 import '../padron/padron.css';
 import '../inscripcion/inscripcion.css';
@@ -46,6 +48,8 @@ export default function PersonerosPage({ onSessionExpired }) {
   // Revocación
   const [revocando, setRevocando] = useState(null);  // personero
   const [motivo, setMotivo] = useState('');
+  // Maestro-detalle: si el detalle queda fuera de la vista (pantallas angostas o listas largas), se trae a la vista
+  const trabajoRef = useMantenerEnVista(idLista, { tambienAbajo: true });
 
   function manejarError(error) {
     if (error.message === 'SESSION_EXPIRED') onSessionExpired?.();
@@ -192,7 +196,7 @@ export default function PersonerosPage({ onSessionExpired }) {
             <MenuIcon name={admite ? 'person' : 'lock'} size={18} />
             <div>
               <strong>{admite ? 'Acreditación abierta' : 'Acreditación cerrada'}</strong>
-              <span>{admite ? `${totalMesas} mesa${totalMesas === 1 ? '' : 's'} de sufragio creada${totalMesas === 1 ? '' : 's'}` : `El proceso está en ${detalle.proceso.estado}.`}</span>
+              <span>{admite ? `${totalMesas} mesa${totalMesas === 1 ? '' : 's'} de sufragio creada${totalMesas === 1 ? '' : 's'}` : `El proceso está en ${detalle.proceso.estado}: los personeros solo se acreditan en las etapas INSCRIPCIÓN o VOTACIÓN.`}</span>
             </div>
           </div>
         )}
@@ -235,7 +239,7 @@ export default function PersonerosPage({ onSessionExpired }) {
         </aside>
 
         {/* ── Lista seleccionada ───────────────────────────────── */}
-        <section className="in-work">
+        <section className="in-work" ref={trabajoRef}>
           {!lista && (
             <div className="panel cv-placeholder">
               <span className="cv-placeholder-icon"><MenuIcon name="person" size={28} /></span>
@@ -288,19 +292,24 @@ export default function PersonerosPage({ onSessionExpired }) {
                   </div>
                 )}
 
+                {/* Revocar (fila): formulario en ventana centrada */}
                 {revocando && (
-                  <div className="ps-revocar">
-                    <label className="cv-field">
-                      <span className="cv-label">Motivo para revocar a {revocando.docente}</span>
-                      <input value={motivo} maxLength={500} placeholder="Ej.: renuncia presentada por la lista" onChange={(e) => setMotivo(e.target.value)} />
-                    </label>
-                    <div className="cv-actions">
-                      <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setRevocando(null)}>Cancelar</button>
-                      <button type="button" className="cv-btn tc-btn-danger ps-danger" disabled={saving || motivo.trim().length < 10} onClick={revocar}>
-                        Revocar acreditación
-                      </button>
+                  <Modal onCerrar={() => setRevocando(null)} ancho={560} titulo="Revocar acreditación"
+                    subtitulo={`${revocando.docente} · personero ${revocando.tipo.toLowerCase()} de «${lista.nombre}»`}>
+                    {feedback && <div className={`alert ${feedback.type}`} role="status" onClick={() => setFeedback(null)}>{feedback.text}</div>}
+                    <div className="ps-revocar">
+                      <label className="cv-field">
+                        <span className="cv-label">Motivo para revocar a {revocando.docente}</span>
+                        <input autoFocus value={motivo} maxLength={500} placeholder="Ej.: renuncia presentada por la lista" onChange={(e) => setMotivo(e.target.value)} />
+                      </label>
+                      <div className="cv-actions">
+                        <button type="button" className="cv-btn cv-btn-ghost" onClick={() => setRevocando(null)}>Cancelar</button>
+                        <button type="button" className="cv-btn tc-btn-danger ps-danger" disabled={saving || motivo.trim().length < 10} onClick={revocar}>
+                          Revocar acreditación
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  </Modal>
                 )}
               </div>
 
@@ -371,6 +380,11 @@ export default function PersonerosPage({ onSessionExpired }) {
                             <button type="button" className="cv-btn cv-btn-success" disabled={saving || !listoParaConfirmar} onClick={confirmarAcreditacion}>
                               <MenuIcon name="check" size={15} /> {saving ? 'Acreditando…' : 'Confirmar acreditación'}
                             </button>
+                            <Motivo>{primerMotivo([
+                              [!tipo, 'Elija el tipo de personero.'],
+                              [tipo && !cupoDisponible(tipo), tipo === 'MESA' && totalMesas === 0 ? 'Aún no hay mesas de sufragio: el CEUNP debe conformarlas en «Sorteos» (CUS06).' : 'El cupo de ese tipo de personero ya está ocupado para esta lista.'],
+                              [tipo === 'MESA' && !idMesa, 'Elija la mesa de sufragio del personero.'],
+                            ])}</Motivo>
                           </div>
                         </>
                       )}

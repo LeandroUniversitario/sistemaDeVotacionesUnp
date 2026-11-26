@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import MenuIcon from '../components/MenuIcon';
-import { apiUrl } from '../api/apiClient';
+import { mensajePorEstado, pedir } from '../api/apiClient';
 
 /**
  * Página de inicio de sesión.
@@ -20,13 +20,15 @@ export default function LoginPage({ onLogin }) {
     setError('');
     setLoading(true);
     try {
-      const response = await fetch(apiUrl('/api/auth/login'), {
+      const response = await pedir('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
       if (!response.ok) {
-        let message = 'No se pudo iniciar sesión.';
+        let message = response.status === 403 || response.status === 423
+          ? 'La cuenta está bloqueada o inactiva: comuníquese con el administrador del sistema.'
+          : response.status >= 500 ? mensajePorEstado(response.status) : 'No se pudo iniciar sesión.';
         try {
           const errData = await response.json();
           if (errData.detail) {
