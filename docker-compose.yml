@@ -1,0 +1,73 @@
+services:
+
+  # ─── 1. BASE DE DATOS ─────────────────────────────────────────────────────
+  db:
+    image: mariadb:10.11
+    container_name: elecciones_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: elecciones2026
+      MYSQL_DATABASE:      elecciones_unp
+      MYSQL_USER:          elecciones_user
+      MYSQL_PASSWORD:      elecciones2026
+    ports:
+      - "3306:3306"               # Acceso desde DBeaver / phpMyAdmin externo
+    volumes:
+      - datos_mariadb:/var/lib/mysql          # Datos persistentes
+      - ./base-de-datos/00_script_unico_elecciones_unp.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    networks:
+      - red_elecciones
+
+  # ─── 2. BACKEND (Spring Boot) ─────────────────────────────────────────────
+  backend:
+    image: elecciones-unp-backend:1.0
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: elecciones_backend
+    restart: unless-stopped
+    environment:
+      PORT:         8080
+      DB_URL:       jdbc:mariadb://db:3306/elecciones_unp
+      DB_USERNAME:  elecciones_user
+      DB_PASSWORD:  elecciones2026
+      JWT_SECRET:   "s3cr3t0-para-presentacion-unp-2026-no-cambiar"
+      JWT_EXPIRATION: PT8H
+    ports:
+      - "8080:8080"               # API disponible en localhost:8080
+    depends_on:
+      db:
+        condition: service_healthy   # Espera a que MariaDB esté lista
+    networks:
+      - red_elecciones
+
+  # ─── 3. FRONTEND (React → Nginx) ─────────────────────────────────────────
+  frontend:
+    image: elecciones-unp-frontend:1.0
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: elecciones_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"                 # App disponible en http://localhost:3000
+    depends_on:
+      - backend
+    networks:
+      - red_elecciones
+
+# ─── VOLÚMENES ───────────────────────────────────────────────────────────────
+volumes:
+  datos_mariadb:
+    name: elecciones_datos_mariadb
+
+# ─── RED INTERNA ─────────────────────────────────────────────────────────────
+networks:
+  red_elecciones:
+    name: red_elecciones
